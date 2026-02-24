@@ -83,7 +83,7 @@ Key files:
 ### TypeScript (Frontend)
 - Functional components with hooks, props interfaces inline
 - Union types for enums: `type Pace = 'relaxed' | 'moderate' | 'packed'`
-- Exemplar: [TripInputForm.tsx](../frontend/src/components/TripInputForm.tsx)
+- Exemplar: [JourneyInputForm.tsx](../frontend/src/components/JourneyInputForm.tsx)
 
 ## Build and Test
 

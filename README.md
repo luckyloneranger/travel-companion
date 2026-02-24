@@ -1,21 +1,28 @@
 # Travel Companion
 
-AI-powered travel itinerary generator using Azure OpenAI and Google APIs.
+AI-powered travel planning application with single-city itineraries and multi-city journey planning using Azure OpenAI and Google APIs.
 
 ## Features
 
-- 🤖 **AI-Powered Planning**: Intelligent itinerary generation based on your interests
-- 🗺️ **Smart Routing**: Optimized visit order using TSP algorithms to minimize walking
-- ⏰ **Real-Time Data**: Actual opening hours, ratings, and travel times from Google APIs
-- 📍 **Interactive Maps**: Visualize your itinerary with route polylines
-- 🎯 **Personalized**: Match your preferred pace (relaxed/moderate/packed)
+- 🌍 **Multi-City Journey Planning**: Plan trips across multiple cities with intelligent city selection and travel routing (V6 architecture)
+- 🗓️ **Single-City Day Plans**: Detailed daily itineraries with optimized routes and time slots
+- 🤖 **AI-Powered Planning**: LLM-driven place selection, theming, and creative recommendations
+- 🗺️ **Smart Routing**: TSP-based route optimization to minimize travel time
+- ⏰ **Real-Time Data**: Live opening hours, ratings, and travel times from Google APIs
+- 📊 **Quality Scoring**: 7-metric evaluation system for itinerary quality
+- 🚀 **SSE Streaming**: Real-time progress updates during generation
 
 ## Architecture
 
-This project uses a **hybrid AI + deterministic** approach:
+**Hybrid AI + Deterministic approach**:
+- **AI Layer (Azure OpenAI GPT-4o)**: Creative decisions - city selection, place selection, theming, tips
+- **Deterministic Layer**: Route optimization, schedule building, time calculations, validation
 
-- **AI Layer (Azure OpenAI)**: Selection, theming, creative tips
-- **Deterministic Layer**: Route optimization, schedule building, time calculations
+**Two Generation Modes**:
+| Mode | Use Case | Time | Description |
+|------|----------|------|-------------|
+| **FAST** | Single city | ~15-30s | Single-pass AI planning + route optimization |
+| **JOURNEY (V6)** | Multi-city | ~2-5min | Scout → Enrich → Review → Planner iterative loop |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
@@ -23,15 +30,17 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
 ### Backend
 - **Framework**: FastAPI (Python 3.11+)
-- **AI**: Azure OpenAI GPT-4
+- **AI**: Azure OpenAI GPT-4o
 - **APIs**: Google Places API (New), Google Routes API
 - **Validation**: Pydantic v2
+- **HTTP Client**: httpx (async)
 
 ### Frontend
 - **Framework**: React 18 + TypeScript
 - **Build**: Vite
 - **Styling**: Tailwind CSS
-- **Maps**: Google Maps JavaScript API
+- **State**: React hooks
+- **Streaming**: Server-Sent Events (SSE)
 
 ## Prerequisites
 
@@ -45,7 +54,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 ### 1. Clone and Setup
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/luckyloneranger/travel-companion.git
 cd travel-companion
 ```
 
@@ -114,10 +123,34 @@ Open http://localhost:5173 in your browser.
 
 ## API Endpoints
 
-### POST /api/itinerary
-Generate a travel itinerary.
+### Single-City Itinerary
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/itinerary` | POST | Generate a single-city day itinerary |
+| `/api/itinerary/stream` | POST | Generate with SSE progress updates |
+| `/api/itinerary/tips` | POST | Generate activity tips for places |
+| `/api/itinerary/quality` | POST | Evaluate itinerary quality score |
 
-**Request:**
+### Multi-City Journey (V6)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/journey/plan/stream` | POST | Generate multi-city journey plan with SSE |
+| `/api/journey/days/stream` | POST | Generate detailed day plans for journey |
+
+### Example: Journey Request
+```json
+{
+  "origin": "Bangalore, India",
+  "region": "Vietnam",
+  "total_days": 14,
+  "start_date": "2026-03-01",
+  "interests": ["culture", "food", "history", "nature"],
+  "pace": "moderate",
+  "return_to_origin": false
+}
+```
+
+### Example: Single-City Request
 ```json
 {
   "destination": "Paris, France",
@@ -136,21 +169,50 @@ Health check endpoint.
 ```
 travel-companion/
 ├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI app
-│   │   ├── config.py            # Settings
-│   │   ├── models/              # Pydantic models
-│   │   ├── services/            # Business logic
-│   │   └── routers/             # API endpoints
-│   ├── tests/
-│   └── requirements.txt
+│   └── app/
+│       ├── main.py                    # FastAPI application
+│       ├── config/                    # Settings & tuning
+│       │   ├── settings.py            # Environment config
+│       │   ├── tuning.py              # Tunable parameters
+│       │   ├── planning.py            # Pace configs
+│       │   └── regional_transport.py  # Transport by region
+│       ├── core/
+│       │   ├── clients/               # HTTP & OpenAI clients
+│       │   └── middleware/            # Request tracing
+│       ├── prompts/                   # Centralized prompts (.md)
+│       │   ├── journey/               # Scout, reviewer, planner
+│       │   ├── day_plan/              # Planning, validation
+│       │   └── tips/                  # Tips generation
+│       ├── generators/
+│       │   ├── journey_plan/v6/       # Multi-city planning
+│       │   │   ├── orchestrator.py    # Main coordinator
+│       │   │   ├── scout.py           # City selection
+│       │   │   ├── enricher.py        # Google API grounding
+│       │   │   ├── reviewer.py        # Quality evaluation
+│       │   │   └── planner.py         # Issue resolution
+│       │   ├── day_plan/
+│       │   │   ├── fast/              # Single-pass generator
+│       │   │   └── quality/           # 7-metric scorer
+│       │   └── tips/                  # Activity tips
+│       ├── models/                    # Pydantic models
+│       ├── routers/                   # API endpoints
+│       │   ├── itinerary.py           # Single-city
+│       │   └── journey.py             # Multi-city
+│       ├── services/
+│       │   ├── external/              # Azure OpenAI, Google APIs
+│       │   └── internal/              # Optimizer, scheduler
+│       └── utils/                     # Geo, JSON helpers
 ├── frontend/
-│   ├── src/
-│   │   ├── components/          # React components
-│   │   ├── services/            # API client
-│   │   └── types/               # TypeScript types
-│   └── package.json
-├── ARCHITECTURE.md              # Design documentation
+│   └── src/
+│       ├── App.tsx                    # Main app
+│       ├── components/
+│       │   ├── JourneyInputForm.tsx   # Trip input form
+│       │   ├── V6JourneyPlanView/     # Journey visualization
+│       │   ├── GenerationProgress.tsx # SSE progress display
+│       │   └── Header.tsx             # App header
+│       ├── services/api.ts            # API client with SSE
+│       └── types/                     # TypeScript types
+├── ARCHITECTURE.md                    # Design documentation
 └── README.md
 ```
 
@@ -161,11 +223,9 @@ travel-companion/
 ```bash
 # Backend tests
 cd backend
-pytest
-
-# Frontend tests (when added)
-cd frontend
-npm test
+pytest                    # Run all tests
+pytest --cov              # With coverage
+pytest -k "quality"       # Run specific tests
 ```
 
 ### Code Formatting
@@ -179,7 +239,19 @@ isort .
 # Frontend
 cd frontend
 npm run lint
+npm run build
 ```
+
+## Quality Evaluation
+
+The itinerary scorer evaluates plans across 7 metrics:
+- **Duration Balance**: Appropriate time at each place
+- **Geographic Efficiency**: Minimized backtracking
+- **Meal Timing**: Meals at appropriate times
+- **Opening Hours**: Places visited when open
+- **Theme Alignment**: Activities match interests
+- **Travel Efficiency**: Reasonable transit times
+- **Variety**: Mix of activity types
 
 ## License
 

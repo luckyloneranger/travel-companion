@@ -95,6 +95,8 @@ Step 7: ENRICHMENT (LLM + Deterministic)
 7. [Frontend Components](#frontend-components)
 8. [Implementation Phases](#implementation-phases)
 9. [File Structure](#file-structure)
+10. [Journey Planning Architecture (V6)](#journey-planning-architecture-v6)
+11. [Quality Scoring System](#quality-scoring-system)
 
 ---
 
@@ -2205,40 +2207,95 @@ MOBILE (stacked with toggle):
 
 ```
 travel-companion/
-├── ARCHITECTURE.md              # This file
-├── README.md                    # Project overview & setup instructions
+├── ARCHITECTURE.md                    # This file - design documentation
+├── README.md                          # Project overview & setup instructions
 ├── .gitignore
-├── docker-compose.yml           # Local development setup
+├── .github/
+│   └── copilot-instructions.md        # AI agent guidelines
 │
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI app initialization
-│   │   ├── config.py            # Environment & settings
+│   │   ├── main.py                    # FastAPI app initialization
 │   │   │
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   └── itinerary.py     # Pydantic models
+│   │   ├── config/                    # Settings & tuning
+│   │   │   ├── settings.py            # Environment config (Pydantic Settings)
+│   │   │   ├── tuning.py              # Tunable parameters (frozen dataclasses)
+│   │   │   ├── planning.py            # Pace configs, duration estimates
+│   │   │   └── regional_transport.py  # Transport profiles by region
+│   │   │
+│   │   ├── core/
+│   │   │   ├── clients/               # HTTP & OpenAI client pools
+│   │   │   │   ├── http.py            # Shared httpx.AsyncClient
+│   │   │   │   └── openai.py          # OpenAIClient singleton
+│   │   │   └── middleware/            # Request tracing, logging
+│   │   │
+│   │   ├── prompts/                   # CENTRALIZED prompt templates (.md files)
+│   │   │   ├── loader.py              # PromptLoader class, cached loading
+│   │   │   ├── journey/               # Scout, reviewer, planner prompts
+│   │   │   ├── day_plan/              # Planning, validation prompts
+│   │   │   └── tips/                  # Tips generation prompts
+│   │   │
+│   │   ├── generators/                # Generation pipelines
+│   │   │   ├── journey_plan/          # Multi-city trip planning
+│   │   │   │   ├── request.py         # JourneyRequest model
+│   │   │   │   └── v6/                # V6 LLM-first approach
+│   │   │   │       ├── orchestrator.py    # Main coordinator
+│   │   │   │       ├── scout.py           # City selection
+│   │   │   │       ├── enricher.py        # Google API grounding
+│   │   │   │       ├── reviewer.py        # Quality evaluation
+│   │   │   │       ├── planner.py         # Issue resolution
+│   │   │   │       ├── day_plan_generator.py  # Daily itinerary
+│   │   │   │       └── models.py          # V6 data models
+│   │   │   ├── day_plan/              # Single-city itinerary
+│   │   │   │   ├── fast/              # Single-pass mode
+│   │   │   │   │   ├── generator.py   # FastItineraryGenerator
+│   │   │   │   │   └── ai_service.py  # AI orchestration
+│   │   │   │   └── quality/           # Itinerary quality evaluation
+│   │   │   │       ├── scorer.py      # ItineraryScorer
+│   │   │   │       └── evaluators/    # 7 metric evaluators
+│   │   │   │           ├── base.py
+│   │   │   │           ├── duration.py
+│   │   │   │           ├── geographic.py
+│   │   │   │           ├── meal_timing.py
+│   │   │   │           ├── opening_hours.py
+│   │   │   │           ├── theme_alignment.py
+│   │   │   │           ├── travel_efficiency.py
+│   │   │   │           └── variety.py
+│   │   │   └── tips/                  # Activity tips generation
+│   │   │       └── generator.py
+│   │   │
+│   │   ├── models/                    # Shared Pydantic models
+│   │   │   └── itinerary.py
 │   │   │
 │   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   ├── azure_openai.py  # Azure OpenAI integration
-│   │   │   ├── google_places.py # Google Places API
-│   │   │   ├── google_routes.py # Google Routes API
-│   │   │   └── itinerary_generator.py  # Orchestration
+│   │   │   ├── external/              # API wrappers
+│   │   │   │   ├── azure_openai.py    # AzureOpenAIService
+│   │   │   │   ├── google_places.py   # GooglePlacesService
+│   │   │   │   └── google_routes.py   # GoogleRoutesService
+│   │   │   └── internal/              # Algorithms
+│   │   │       ├── route_optimizer.py # TSP optimization
+│   │   │       ├── schedule_builder.py
+│   │   │       └── transport_validator.py
 │   │   │
-│   │   └── routers/
-│   │       ├── __init__.py
-│   │       └── itinerary.py     # /api/itinerary endpoint
+│   │   ├── routers/                   # API endpoints
+│   │   │   ├── itinerary.py           # Single-city: /api/itinerary
+│   │   │   └── journey.py             # Multi-city: /api/journey
+│   │   │
+│   │   └── utils/
+│   │       ├── geo.py                 # Geocoding utilities
+│   │       ├── json_helpers.py
+│   │       └── place_classifier.py
 │   │
 │   ├── tests/
-│   │   ├── __init__.py
+│   │   ├── conftest.py
 │   │   ├── test_itinerary.py
-│   │   └── conftest.py
+│   │   ├── test_itinerary_quality.py
+│   │   ├── test_journey_live.py
+│   │   └── test_quality.py
 │   │
 │   ├── requirements.txt
-│   ├── .env.example
-│   └── Dockerfile
+│   └── .env.example
 │
 ├── frontend/
 │   ├── src/
@@ -2248,41 +2305,66 @@ travel-companion/
 │   │   │
 │   │   ├── components/
 │   │   │   ├── Header.tsx
-│   │   │   ├── TripInputForm/
-│   │   │   │   ├── index.tsx
-│   │   │   │   ├── DestinationInput.tsx
-│   │   │   │   ├── DateRangePicker.tsx
-│   │   │   │   ├── InterestSelector.tsx
-│   │   │   │   └── PaceSelector.tsx
-│   │   │   ├── ItineraryView/
-│   │   │   │   ├── index.tsx
-│   │   │   │   ├── DaySelector.tsx
-│   │   │   │   ├── DayCard.tsx
-│   │   │   │   ├── ActivityCard.tsx
-│   │   │   │   └── RouteConnector.tsx
-│   │   │   └── MapView/
-│   │   │       └── index.tsx
+│   │   │   ├── JourneyInputForm.tsx       # Trip input form
+│   │   │   ├── GenerationProgress.tsx     # SSE progress display
+│   │   │   ├── ErrorBoundary.tsx
+│   │   │   └── V6JourneyPlanView/         # Journey visualization
+│   │   │       ├── index.tsx
+│   │   │       ├── CityCard.tsx
+│   │   │       ├── DayCard.tsx
+│   │   │       ├── ActivityCard.tsx
+│   │   │       ├── TravelLegCard.tsx
+│   │   │       └── CityDaySection.tsx
 │   │   │
 │   │   ├── services/
-│   │   │   └── api.ts           # Backend API client
+│   │   │   └── api.ts                 # API client with SSE streaming
 │   │   │
-│   │   ├── types/
-│   │   │   └── itinerary.ts     # TypeScript interfaces
-│   │   │
-│   │   └── hooks/
-│   │       └── useItinerary.ts
+│   │   └── types/
+│   │       ├── itinerary.ts
+│   │       └── journey.ts
 │   │
-│   ├── public/
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   └── Dockerfile
-│
-└── docs/
-    ├── api.md                   # API documentation
-    └── deployment.md            # Deployment guide
+│   └── tailwind.config.js
 ```
+
+---
+
+## Journey Planning Architecture (V6)
+
+The V6 multi-city journey planning uses an iterative LLM-first approach:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    V6 JOURNEY PLANNING PIPELINE                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   1. SCOUT (LLM)                                                             │
+│      └─→ Suggests cities based on region, interests, and duration           │
+│                                                                              │
+│   2. ENRICHER (Google APIs)                                                  │
+│      └─→ Validates cities, adds coordinates, calculates travel times        │
+│                                                                              │
+│   3. REVIEWER (LLM)                                                          │
+│      └─→ Evaluates plan for feasibility and quality                         │
+│                                                                              │
+│   4. PLANNER (LLM)                                                           │
+│      └─→ Fixes issues identified by Reviewer (may loop back to step 3)      │
+│                                                                              │
+│   5. DAY PLAN GENERATOR                                                      │
+│      └─→ Creates detailed daily itineraries using FastItineraryGenerator    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+- **Orchestrator** (`v6/orchestrator.py`): Coordinates the entire pipeline
+- **Scout** (`v6/scout.py`): LLM-based city selection
+- **Enricher** (`v6/enricher.py`): Google APIs for grounding
+- **Reviewer** (`v6/reviewer.py`): Quality evaluation
+- **Planner** (`v6/planner.py`): Issue resolution
 
 ---
 
@@ -2293,7 +2375,7 @@ travel-companion/
 # Azure OpenAI
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 AZURE_OPENAI_API_KEY=your-api-key
-AZURE_OPENAI_DEPLOYMENT=gpt-4
+AZURE_OPENAI_DEPLOYMENT=gpt-4o
 AZURE_OPENAI_API_VERSION=2024-02-15-preview
 
 # Google APIs
@@ -2314,10 +2396,18 @@ VITE_GOOGLE_MAPS_API_KEY=your-maps-api-key
 
 ---
 
-## Next Steps
+## Quality Scoring System
 
-1. **Review this plan** - Any changes to architecture or scope?
-2. **Set up API keys** - Ensure Azure OpenAI and Google APIs are ready
-3. **Start implementation** - Begin with Phase 1 (Backend Foundation)
+The itinerary quality scorer evaluates plans across 7 weighted metrics:
 
-Ready to proceed? Say "start building" to begin implementation!
+| Evaluator | Weight | Description |
+|-----------|--------|-------------|
+| Duration Balance | 15% | Appropriate time allocated at each place |
+| Geographic Efficiency | 15% | Minimized backtracking and wasted travel |
+| Meal Timing | 15% | Meals at appropriate times of day |
+| Opening Hours | 20% | Places visited when actually open |
+| Theme Alignment | 10% | Activities match user interests |
+| Travel Efficiency | 10% | Reasonable transit times between activities |
+| Variety | 15% | Mix of activity types (museums, outdoor, dining) |
+
+Each evaluator implements `BaseEvaluator` and returns a `MetricResult` with score (0-100) and details.
