@@ -141,6 +141,13 @@ class TransportOptions:
         if not self.bus_routes:
             return None
         return min(self.bus_routes, key=lambda r: r.duration_seconds)
+    
+    @property
+    def best_ferry(self) -> Optional[TransitRoute]:
+        """Get the fastest ferry route."""
+        if not self.ferry_routes:
+            return None
+        return min(self.ferry_routes, key=lambda r: r.duration_seconds)
 
 
 class GoogleDirectionsService:
@@ -437,54 +444,3 @@ class GoogleDirectionsService:
             rail_routes=actual_rail,
             bus_routes=actual_bus,
         )
-    
-    async def build_transport_matrix(
-        self,
-        cities: list[str],
-        include_origin: Optional[str] = None,
-    ) -> dict[str, TransportOptions]:
-        """
-        Build a transport matrix for all city pairs.
-        
-        Args:
-            cities: List of city names
-            include_origin: If provided, also include routes from this origin
-            
-        Returns:
-            Dict mapping "CityA→CityB" to TransportOptions
-        """
-        # Build list of all pairs we need
-        all_cities = cities.copy()
-        if include_origin and include_origin not in all_cities:
-            all_cities = [include_origin] + all_cities
-        
-        pairs = []
-        for i, origin in enumerate(all_cities):
-            for dest in all_cities[i+1:]:
-                pairs.append((origin, dest))
-                pairs.append((dest, origin))  # Both directions
-        
-        logger.info(f"[Directions] Building transport matrix for {len(pairs)} city pairs")
-        
-        # Query all pairs in parallel (with some rate limiting)
-        BATCH_SIZE = 5  # Google has rate limits
-        matrix = {}
-        
-        for i in range(0, len(pairs), BATCH_SIZE):
-            batch = pairs[i:i+BATCH_SIZE]
-            tasks = [self.get_all_transport_options(o, d) for o, d in batch]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            for (origin, dest), result in zip(batch, results):
-                key = f"{origin}→{dest}"
-                if isinstance(result, Exception):
-                    logger.error(f"Error for {key}: {result}")
-                    matrix[key] = TransportOptions(origin=origin, destination=dest)
-                else:
-                    matrix[key] = result
-            
-            # Small delay between batches to respect rate limits
-            if i + BATCH_SIZE < len(pairs):
-                await asyncio.sleep(0.2)
-        
-        return matrix

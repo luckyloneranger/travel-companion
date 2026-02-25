@@ -13,6 +13,7 @@ import {
   Building2,
   Sparkles,
 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 export interface ProgressEvent {
   type: 'progress' | 'complete' | 'error';
@@ -20,6 +21,15 @@ export interface ProgressEvent {
   message?: string;
   progress?: number;
   data?: Record<string, unknown>;
+}
+
+// Track city progress for dynamic cards
+interface CityProgressState {
+  name: string;
+  index: number;
+  days: number;
+  progress: number;
+  status: 'pending' | 'in-progress' | 'complete' | 'error';
 }
 
 interface GenerationProgressProps {
@@ -99,6 +109,10 @@ const MODE_COLORS = {
 };
 
 export function GenerationProgress({ progress, destinationName, mode = 'journey' }: GenerationProgressProps) {
+  // Track city progress history for day-plans mode
+  const [cityStates, setCityStates] = useState<CityProgressState[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
   // Detect mode from phase if not explicitly set
   const detectedMode = progress?.phase?.includes('city_') ? 'day-plans' : 
     ['scout', 'enrich', 'review', 'planner'].includes(progress?.phase || '') ? 'journey' : mode;
@@ -112,11 +126,70 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
   const currentPhase = progress?.phase || '';
   const currentPhaseIndex = phases.findIndex(p => currentPhase.startsWith(p.id));
   
-  // For day plans, we show city progress differently
+  // For day plans, extract city info from progress
   const cityName = progress?.data?.city_name as string | undefined;
   const cityIndex = progress?.data?.city_index as number | undefined;
   const totalCities = progress?.data?.total_cities as number | undefined;
   const cityProgress = progress?.data?.city_progress as number | undefined;
+  const cityDays = progress?.data?.city_days as number | undefined;
+  
+  // Update city states when progress changes (day-plans mode)
+  useEffect(() => {
+    if (detectedMode !== 'day-plans' || !cityName || cityIndex === undefined) return;
+    
+    setCityStates(prev => {
+      // Create a copy to work with
+      const updated = [...prev];
+      
+      // Find if this city already exists
+      const existingIdx = updated.findIndex(c => c.index === cityIndex);
+      
+      const newState: CityProgressState = {
+        name: cityName,
+        index: cityIndex,
+        days: cityDays || 0,
+        progress: cityProgress || 0,
+        status: currentPhase === 'city_complete' ? 'complete' : 
+                currentPhase === 'city_error' ? 'error' : 'in-progress',
+      };
+      
+      if (existingIdx >= 0) {
+        // Update existing city
+        updated[existingIdx] = newState;
+      } else {
+        // Add new city - insert at correct position based on index
+        updated.push(newState);
+        // Sort by index to maintain order
+        updated.sort((a, b) => a.index - b.index);
+      }
+      
+      // When a new city starts, mark all previous (lower index) cities as complete
+      // This handles cases where city_complete events might be missed due to rapid updates
+      if (currentPhase === 'city_start') {
+        for (let i = 0; i < updated.length; i++) {
+          if (updated[i].index < cityIndex && updated[i].status === 'in-progress') {
+            updated[i] = { ...updated[i], status: 'complete', progress: 100 };
+          }
+        }
+      }
+      
+      return updated;
+    });
+  }, [detectedMode, cityName, cityIndex, cityDays, cityProgress, currentPhase]);
+  
+  // Reset city states when starting fresh (only on actual reset, not on 0%)
+  useEffect(() => {
+    if (!progress) {
+      setCityStates([]);
+    }
+  }, [progress]);
+  
+  // Auto-scroll to latest city
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [cityStates]);
 
   // Title based on mode
   const titles = {
@@ -159,24 +232,97 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
           </div>
         </div>
 
-        {/* City Progress for day-plans mode */}
-        {detectedMode === 'day-plans' && cityName && totalCities && (
-          <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold shadow-md">
-                {cityIndex}
-              </div>
-              <div className="flex-1">
-                <div className="font-semibold text-gray-900">{cityName}</div>
-                <div className="text-xs text-gray-500">City {cityIndex} of {totalCities}</div>
-              </div>
-              {cityProgress !== undefined && (
-                <div className="text-right">
-                  <div className="text-lg font-bold text-emerald-600">{cityProgress}%</div>
-                  <div className="text-xs text-gray-500">City progress</div>
+        {/* City Progress for day-plans mode - Dynamic Cards */}
+        {detectedMode === 'day-plans' && totalCities && (
+          <div 
+            ref={scrollRef}
+            className="mb-6 space-y-3"
+          >
+            {cityStates.map((city) => {
+              const isActive = city.status === 'in-progress';
+              const isComplete = city.status === 'complete';
+              const isError = city.status === 'error';
+              
+              return (
+                <div 
+                  key={city.index}
+                  className={`p-4 rounded-xl transition-all duration-300 ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 shadow-sm scale-[1.02]' 
+                      : isComplete
+                      ? 'bg-emerald-50/50 border border-emerald-100'
+                      : isError
+                      ? 'bg-red-50 border border-red-100'
+                      : 'bg-gray-50 border border-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold shadow-md flex-shrink-0 ${
+                      isComplete 
+                        ? 'bg-emerald-500 text-white'
+                        : isError
+                        ? 'bg-red-500 text-white'
+                        : isActive
+                        ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
+                        : 'bg-gray-300 text-white'
+                    }`}>
+                      {isComplete ? (
+                        <CheckCircle className="w-5 h-5" />
+                      ) : isActive ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        city.index
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-semibold truncate ${
+                        isComplete ? 'text-emerald-700' : isActive ? 'text-gray-900' : 'text-gray-500'
+                      }`}>
+                        {city.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {city.days} {city.days === 1 ? 'day' : 'days'} • City {city.index} of {totalCities}
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {isComplete ? (
+                        <div className="text-emerald-600 text-sm font-semibold flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" />
+                          Done
+                        </div>
+                      ) : isActive ? (
+                        <>
+                          <div className="text-lg font-bold text-emerald-600 flex items-center gap-1">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          </div>
+                          <div className="text-xs text-gray-500">Planning</div>
+                        </>
+                      ) : isError ? (
+                        <div className="text-red-600 text-sm font-semibold">Error</div>
+                      ) : (
+                        <div className="text-gray-400 text-sm">Waiting</div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Animated progress bar for active city */}
+                  {isActive && (
+                    <div className="mt-3 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full animate-pulse"
+                        style={{ width: '100%', opacity: 0.6 }}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })}
+            
+            {/* Empty state before any cities start */}
+            {cityStates.length === 0 && (
+              <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 text-center text-gray-500 text-sm">
+                Preparing to generate day plans...
+              </div>
+            )}
           </div>
         )}
 

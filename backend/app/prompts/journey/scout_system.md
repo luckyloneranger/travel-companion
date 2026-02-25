@@ -20,29 +20,40 @@ Choose the OPTIMAL number of cities based on:
 - Avoid cities that are too similar (e.g., two beach towns back-to-back)
 - Ensure variety in the type of experience each city offers
 
-### 3. ROUTE Efficiency
-- Create a logical geographic flow — **NO backtracking**
-- Start from **{origin}** and end at the final destination
-- Consider geography, borders, and practical connectivity
+### 3. RESPECT the Destination Type
+- If the region specifies a **type of destination** (islands, beaches, mountains, etc.), ALL cities must match that type
+- "Thai Islands" → ONLY islands (Phuket, Koh Samui, Koh Lanta, etc.), NOT Bangkok
+- "Greek Islands" → ONLY Greek islands (Santorini, Mykonos, Crete, etc.), NOT Athens
+- "Japanese Alps" → mountain towns, NOT Tokyo or Osaka
+- "Island hopping" → ONLY islands, no mainland cities at all
+- The origin city is where they START FROM, not a destination to include in the itinerary
+- Exception: Only include mainland/non-matching cities if explicitly part of the region name
 
-### 4. TRANSPORT — Be Region-Specific
+### 4. ROUTE Efficiency
+- Create a logical geographic flow — **NO backtracking**
+- If origin matches the destination type (e.g., starting from an island for island hopping), include it as first destination
+- If origin is a different type (mainland for island trip), skip it — it's just a departure point
+- The itinerary should start with the first actual destination
+- End at the final destination
+
+### 5. TRANSPORT — Be Region-Specific
 - Use transport modes that are **ACTUALLY popular** in this region
 - Include realistic duration estimates (account for real-world delays, boarding time)
 - Mention specific services, companies, or routes when known
 - Flag if a leg requires advance booking
 
-### 5. HIGHLIGHTS For Each City
+### 6. HIGHLIGHTS For Each City
 - **3-5 must-see** attractions/experiences per city
 - Match to the traveler's specific interests
 - Mix famous landmarks with hidden gems and local experiences
 - Include at least one food/culinary experience per city
 
-### 6. SAFETY & PRACTICALITY
+### 7. SAFETY & PRACTICALITY
 - Do NOT suggest cities in active conflict zones or areas with travel advisories
 - Consider visa/border crossing requirements for multi-country routes
 - Flag any significant safety or health considerations (altitude, extreme climate)
 
-### 7. SEASONAL AWARENESS
+### 8. SEASONAL AWARENESS
 - Consider the travel dates ({travel_dates}) when suggesting cities
 - Avoid destinations during their worst season (monsoon, extreme heat, seasonal closures)
 - Mention if timing is particularly good or bad for a city

@@ -44,6 +44,7 @@ class DayPlanProgress:
     city_name: Optional[str]
     city_index: int
     total_cities: int
+    city_days: int  # Number of days for current city
     message: str
     progress: int  # 0-100 overall
     city_progress: int  # 0-100 for current city
@@ -222,6 +223,7 @@ class V6DayPlanGenerator:
                 city_name=city.name,
                 city_index=city_idx + 1,
                 total_cities=total_cities,
+                city_days=city.days,
                 message=f"Planning {city.name} ({city.days} days)",
                 progress=overall_progress,
                 city_progress=0,
@@ -269,6 +271,7 @@ class V6DayPlanGenerator:
                     city_name=city.name,
                     city_index=city_idx + 1,
                     total_cities=total_cities,
+                    city_days=city.days,
                     message=f"Completed {city.name}: {len(city_plans.day_plans)} days planned",
                     progress=city_complete_progress,
                     city_progress=100,
@@ -296,6 +299,7 @@ class V6DayPlanGenerator:
                     city_name=city.name,
                     city_index=city_idx + 1,
                     total_cities=total_cities,
+                    city_days=city.days,
                     message=f"Error with {city.name}: {str(e)[:50]}",
                     progress=int(((city_idx + 1) / total_cities) * 100),
                     city_progress=0,
@@ -310,6 +314,7 @@ class V6DayPlanGenerator:
             city_name=None,
             city_index=total_cities,
             total_cities=total_cities,
+            city_days=0,
             message=f"Journey complete: {len(result.all_day_plans)} days across {total_cities} cities",
             progress=100,
             city_progress=100,

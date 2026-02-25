@@ -116,17 +116,18 @@ class Enricher:
             # Get driving route
             driving = await self.directions_service.get_driving_route(origin, destination)
             
-            # Get transit routes (rail & bus)
+            # Get transit routes (rail, bus & ferry)
             transit_routes = await self.directions_service.get_transit_routes(
                 origin,
                 destination,
-                transit_modes=[TransitMode.RAIL, TransitMode.BUS],
+                transit_modes=[TransitMode.RAIL, TransitMode.BUS, TransitMode.FERRY],
                 alternatives=True,
             )
             
-            # Separate rail vs bus routes
+            # Separate rail vs bus vs ferry routes
             rail_routes = [r for r in transit_routes if r.mode == "rail"]
             bus_routes = [r for r in transit_routes if r.mode == "bus"]
+            ferry_routes = [r for r in transit_routes if r.mode == "ferry"]
             
             return TransportOptions(
                 origin=origin,
@@ -134,6 +135,7 @@ class Enricher:
                 driving=driving,
                 rail_routes=rail_routes,
                 bus_routes=bus_routes,
+                ferry_routes=ferry_routes,
             )
             
         except Exception as e:
@@ -168,6 +170,15 @@ class Enricher:
                 leg.notes = f"{step.line.name} - {step.departure_time} → {step.arrival_time}"
             if options.driving:
                 leg.distance_km = options.driving.distance_km
+                
+        # For ferry, use real ferry data if available
+        elif leg.mode == TransportMode.FERRY and options.best_ferry:
+            ferry = options.best_ferry
+            leg.duration_hours = round(ferry.duration_seconds / 3600, 2)
+            if ferry.steps:
+                step = ferry.steps[0]
+                leg.notes = f"{step.line.name} - {step.departure_time} → {step.arrival_time}"
+            # Ferry distance is usually not meaningful, keep LLM estimate if any
                 
         # For driving, use real driving data
         elif leg.mode == TransportMode.DRIVE and options.driving:

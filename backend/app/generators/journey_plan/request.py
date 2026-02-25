@@ -4,26 +4,7 @@ Defines the common request interface used by V6 journey planning.
 """
 
 from datetime import date
-from typing import Optional, Protocol, runtime_checkable
-
-
-@runtime_checkable
-class JourneyRequestProtocol(Protocol):
-    """Protocol defining what a journey request must provide."""
-    origin: str
-    region: Optional[str]
-    destinations: list[str]
-    start_date: str | date
-    total_days: Optional[int]
-    interests: list[str]
-    pace: str
-    return_to_origin: bool
-    must_include: list[str]
-    avoid: list[str]
-    
-    def get_total_days(self) -> int:
-        """Get total trip days."""
-        ...
+from typing import Optional
 
 
 class JourneyRequest:

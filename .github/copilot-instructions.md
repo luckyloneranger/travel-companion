@@ -2,88 +2,45 @@
 
 ## Architecture
 
-Hybrid AI + deterministic approach: LLMs (Azure OpenAI) handle creative decisions (place selection, theming), while Google APIs provide real-time data (routes, hours, locations).
+Hybrid AI + deterministic approach: LLMs (Azure OpenAI) handle creative decisions, Google APIs provide real-time data.
 
 **Two generation modes:**
-- **FAST**: Single-pass AI planning + route optimization (~15-30s) - [generator.py](../backend/app/generators/day_plan/fast/generator.py)
-- **JOURNEY (V6)**: Multi-city trip planning with Scout → Enrich → Review → Planner loop (~2-5min) - [journey_plan/v6/](../backend/app/generators/journey_plan/v6/)
+- **FAST**: Single-pass AI + route optimization (~15-30s) - [fast/generator.py](../backend/app/generators/day_plan/fast/generator.py)
+- **JOURNEY (V6)**: Multi-city with Scout → Enrich → Review → Planner loop (~2-5min) - [v6/orchestrator.py](../backend/app/generators/journey_plan/v6/orchestrator.py)
 
-**Service flow**: `routers/` → `generators/{day_plan,journey_plan,tips}/` → `services/{external,internal}/`
+**Service flow**: `routers/` → `generators/` → `services/{external,internal}/`
 
-### Folder Structure
-
-```
-backend/app/
-├── config/                   # Settings & tuning
-│   ├── settings.py           # Environment config (Pydantic Settings)
-│   ├── tuning.py             # Tunable params (frozen dataclasses)
-│   ├── planning.py           # Pace configs, duration estimates
-│   └── regional_transport.py # Transport intelligence by region
-├── core/
-│   ├── clients/              # HTTP & OpenAI client pools
-│   │   ├── http.py           # Shared httpx.AsyncClient
-│   │   └── openai.py         # OpenAIClient singleton
-│   └── middleware/           # Request tracing, logging
-├── prompts/                  # CENTRALIZED prompt templates (.md files)
-│   ├── loader.py             # PromptLoader class, cached loading
-│   ├── journey/              # Scout, reviewer, planner prompts
-│   ├── day_plan/             # Planning, validation prompts
-│   └── tips/                 # Tips generation prompts
-├── generators/
-│   ├── journey_plan/         # Multi-city trip planning
-│   │   ├── request.py        # JourneyRequest model
-│   │   └── v6/               # V6 LLM-first approach
-│   │       ├── orchestrator.py, scout.py, enricher.py, reviewer.py, planner.py
-│   │       ├── day_plan_generator.py
-│   │       └── models.py
-│   ├── day_plan/             # Single-city itinerary
-│   │   ├── fast/             # Single-pass mode
-│   │   │   ├── generator.py, ai_service.py
-│   │   │   └── prompts/      # Delegates to app/prompts/
-│   │   └── quality/          # Day-plan quality evaluation
-│   │       ├── scorer.py
-│   │       └── evaluators/   # 7 metric evaluators
-│   └── tips/                 # Activity tips generation
-│       ├── generator.py
-│       └── prompts/          # Delegates to app/prompts/
-├── models/                   # Shared data models
-├── routers/                  # API endpoints
-├── services/
-│   ├── external/             # API wrappers
-│   │   ├── azure_openai.py   # AzureOpenAIService (chat_completion, chat_completion_json)
-│   │   ├── google_places.py  # GooglePlacesService
-│   │   └── google_routes.py  # GoogleRoutesService
-│   └── internal/             # Algorithms (optimizer, scheduler)
-└── utils/                    # Shared utilities
-backend/tests/                # All tests
-```
-
-### Journey Planning (V6 Multi-City)
-LLM-first approach with iterative refinement:
-1. **Scout**: LLM suggests cities based on region and interests
-2. **Enricher**: Google APIs add real coordinates & travel times
-3. **Reviewer**: LLM evaluates plan quality
-4. **Planner**: LLM fixes issues identified by Reviewer
-5. **V6DayPlanGenerator**: Uses FastItineraryGenerator for detailed day plans
-
-Key files:
-- Models: [v6/models.py](../backend/app/generators/journey_plan/v6/models.py)
-- Orchestrator: [v6/orchestrator.py](../backend/app/generators/journey_plan/v6/orchestrator.py)
-- Day Plans: [v6/day_plan_generator.py](../backend/app/generators/journey_plan/v6/day_plan_generator.py)
-- API: [routers/journey.py](../backend/app/routers/journey.py)
+**Key directories:**
+- `config/` - Settings (`settings.py`), tunable params (`tuning.py`), planning constants (`planning.py`)
+- `prompts/` - Centralized .md templates loaded via `PromptLoader`
+- `core/` - Singleton clients (`clients/`), request tracing middleware
+- `services/external/` - API wrappers (Azure OpenAI, Google Places/Routes/Directions)
 
 ## Code Style
 
-### Python (Backend)
-- **Types**: Use generic type hints (`list[str]`, `Optional[dict]`), `TYPE_CHECKING` for circular imports
-- **Docstrings**: Google-style with Args/Returns sections
-- **Async**: All LLM/API calls are `async`, use `httpx.AsyncClient`
-- Exemplars: [v6/orchestrator.py](../backend/app/generators/journey_plan/v6/orchestrator.py), [itinerary.py](../backend/app/models/itinerary.py)
+### Python
+- **Types**: Generic hints (`list[str]`), `Optional[T]`, `TYPE_CHECKING` for circular imports
+- **Docstrings**: Google-style with Args/Returns
+- **Async**: All LLM/API calls `async` with `httpx.AsyncClient`
+- **Enums**: `class Pace(str, Enum)` for JSON serialization
 
-### TypeScript (Frontend)
-- Functional components with hooks, props interfaces inline
-- Union types for enums: `type Pace = 'relaxed' | 'moderate' | 'packed'`
-- Exemplar: [JourneyInputForm.tsx](../frontend/src/components/JourneyInputForm.tsx)
+### Pydantic Models ([models/itinerary.py](../backend/app/models/itinerary.py))
+```python
+class Request(BaseModel):
+    field: str = Field(..., min_length=2, max_length=200)
+    optional_field: Optional[str] = None
+    id: str = Field(default_factory=lambda: str(uuid4()))
+
+    @field_validator("end_date")
+    @classmethod
+    def validate(cls, v, info):
+        if invalid: raise ValueError("message")
+        return v
+```
+
+### TypeScript
+- Functional components with hooks, inline props interfaces
+- Union types: `type Pace = 'relaxed' | 'moderate' | 'packed'`
 
 ## Build and Test
 
@@ -91,78 +48,108 @@ Key files:
 # Backend
 cd backend && pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
-pytest                    # Run tests
+pytest                    # Run all tests
 pytest --cov             # With coverage
 
 # Frontend
 cd frontend && npm install
-npm run dev              # Vite dev server
+npm run dev              # Vite dev server (port 5173)
 npm run build && npm run lint
+```
+
+### Testing Patterns ([tests/conftest.py](../backend/tests/conftest.py))
+```python
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+# Validation tests
+with pytest.raises(ValueError, match="end_date must be after"):
+    ItineraryRequest(...)
 ```
 
 ## Project Conventions
 
-### Prompt Templates
-All prompts are centralized in `app/prompts/` as .md files:
-- **Journey**: `prompts/journey/` (scout_system.md, scout_user.md, reviewer_*.md, planner_*.md)
-- **Day Plan**: `prompts/day_plan/` (planning_*.md, validation_*.md)
-- **Tips**: `prompts/tips/` (tips_system.md, tips_user.md)
-
-Load prompts using the PromptLoader:
+### Service Registry ([core/registry.py](../backend/app/core/registry.py))
 ```python
-from app.prompts.loader import journey_prompts, day_plan_prompts, tips_prompts
+from app.core import services
 
-system = journey_prompts.load("scout_system")
-system, user = day_plan_prompts.load_pair("planning")  # loads planning_system.md, planning_user.md
+places = services.get_places()   # Lazy singleton
+routes = services.get_routes()
+await services.close_all()       # Cleanup
 ```
 
-### OpenAI Service
-Use centralized `AzureOpenAIService` for all LLM calls:
+### Prompt Templates ([prompts/loader.py](../backend/app/prompts/loader.py))
+```python
+from app.prompts.loader import journey_prompts, day_plan_prompts
+
+system = journey_prompts.load("scout_system")
+user = day_plan_prompts.load("planning_user")
+```
+
+### LLM Calls ([services/external/azure_openai.py](../backend/app/services/external/azure_openai.py))
 ```python
 from app.services.external import AzureOpenAIService
 
 service = AzureOpenAIService()
-
-# For JSON responses
-data = await service.chat_completion_json(system_prompt, user_prompt)
-
-# For text responses
-text = await service.chat_completion(system_prompt, user_prompt)
+data = await service.chat_completion_json(system, user)  # JSON response
 ```
 
-### Regional Transport Intelligence
-Transport recommendations by region are in `config/regional_transport.py`:
+### Error Handling
 ```python
-from app.config.regional_transport import get_transport_guidance, detect_region
+# Routers: HTTPException with logging
+try:
+    result = await generator.generate(request)
+except Exception as e:
+    logger.error(f"Failed: {e}", exc_info=True)
+    raise HTTPException(status_code=500, detail="Generation failed")
 
-guidance = get_transport_guidance("Mumbai", "India", user_prefs)
-region = detect_region("Tokyo", "Japan")  # returns "japan"
+# Services: Plain exceptions
+if response.status_code != 200:
+    raise Exception(f"API failed: {response.status_code}")
 ```
 
-### Quality Evaluators
-Add new metrics by extending `BaseEvaluator` ([base.py](../backend/app/generators/day_plan/quality/evaluators/base.py)):
-- Define `name`, `weight`, and `evaluate()` returning `MetricResult`
-- Register in [scorer.py](../backend/app/generators/day_plan/quality/scorer.py)
+### SSE Streaming ([routers/itinerary.py](../backend/app/routers/itinerary.py))
+Events: `progress` (phase/message/progress), `complete` (result), `error` (message)
+```python
+yield f"data: {json.dumps({'type': 'progress', 'phase': 'planning', 'progress': 50})}\n\n"
+yield f"data: {json.dumps({'type': 'complete', 'result': result.model_dump(mode='json')})}\n\n"
+```
 
 ### Configuration
-- **Environment**: `config/settings.py` (Pydantic Settings)
-- **Tunable params**: `config/tuning.py` (frozen dataclasses)
-- **Planning constants**: `config/planning.py` (pace configs, duration estimates)
-- **Regional transport**: `config/regional_transport.py` (transport profiles by region)
+```python
+from app.config import get_settings
+from app.config.tuning import FAST_MODE
+
+settings = get_settings()  # lru_cached singleton
+temperature = FAST_MODE.planning_temperature
+```
+
+## Environment Variables
+
+Required in `.env`:
+```
+AZURE_OPENAI_ENDPOINT=https://...
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_DEPLOYMENT=gpt-4
+GOOGLE_PLACES_API_KEY=...
+GOOGLE_ROUTES_API_KEY=...
+```
+
+Frontend: `VITE_API_BASE_URL` (defaults to `http://localhost:8000`)
 
 ## Integration Points
 
-| Service | Purpose | Config |
+| Service | Purpose | Client |
 |---------|---------|--------|
-| Azure OpenAI | LLM calls (GPT-4o) | `AZURE_OPENAI_*` env vars |
-| Google Places API | Place discovery | `GOOGLE_PLACES_API_KEY` |
-| Google Routes API | Travel times | `GOOGLE_ROUTES_API_KEY` |
+| Azure OpenAI | LLM (GPT-4o) | [azure_openai.py](../backend/app/services/external/azure_openai.py) |
+| Google Places | Place discovery | [google_places.py](../backend/app/services/external/google_places.py) |
+| Google Routes | Driving/walking times | [google_routes.py](../backend/app/services/external/google_routes.py) |
+| Google Directions | Transit & ferry routes | [google_directions.py](../backend/app/services/external/google_directions.py) |
 
-API clients in `backend/app/core/clients/` use `httpx.AsyncClient` with retry/timeout patterns.
+**SSE Endpoints:**
+- `POST /api/itinerary/stream` - Single city
+- `POST /api/journey/v6/plan/stream` - Multi-city journey
+- `POST /api/journey/v6/days/stream` - Journey day plans
 
-Frontend streams progress via **SSE**:
-- Single city: `POST /api/itinerary/stream`
-- Multi-city journey: `POST /api/journey/plan/stream`
-- Journey day plans: `POST /api/journey/days/stream`
-
-See [api.ts](../frontend/src/services/api.ts) for client implementation.
+Frontend SSE consumption: [api.ts](../frontend/src/services/api.ts) (AsyncGenerator pattern with AbortController)

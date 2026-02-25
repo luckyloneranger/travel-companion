@@ -15,6 +15,7 @@ import {
   SUGGESTED_REGIONS, 
   DAYS_OPTIONS,
 } from '@/types';
+import { headerGradients } from '@/styles';
 
 interface JourneyInputFormProps {
   onSubmit: (request: JourneyRequest) => Promise<void>;
@@ -268,7 +269,8 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
       <button
         type="submit"
         disabled={loading || !origin.trim() || !region.trim() || selectedInterests.length === 0}
-        className="w-full py-4 px-6 bg-gradient-to-r from-primary-600 to-purple-600 hover:from-primary-700 hover:to-purple-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-primary-500/25 flex items-center justify-center gap-2"
+        className="w-full py-4 px-6 hover:opacity-90 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg flex items-center justify-center gap-2"
+        style={{ background: `linear-gradient(to right, ${headerGradients.journey.from}, ${headerGradients.journey.to})` }}
       >
         {loading ? (
           <>

@@ -17,7 +17,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import type { V6JourneyPlan, V6DayPlan } from '@/types';
-import { cityColorPalettes } from './styles';
+import { cityColorPalettes, headerGradients } from './styles';
 import { CityCard } from './CityCard';
 import { TravelLegCard } from './TravelLegCard';
 import { CityDaySection, type CityDayGroup } from './CityDaySection';
@@ -25,6 +25,7 @@ import { CityDaySection, type CityDayGroup } from './CityDaySection';
 interface V6JourneyPlanViewProps {
   journey: V6JourneyPlan;
   dayPlans?: V6DayPlan[] | null;
+  startDate?: string;
   onReset: () => void;
   onGenerateDayPlans?: () => void;
   loading?: boolean;
@@ -33,7 +34,8 @@ interface V6JourneyPlanViewProps {
 
 export function V6JourneyPlanView({ 
   journey, 
-  dayPlans, 
+  dayPlans,
+  startDate,
   onReset, 
   onGenerateDayPlans, 
   loading = false, 
@@ -50,11 +52,13 @@ export function V6JourneyPlanView({
     
     journey.cities.forEach((city, cityIndex) => {
       const cityDays = dayPlans!.slice(currentDayIndex, currentDayIndex + city.days);
+      // Use travel_legs[cityIndex + 1] for departure leg (travel TO the next city)
+      // travel_legs[0] is origin→city[0], so cityIndex+1 gives the leg AFTER this city
       groups.push({
         city,
         cityIndex,
         days: cityDays,
-        travelLeg: journey.travel_legs[cityIndex],
+        travelLeg: journey.travel_legs[cityIndex + 1],
         palette: cityColorPalettes[cityIndex % cityColorPalettes.length],
       });
       currentDayIndex += city.days;
@@ -67,7 +71,10 @@ export function V6JourneyPlanView({
     <div className="max-w-4xl mx-auto">
       {/* Journey Header */}
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div className="bg-gradient-to-r from-primary-600 to-purple-600 text-white p-6">
+        <div 
+          className="text-white p-6"
+          style={{ background: `linear-gradient(to right, ${headerGradients.journey.from}, ${headerGradients.journey.to})` }}
+        >
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-5 w-5" />
             <span className="text-sm font-medium opacity-90">Your Journey</span>
@@ -79,21 +86,21 @@ export function V6JourneyPlanView({
         {/* Stats */}
         <div className="grid grid-cols-4 gap-px bg-gray-100">
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-bold text-primary-600">{journey.total_days}</p>
+            <p className="text-2xl font-bold" style={{ color: headerGradients.journey.from }}>{journey.total_days}</p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">Days</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-bold text-primary-600">{journey.cities.length}</p>
+            <p className="text-2xl font-bold" style={{ color: headerGradients.journey.from }}>{journey.cities.length}</p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">Cities</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-bold text-primary-600">
+            <p className="text-2xl font-bold" style={{ color: headerGradients.journey.from }}>
               {journey.total_distance_km ? Math.round(journey.total_distance_km) : '—'}
             </p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">km</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-bold text-primary-600">
+            <p className="text-2xl font-bold" style={{ color: headerGradients.journey.from }}>
               {journey.review_score || '—'}
             </p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">Score</p>
@@ -103,26 +110,26 @@ export function V6JourneyPlanView({
 
       {/* Route visualization - Enhanced */}
       <div className="bg-white rounded-xl p-4 mb-6 shadow-sm border border-gray-100">
-        <div className="flex items-center gap-1 text-sm overflow-x-auto pb-2 scrollbar-thin" role="navigation" aria-label="Journey route">
-          <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-full whitespace-nowrap">
+        <div className="flex items-center gap-1 text-sm overflow-x-auto pb-2 scrollbar-thin scrollbar-hide hover:scrollbar-thin" role="navigation" aria-label="Journey route">
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-full whitespace-nowrap flex-shrink-0">
             <MapPin className="h-3.5 w-3.5 text-gray-500" />
-            <span className="font-semibold text-gray-700">{journey.origin}</span>
+            <span className="font-semibold text-gray-700 truncate max-w-[120px]">{journey.origin}</span>
           </div>
           {journey.cities.map((city, idx) => {
             const palette = cityColorPalettes[idx % cityColorPalettes.length];
             return (
-              <div key={idx} className="flex items-center gap-1 whitespace-nowrap">
+              <div key={idx} className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                 <ArrowRight className="h-4 w-4 text-gray-300 flex-shrink-0 mx-1" />
                 <div 
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-full border font-semibold"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-full border font-semibold transition-transform hover:scale-105"
                   style={{ 
                     backgroundColor: palette.bgColor, 
                     borderColor: palette.borderColor,
                     color: palette.textColor 
                   }}
                 >
-                  <span>{city.name}</span>
-                  <span className="text-xs opacity-70">({city.days}d)</span>
+                  <span className="truncate max-w-[100px]">{city.name}</span>
+                  <span className="text-xs opacity-70 flex-shrink-0">({city.days}d)</span>
                 </div>
               </div>
             );
@@ -135,7 +142,10 @@ export function V6JourneyPlanView({
         <div className="mb-6">
           {/* Section header - matching journey header sophistication */}
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-5">
+            <div 
+              className="text-white p-5"
+              style={{ background: `linear-gradient(to right, ${headerGradients.dayPlan.from}, ${headerGradients.dayPlan.to})` }}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div 
@@ -146,13 +156,13 @@ export function V6JourneyPlanView({
                   </div>
                   <div>
                     <h2 className="text-xl font-bold">Day-by-Day Itinerary</h2>
-                    <p className="text-emerald-100 text-sm mt-0.5">{dayPlans.length} days of curated experiences across {journey.cities.length} destinations</p>
+                    <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.85)' }}>{dayPlans.length} days of curated experiences across {journey.cities.length} destinations</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     <p className="text-3xl font-bold">{dayPlans.reduce((acc, d) => acc + d.activities.length, 0)}</p>
-                    <p className="text-xs text-emerald-100 uppercase tracking-wide">Activities</p>
+                    <p className="text-xs uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.85)' }}>Activities</p>
                   </div>
                 </div>
               </div>
@@ -176,9 +186,19 @@ export function V6JourneyPlanView({
                 index={idx}
                 isLast={idx === journey.cities.length - 1 && !journey.travel_legs[idx]}
               />
-              {/* Travel leg after this city (to next destination) */}
+              {/* Travel leg FROM this city to the next */}
               {journey.travel_legs[idx] && (
-                <TravelLegCard leg={journey.travel_legs[idx]} />
+                <TravelLegCard 
+                  leg={journey.travel_legs[idx]} 
+                  travelDate={startDate ? (() => {
+                    const start = new Date(startDate);
+                    // Days including this city = sum of cities up to and including this one
+                    const daysToAdd = journey.cities.slice(0, idx + 1).reduce((sum, c) => sum + c.days, 0);
+                    const date = new Date(start);
+                    date.setDate(date.getDate() + daysToAdd);
+                    return date.toISOString().split('T')[0];
+                  })() : undefined}
+                />
               )}
             </div>
           ))}

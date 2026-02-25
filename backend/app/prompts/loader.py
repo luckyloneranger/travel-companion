@@ -3,10 +3,8 @@
 Provides centralized loading and caching of prompt templates.
 """
 
-import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 # Base path for all prompts
 PROMPTS_DIR = Path(__file__).parent
@@ -53,19 +51,6 @@ class PromptLoader:
             Prompt content
         """
         return load_prompt(self.category, name)
-    
-    def load_pair(self, base_name: str) -> tuple[str, str]:
-        """Load system and user prompts as a pair.
-        
-        Args:
-            base_name: Base name (e.g., 'scout' -> 'scout_system.md', 'scout_user.md')
-            
-        Returns:
-            Tuple of (system_prompt, user_prompt)
-        """
-        system = self.load(f"{base_name}_system")
-        user = self.load(f"{base_name}_user")
-        return system, user
 
 
 # Pre-configured loaders for each category

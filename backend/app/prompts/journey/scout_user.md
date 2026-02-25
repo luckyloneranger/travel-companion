@@ -89,8 +89,8 @@ Travel dates: {travel_dates}
   ],
   "travel_legs": [
     {{
-      "from_city": "{origin}",
-      "to_city": "FirstCity",
+      "from_city": "FirstCity",
+      "to_city": "SecondCity",
       "mode": "bus|train|flight|drive|ferry",
       "duration_hours": 4.5,
       "distance_km": 250,
@@ -106,6 +106,7 @@ Travel dates: {travel_dates}
 - Total days across all cities MUST equal {total_days}
 - Each city MUST have minimum 2 days
 - Each city MUST have 3-5 highlights with vivid descriptions
-- Travel legs connect origin → city1 → city2 → ... in geographic order
+- The origin city ({origin}) should be the FIRST city in the cities array if it has tourist value
+- Travel legs connect city1 → city2 → city3 → ... (first leg is from first city to second city)
 - Choose transport modes that are ACTUALLY available and popular in {region}
 - Return ONLY the JSON object — no markdown fences, no text before or after

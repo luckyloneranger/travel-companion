@@ -54,8 +54,8 @@ Return the COMPLETE fixed plan in JSON:
   ],
   "travel_legs": [
     {{
-      "from_city": "Origin",
-      "to_city": "Destination",
+      "from_city": "City1",
+      "to_city": "City2",
       "mode": "bus|train|flight|drive|ferry",
       "duration_hours": 4.5,
       "distance_km": 250,

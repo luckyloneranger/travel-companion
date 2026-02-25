@@ -1,9 +1,13 @@
 import { useState, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { JourneyInputForm } from './components/JourneyInputForm';
+import { ItineraryInputForm } from './components/ItineraryInputForm';
 import { V6JourneyPlanView } from './components/V6JourneyPlanView';
+import { ItineraryView } from './components/ItineraryView';
 import { GenerationProgress, type ProgressEvent } from './components/GenerationProgress';
-import { planJourneyV6Stream, generateV6DayPlansStream, extractV6JourneyFromEvent } from './services/api';
+import { JourneyChat } from './components/JourneyChat';
+import { planJourneyV6Stream, generateV6DayPlansStream, extractV6JourneyFromEvent, generateItineraryStream } from './services/api';
+import { headerGradients } from '@/styles';
 import type { 
   JourneyRequest, 
   V6JourneyPlan,
@@ -11,15 +15,23 @@ import type {
   V6DayPlanProgress,
   V6DayPlan,
 } from './types';
+import type { ItineraryRequest, ItineraryResponse, ItineraryProgressEvent } from './types/itinerary';
 
 type JourneyPhase = 'input' | 'planning' | 'preview' | 'day-plans';
+type AppMode = 'journey' | 'itinerary';
 
 function App() {
+  // App mode
+  const [appMode, setAppMode] = useState<AppMode>('journey');
+  
   // Journey state
   const [journeyPhase, setJourneyPhase] = useState<JourneyPhase>('input');
   const [journeyPlan, setJourneyPlan] = useState<V6JourneyPlan | null>(null);
   const [originalRequest, setOriginalRequest] = useState<JourneyRequest | null>(null);
   const [dayPlans, setDayPlans] = useState<V6DayPlan[] | null>(null);
+  
+  // Itinerary state
+  const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null);
   
   // UI state
   const [loading, setLoading] = useState(false);
@@ -98,11 +110,58 @@ function App() {
     setJourneyPlan(null);
     setOriginalRequest(null);
     setDayPlans(null);
+    setItinerary(null);
     setJourneyPhase('input');
     setError(null);
     setProgress(null);
     setLoading(false);
     setGeneratingDayPlans(false);
+  }, []);
+
+  const handleItinerarySubmit = useCallback(async (request: ItineraryRequest) => {
+    // Cancel any existing request
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    
+    setLoading(true);
+    setError(null);
+    setProgress(null);
+    setJourneyPhase('planning');
+    setDestinationName(request.destination);
+
+    try {
+      const generator = generateItineraryStream(request, abortControllerRef.current.signal);
+      let finalItinerary: ItineraryResponse | null = null;
+      
+      for await (const event of generator) {
+        // Map itinerary events to progress display
+        const progressEvent = mapItineraryEventToProgress(event);
+        setProgress(progressEvent);
+        
+        // Capture final itinerary on complete
+        if (event.type === 'complete' && event.result) {
+          finalItinerary = event.result;
+        }
+      }
+      
+      if (!finalItinerary) {
+        throw new Error('No itinerary received');
+      }
+      
+      setItinerary(finalItinerary);
+      setJourneyPhase('preview');
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
+      setJourneyPhase('input');
+    } finally {
+      setLoading(false);
+      setProgress(null);
+      abortControllerRef.current = null;
+    }
   }, []);
 
   const handleGenerateDayPlans = useCallback(async () => {
@@ -157,50 +216,169 @@ function App() {
     }
   }, [journeyPlan, originalRequest]);
 
+  // Handler for updating journey via chat edits
+  const handleJourneyUpdate = useCallback((updatedJourney: V6JourneyPlan) => {
+    setJourneyPlan(updatedJourney);
+    // Clear day plans since they're now stale
+    setDayPlans(null);
+  }, []);
+
+  // Handler for updating day plans via chat edits
+  const handleDayPlansUpdate = useCallback((updatedDayPlans: V6DayPlan[]) => {
+    setDayPlans(updatedDayPlans);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col">
       <Header />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {(loading || generatingDayPlans) ? (
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+        {/* Show full-screen progress only for journey planning, not day plans */}
+        {loading && !generatingDayPlans ? (
           <GenerationProgress 
             progress={progress} 
             destinationName={destinationName}
-            mode={generatingDayPlans ? 'day-plans' : 'journey'}
+            mode={appMode === 'itinerary' ? 'itinerary' : 'journey'}
           />
-        ) : journeyPhase === 'preview' && journeyPlan ? (
-          <V6JourneyPlanView
-            journey={journeyPlan}
-            dayPlans={dayPlans}
+        ) : journeyPhase === 'preview' && appMode === 'itinerary' && itinerary ? (
+          <ItineraryView
+            itinerary={itinerary}
             onReset={handleReset}
-            onGenerateDayPlans={handleGenerateDayPlans}
             loading={loading}
-            generatingDayPlans={generatingDayPlans}
           />
+        ) : (journeyPhase === 'preview' || journeyPhase === 'day-plans') && journeyPlan ? (
+          <>
+            <V6JourneyPlanView
+              journey={journeyPlan}
+              dayPlans={dayPlans}
+              startDate={originalRequest?.start_date}
+              onReset={handleReset}
+              onGenerateDayPlans={handleGenerateDayPlans}
+              loading={loading}
+              generatingDayPlans={generatingDayPlans}
+            />
+            {/* Chat for editing - switches mode based on whether day plans exist */}
+            {dayPlans && dayPlans.length > 0 ? (
+              <JourneyChat
+                mode="dayplan"
+                dayPlans={dayPlans}
+                onDayPlansUpdate={handleDayPlansUpdate}
+                context={originalRequest ? {
+                  interests: originalRequest.interests,
+                  pace: originalRequest.pace,
+                } : undefined}
+              />
+            ) : (
+              <JourneyChat
+                mode="journey"
+                journey={journeyPlan}
+                onJourneyUpdate={handleJourneyUpdate}
+                context={originalRequest ? {
+                  origin: originalRequest.origin,
+                  region: originalRequest.region,
+                  interests: originalRequest.interests,
+                  pace: originalRequest.pace,
+                } : undefined}
+              />
+            )}
+          </>
         ) : (
           <div className="max-w-2xl mx-auto">
             {/* Hero Section */}
-            <div className="text-center mb-10">
+            <div className="text-center mb-8">
               <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                Plan Your Dream Journey
+                Plan Your Dream {appMode === 'journey' ? 'Journey' : 'Trip'}
               </h1>
               <p className="text-lg text-gray-600 max-w-xl mx-auto">
-                Tell us where you want to go and what you love. Our AI will craft 
-                the perfect multi-city adventure tailored just for you.
+                {appMode === 'journey' 
+                  ? 'Tell us where you want to go and what you love. Our AI will craft the perfect multi-city adventure tailored just for you.'
+                  : 'Create a detailed day-by-day itinerary for your single-city adventure with AI-powered recommendations.'
+                }
               </p>
             </div>
 
-            {/* Journey Input Form */}
-            <JourneyInputForm
-              onSubmit={handleJourneySubmit}
-              loading={loading}
-              error={error}
-            />
+            {/* Mode Toggle */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-white rounded-xl p-1.5 shadow-lg border border-gray-100 inline-flex">
+                <button
+                  onClick={() => setAppMode('journey')}
+                  className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                    appMode === 'journey'
+                      ? 'text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                  style={appMode === 'journey' ? { background: `linear-gradient(to right, ${headerGradients.journey.from}, ${headerGradients.journey.to})` } : {}}
+                >
+                  🌍 Multi-City Journey
+                </button>
+                <button
+                  onClick={() => setAppMode('itinerary')}
+                  className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                    appMode === 'itinerary'
+                      ? 'text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                  style={appMode === 'itinerary' ? { background: `linear-gradient(to right, ${headerGradients.journey.from}, ${headerGradients.journey.to})` } : {}}
+                >
+                  📍 Single-City Itinerary
+                </button>
+              </div>
+            </div>
+
+            {/* Form based on mode */}
+            {appMode === 'journey' ? (
+              <JourneyInputForm
+                onSubmit={handleJourneySubmit}
+                loading={loading}
+                error={error}
+              />
+            ) : (
+              <ItineraryInputForm
+                onSubmit={handleItinerarySubmit}
+                loading={loading}
+                error={error}
+              />
+            )}
           </div>
         )}
       </main>
 
-      <footer className="bg-white/50 backdrop-blur border-t mt-auto py-6">
+      {/* Day Plan Generation Side Panel - Slides in from right */}
+      {generatingDayPlans && (
+        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out">
+          {/* Panel Header */}
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 text-white flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold">Creating Day Plans</h3>
+                <p className="text-sm text-white/80 truncate max-w-[200px]">{destinationName}</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Panel Content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <GenerationProgress 
+              progress={progress} 
+              destinationName={destinationName}
+              mode="day-plans"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Backdrop for mobile */}
+      {generatingDayPlans && (
+        <div className="fixed inset-0 bg-black/20 z-40 sm:hidden" />
+      )}
+
+      <footer className="bg-white/50 backdrop-blur border-t py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <p className="text-center text-gray-500 text-sm">
             Powered by Azure OpenAI & Google APIs • V6 Architecture
@@ -295,9 +473,36 @@ function mapDayPlanEventToProgress(event: V6DayPlanProgress): ProgressEvent {
       city_name: event.city_name,
       city_index: event.city_index,
       total_cities: event.total_cities,
+      city_days: event.city_days,
       city_progress: event.city_progress,
       ...event.data,
     },
+  };
+}
+
+/**
+ * Map itinerary progress events to GenerationProgress component format
+ */
+function mapItineraryEventToProgress(event: ItineraryProgressEvent): ProgressEvent {
+  const phaseEmojis: Record<string, string> = {
+    geocoding: '📍',
+    discovering: '🔍',
+    planning: '🧠',
+    optimizing: '🗺️',
+    scheduling: '📅',
+    validating: '✅',
+    complete: '🎉',
+    error: '❌',
+  };
+
+  const emoji = phaseEmojis[event.phase || ''] || '📍';
+  
+  return {
+    type: event.type,
+    phase: event.phase || '',
+    message: `${emoji} ${event.message || 'Processing...'}`,
+    progress: event.progress || 0,
+    data: {},
   };
 }
 

@@ -32,7 +32,7 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
 
       {/* City content */}
       <div className="flex-1 min-w-0 pb-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-200">
           {/* Header */}
           <div 
             className="p-4"
@@ -42,7 +42,7 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" style={{ color: palette.textColor }} />
-                  <h3 className="text-lg font-bold text-gray-900">
+                  <h3 className="text-lg font-bold text-gray-900 truncate">
                     {city.name}, {city.country}
                   </h3>
                 </div>

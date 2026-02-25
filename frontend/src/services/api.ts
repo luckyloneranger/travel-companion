@@ -11,14 +11,24 @@ import type {
   V6DayPlansRequest,
   V6DayPlanProgress,
   V6DayPlan,
+  ChatEditRequest,
+  ChatEditResponse,
+  DayPlanChatEditRequest,
+  DayPlanChatEditResponse,
 } from '@/types';
+
+import type {
+  ItineraryRequest,
+  ItineraryResponse,
+  ItineraryProgressEvent,
+} from '@/types/itinerary';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-// Timeout for SSE events (3 minutes - generation can take a while)
-const SSE_TIMEOUT_MS = 180000;
-// Timeout for individual read operations (60 seconds between events)
-const READ_TIMEOUT_MS = 60000;
+// Timeout for SSE events (5 minutes - generation can take a while)
+const SSE_TIMEOUT_MS = 300000;
+// Timeout for individual read operations (3 minutes between events)
+const READ_TIMEOUT_MS = 180000;
 
 /**
  * Create a promise that rejects after a timeout
@@ -315,4 +325,219 @@ export async function* generateV6DayPlansStream(
   } finally {
     clearTimeout(overallTimeout);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SINGLE-CITY ITINERARY API
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Generate a single-city itinerary with streaming progress.
+ * 
+ * @param request - Itinerary request with destination and preferences
+ * @param signal - Optional AbortSignal for cancellation
+ * @yields ItineraryProgressEvent - Progress updates during generation
+ * @returns ItineraryResponse - The final itinerary
+ */
+export async function* generateItineraryStream(
+  request: ItineraryRequest,
+  signal?: AbortSignal
+): AsyncGenerator<ItineraryProgressEvent, ItineraryResponse> {
+  const controller = new AbortController();
+  const overallTimeout = setTimeout(() => controller.abort(), SSE_TIMEOUT_MS);
+
+  if (signal) {
+    signal.addEventListener('abort', () => controller.abort());
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/itinerary/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        (errorData as { detail?: string }).detail || `HTTP error! status: ${response.status}`
+      );
+    }
+
+    if (!response.body) {
+      throw new Error('Response body is null');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const result = await readWithTimeout(reader, READ_TIMEOUT_MS);
+
+        if (result.done) {
+          if (buffer.trim()) {
+            const lines = buffer.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const jsonStr = line.slice(6).trim();
+                if (jsonStr) {
+                  try {
+                    const event = JSON.parse(jsonStr) as ItineraryProgressEvent;
+                    yield event;
+                    if (event.type === 'complete' && event.result) {
+                      return event.result;
+                    }
+                  } catch (e) {
+                    console.warn('Failed to parse final itinerary event:', jsonStr, e);
+                  }
+                }
+              }
+            }
+          }
+          break;
+        }
+
+        buffer += decoder.decode(result.value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr) {
+              try {
+                const event = JSON.parse(jsonStr) as ItineraryProgressEvent;
+                yield event;
+
+                if (event.type === 'complete' && event.result) {
+                  return event.result;
+                }
+
+                if (event.type === 'error') {
+                  throw new Error(event.error || 'Itinerary generation failed');
+                }
+              } catch (parseError) {
+                if (parseError instanceof Error && parseError.message.includes('generation failed')) {
+                  throw parseError;
+                }
+                console.warn('Failed to parse itinerary SSE event:', jsonStr, parseError);
+              }
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    throw new Error('Itinerary stream ended unexpectedly');
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(overallTimeout);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// JOURNEY CHAT EDIT
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Edit a journey plan via natural language chat
+ * 
+ * @param request - Chat edit request with message and current journey
+ * @returns ChatEditResponse with updated journey or error
+ */
+export async function editJourneyViaChat(
+  request: ChatEditRequest
+): Promise<ChatEditResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/journey/chat/edit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: request.message,
+      journey: request.journey,
+      context: request.context || {},
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      (errorData as { detail?: string }).detail || `HTTP error! status: ${response.status}`
+    );
+  }
+
+  const result = await response.json() as ChatEditResponse;
+  
+  // Normalize the updated_journey to match V6JourneyPlan type
+  if (result.success && result.updated_journey) {
+    result.updated_journey = normalizeJourneyPlan(result.updated_journey as unknown as Record<string, unknown>);
+  }
+  
+  return result;
+}
+
+/**
+ * Normalize a journey plan from API response to ensure type consistency
+ */
+function normalizeJourneyPlan(journey: Record<string, unknown>): V6JourneyPlan {
+  return {
+    theme: (journey.theme as string) || 'Journey',
+    summary: (journey.summary as string) || '',
+    route: (journey.route as string) || '',
+    origin: (journey.origin as string) || '',
+    region: (journey.region as string) || '',
+    total_days: (journey.total_days as number) || 0,
+    cities: (journey.cities as V6JourneyPlan['cities']) || [],
+    travel_legs: (journey.travel_legs as V6JourneyPlan['travel_legs']) || [],
+    review_score: journey.review_score as number | undefined,
+    total_travel_hours: journey.total_travel_hours as number | undefined,
+    total_distance_km: journey.total_distance_km as number | undefined,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DAY PLAN CHAT EDIT
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Edit day plans via natural language chat
+ * 
+ * @param request - Chat edit request with message and current day plans
+ * @returns DayPlanChatEditResponse with updated day plans or error
+ */
+export async function editDayPlansViaChat(
+  request: DayPlanChatEditRequest
+): Promise<DayPlanChatEditResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/journey/days/chat/edit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      message: request.message,
+      day_plans: request.day_plans,
+      context: request.context || {},
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(
+      (errorData as { detail?: string }).detail || `HTTP error! status: ${response.status}`
+    );
+  }
+
+  return await response.json() as DayPlanChatEditResponse;
 }

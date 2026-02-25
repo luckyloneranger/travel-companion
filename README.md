@@ -11,6 +11,8 @@ AI-powered travel planning application with single-city itineraries and multi-ci
 - ⏰ **Real-Time Data**: Live opening hours, ratings, and travel times from Google APIs
 - 📊 **Quality Scoring**: 7-metric evaluation system for itinerary quality
 - 🚀 **SSE Streaming**: Real-time progress updates during generation
+- ⛴️ **Multi-Modal Transport**: Supports train, bus, and ferry routes with Google Directions API
+- 🎯 **Smart Destination Types**: Respects destination types (e.g., "Thai Islands" only suggests islands)
 
 ## Architecture
 
@@ -200,6 +202,10 @@ travel-companion/
 │       │   └── journey.py             # Multi-city
 │       ├── services/
 │       │   ├── external/              # Azure OpenAI, Google APIs
+│       │   │   ├── azure_openai.py    # LLM service
+│       │   │   ├── google_places.py   # Place discovery
+│       │   │   ├── google_routes.py   # Driving/walking times
+│       │   │   └── google_directions.py # Transit/ferry routes
 │       │   └── internal/              # Optimizer, scheduler
 │       └── utils/                     # Geo, JSON helpers
 ├── frontend/

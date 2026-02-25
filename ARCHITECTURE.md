@@ -2222,7 +2222,7 @@ travel-companion/
 │   │   │   ├── settings.py            # Environment config (Pydantic Settings)
 │   │   │   ├── tuning.py              # Tunable parameters (frozen dataclasses)
 │   │   │   ├── planning.py            # Pace configs, duration estimates
-│   │   │   └── regional_transport.py  # Transport profiles by region
+│   │   │   └── regional_transport.py  # LLM-based transport guidance
 │   │   │
 │   │   ├── core/
 │   │   │   ├── clients/               # HTTP & OpenAI client pools
@@ -2272,11 +2272,11 @@ travel-companion/
 │   │   │   ├── external/              # API wrappers
 │   │   │   │   ├── azure_openai.py    # AzureOpenAIService
 │   │   │   │   ├── google_places.py   # GooglePlacesService
-│   │   │   │   └── google_routes.py   # GoogleRoutesService
+│   │   │   │   ├── google_routes.py   # GoogleRoutesService
+│   │   │   │   └── google_directions.py # Transit & ferry routes
 │   │   │   └── internal/              # Algorithms
 │   │   │       ├── route_optimizer.py # TSP optimization
-│   │   │       ├── schedule_builder.py
-│   │   │       └── transport_validator.py
+│   │   │       └── schedule_builder.py
 │   │   │
 │   │   ├── routers/                   # API endpoints
 │   │   │   ├── itinerary.py           # Single-city: /api/itinerary
@@ -2341,10 +2341,12 @@ The V6 multi-city journey planning uses an iterative LLM-first approach:
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │   1. SCOUT (LLM)                                                             │
-│      └─→ Suggests cities based on region, interests, and duration           │
+│      └─→ Suggests cities based on region, interests, duration, and          │
+│          destination type (e.g., "Thai Islands" → only islands)             │
 │                                                                              │
 │   2. ENRICHER (Google APIs)                                                  │
 │      └─→ Validates cities, adds coordinates, calculates travel times        │
+│          using train, bus, and ferry routes via Google Directions API       │
 │                                                                              │
 │   3. REVIEWER (LLM)                                                          │
 │      └─→ Evaluates plan for feasibility and quality                         │
@@ -2361,8 +2363,8 @@ The V6 multi-city journey planning uses an iterative LLM-first approach:
 ### Key Components
 
 - **Orchestrator** (`v6/orchestrator.py`): Coordinates the entire pipeline
-- **Scout** (`v6/scout.py`): LLM-based city selection
-- **Enricher** (`v6/enricher.py`): Google APIs for grounding
+- **Scout** (`v6/scout.py`): LLM-based city selection respecting destination types
+- **Enricher** (`v6/enricher.py`): Google APIs for grounding (train, bus, ferry routes)
 - **Reviewer** (`v6/reviewer.py`): Quality evaluation
 - **Planner** (`v6/planner.py`): Issue resolution
 

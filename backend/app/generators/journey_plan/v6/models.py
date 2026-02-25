@@ -20,6 +20,7 @@ class TransportMode(str, Enum):
     TRAIN = "train"
     BUS = "bus"
     DRIVE = "drive"
+    FERRY = "ferry"
 
 
 @dataclass

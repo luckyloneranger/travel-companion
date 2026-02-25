@@ -167,6 +167,15 @@ export interface V6DayPlansRequest {
   travel_mode: 'WALK' | 'DRIVE' | 'TRANSIT';
 }
 
+/** Route information between two activities */
+export interface V6Route {
+  distance_meters: number;
+  duration_seconds: number;
+  duration_text: string;
+  travel_mode: 'WALK' | 'DRIVE' | 'TRANSIT';
+  polyline?: string;
+}
+
 /** Activity in a day plan */
 export interface V6Activity {
   time_start: string;
@@ -177,8 +186,12 @@ export interface V6Activity {
     address: string;
     location: { lat: number; lng: number };
     rating?: number;
+    website?: string;
+    photo_url?: string;
   };
   duration_minutes: number;
+  notes?: string;
+  route_to_next?: V6Route;
 }
 
 /** Single day's itinerary */
@@ -212,6 +225,7 @@ export interface V6DayPlanProgress {
   city_name: string | null;
   city_index: number;
   total_cities: number;
+  city_days: number;  // Number of days for current city
   message: string;
   progress: number;  // 0-100 overall
   city_progress: number;  // 0-100 for current city
@@ -276,3 +290,77 @@ export const DAYS_OPTIONS = [
   { value: 14, label: '2 weeks', description: 'In-depth exploration' },
   { value: 21, label: '3 weeks', description: 'Epic adventure' },
 ] as const;
+
+// ═══════════════════════════════════════════════════════════════
+// CHAT EDIT TYPES
+// ═══════════════════════════════════════════════════════════════
+
+/** Request to edit a journey via chat */
+export interface ChatEditRequest {
+  /** User's edit request message */
+  message: string;
+  /** Current journey plan to edit */
+  journey: V6JourneyPlan;
+  /** Original trip context */
+  context?: {
+    origin?: string;
+    region?: string;
+    interests?: string[];
+    pace?: string;
+  };
+}
+
+/** Response from journey chat edit */
+export interface ChatEditResponse {
+  /** Whether the edit was successfully applied */
+  success: boolean;
+  /** Assistant's response message */
+  message: string;
+  /** What the AI understood from the request */
+  understood_request: string;
+  /** List of changes applied */
+  changes_made: string[];
+  /** Updated journey plan (if successful) */
+  updated_journey: V6JourneyPlan | null;
+  /** Error message (if failed) */
+  error: string | null;
+}
+
+/** Chat message for UI display */
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  changes?: string[];
+  isLoading?: boolean;
+}
+
+/** Request to edit day plans via chat */
+export interface DayPlanChatEditRequest {
+  /** User's edit request message */
+  message: string;
+  /** Current day plans to edit */
+  day_plans: V6DayPlan[];
+  /** Trip context */
+  context?: {
+    interests?: string[];
+    pace?: string;
+  };
+}
+
+/** Response from day plan chat edit */
+export interface DayPlanChatEditResponse {
+  /** Whether the edit was successfully applied */
+  success: boolean;
+  /** Assistant's response message */
+  message: string;
+  /** What the AI understood from the request */
+  understood_request: string;
+  /** List of changes applied */
+  changes_made: string[];
+  /** Updated day plans (if successful) */
+  updated_day_plans: V6DayPlan[] | null;
+  /** Error message (if failed) */
+  error: string | null;
+}

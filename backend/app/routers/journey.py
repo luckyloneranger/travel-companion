@@ -275,6 +275,7 @@ async def generate_day_plans_stream(request: DayPlansRequest, req: Request):
                     "city_name": progress.city_name,
                     "city_index": progress.city_index,
                     "total_cities": progress.total_cities,
+                    "city_days": progress.city_days,
                     "message": progress.message,
                     "progress": progress.progress,
                     "city_progress": progress.city_progress,
@@ -428,6 +429,177 @@ def _parse_journey_dict(journey_dict: dict):
         origin=journey_dict.get("origin", ""),
         region=journey_dict.get("region", ""),
     )
+
+
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ CHAT EDIT ENDPOINTS                                                        │
+# └───────────────────────────────────────────────────────────────────────────┘
+
+class ChatEditRequestModel(BaseModel):
+    """Request to edit a journey via chat."""
+    message: str = Field(..., min_length=1, max_length=1000, description="User's edit request")
+    journey: dict = Field(..., description="Current journey plan to edit")
+    context: dict = Field(default_factory=dict, description="Original trip context")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "Add Hoi An after Da Nang for 2 days",
+                "journey": {
+                    "theme": "Cultural Vietnam",
+                    "cities": [{"name": "Da Nang", "days": 2}],
+                    "travel_legs": [],
+                    "total_days": 2
+                },
+                "context": {
+                    "origin": "Ho Chi Minh City",
+                    "interests": ["culture", "food"],
+                    "pace": "moderate"
+                }
+            }
+        }
+
+
+class ChatEditResponseModel(BaseModel):
+    """Response from journey chat edit."""
+    success: bool
+    message: str
+    understood_request: str = ""
+    changes_made: list[str] = []
+    updated_journey: Optional[dict] = None
+    error: Optional[str] = None
+
+
+@router.post("/chat/edit", response_model=ChatEditResponseModel)
+async def chat_edit_journey(request: ChatEditRequestModel):
+    """
+    Edit a journey plan via natural language chat.
+    
+    Accepts user messages like:
+    - "Add Hoi An after Da Nang for 2 days"
+    - "Remove the Hue stop"
+    - "Change the transport between Hanoi and Da Nang to flight"
+    - "Give me more time in Saigon"
+    - "Swap the order of Hue and Da Nang"
+    
+    Returns the updated journey plan with a friendly explanation.
+    """
+    from app.services.internal import JourneyChatService, ChatEditRequest
+    
+    logger.info(f"Chat edit request: {request.message[:50]}...")
+    
+    try:
+        service = JourneyChatService()
+        result = await service.process_edit(
+            ChatEditRequest(
+                message=request.message,
+                journey=request.journey,
+                context=request.context,
+            )
+        )
+        
+        return ChatEditResponseModel(
+            success=result.success,
+            message=result.message,
+            understood_request=result.understood_request,
+            changes_made=result.changes_made,
+            updated_journey=result.updated_journey,
+            error=result.error,
+        )
+        
+    except Exception as e:
+        logger.error(f"Chat edit failed: {e}", exc_info=True)
+        return ChatEditResponseModel(
+            success=False,
+            message="Sorry, I couldn't process your request. Please try again.",
+            error=str(e),
+        )
+
+
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ DAY PLAN CHAT EDIT ENDPOINTS                                              │
+# └───────────────────────────────────────────────────────────────────────────┘
+
+class DayPlanChatEditRequestModel(BaseModel):
+    """Request to edit day plans via chat."""
+    message: str = Field(..., min_length=1, max_length=1000, description="User's edit request")
+    day_plans: list[dict] = Field(..., description="Current day plans to edit")
+    context: dict = Field(default_factory=dict, description="Trip context")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "Add a coffee break after the museum visit on day 1",
+                "day_plans": [
+                    {
+                        "date": "2026-03-01",
+                        "day_number": 1,
+                        "theme": "Cultural Exploration",
+                        "activities": []
+                    }
+                ],
+                "context": {
+                    "interests": ["culture", "food"],
+                    "pace": "moderate"
+                }
+            }
+        }
+
+
+class DayPlanChatEditResponseModel(BaseModel):
+    """Response from day plan chat edit."""
+    success: bool
+    message: str
+    understood_request: str = ""
+    changes_made: list[str] = []
+    updated_day_plans: Optional[list[dict]] = None
+    error: Optional[str] = None
+
+
+@router.post("/days/chat/edit", response_model=DayPlanChatEditResponseModel)
+async def chat_edit_day_plans(request: DayPlanChatEditRequestModel):
+    """
+    Edit day plans via natural language chat.
+    
+    Accepts user messages like:
+    - "Add a coffee break after the museum"
+    - "Remove the shopping activity on day 2"
+    - "Make day 3 more relaxed"
+    - "Swap lunch and the temple visit"
+    - "Add more food experiences"
+    
+    Returns the updated day plans with a friendly explanation.
+    """
+    from app.services.internal import DayPlanChatService, DayPlanChatEditRequest
+    
+    logger.info(f"Day plan chat edit request: {request.message[:50]}...")
+    
+    try:
+        service = DayPlanChatService()
+        result = await service.process_edit(
+            DayPlanChatEditRequest(
+                message=request.message,
+                day_plans=request.day_plans,
+                context=request.context,
+            )
+        )
+        
+        return DayPlanChatEditResponseModel(
+            success=result.success,
+            message=result.message,
+            understood_request=result.understood_request,
+            changes_made=result.changes_made,
+            updated_day_plans=result.updated_day_plans,
+            error=result.error,
+        )
+        
+    except Exception as e:
+        logger.error(f"Day plan chat edit failed: {e}", exc_info=True)
+        return DayPlanChatEditResponseModel(
+            success=False,
+            message="Sorry, I couldn't process your request. Please try again.",
+            error=str(e),
+        )
 
 
 # Legacy endpoint aliases for backward compatibility

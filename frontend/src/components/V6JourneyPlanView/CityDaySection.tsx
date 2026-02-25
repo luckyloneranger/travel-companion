@@ -79,22 +79,23 @@ export const CityDaySection = memo(function CityDaySection({ group }: CityDaySec
 
         {/* Days List */}
         {expanded && (
-          <div className="bg-white p-4 space-y-3">
+          <div className="bg-white p-5 space-y-4">
             {days.map((day, idx) => (
               <DayCard 
                 key={idx} 
                 dayPlan={day} 
                 dayNumberInCity={idx + 1}
-                palette={palette}
+                paletteIndex={cityIndex}
+                defaultExpanded={idx === 0}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Travel Leg to Next City */}
+      {/* Travel Leg to Next City - uses next city's palette for visual continuity */}
       {travelLeg && (
-        <TravelLegCompact leg={travelLeg} />
+        <TravelLegCompact leg={travelLeg} palette={palette} />
       )}
     </div>
   );

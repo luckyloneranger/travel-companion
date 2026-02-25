@@ -3,16 +3,23 @@
  * Includes both full card and compact versions
  */
 import { memo } from 'react';
-import { ArrowRight, DollarSign, Info, Route } from 'lucide-react';
+import { ArrowRight, Calendar, DollarSign, Info, Route } from 'lucide-react';
 import type { V6TravelLeg } from '@/types';
 import { transportIcons } from './styles';
 
+/** Format date for display */
+function formatTravelDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 interface TravelLegProps {
   leg: V6TravelLeg;
+  travelDate?: string;
 }
 
 /** Full travel leg card with details */
-export const TravelLegCard = memo(function TravelLegCard({ leg }: TravelLegProps) {
+export const TravelLegCard = memo(function TravelLegCard({ leg, travelDate }: TravelLegProps) {
   const hasValidDuration = leg.duration_hours && leg.duration_hours > 0;
   const hasValidDistance = leg.distance_km && leg.distance_km > 0;
   
@@ -41,7 +48,13 @@ export const TravelLegCard = memo(function TravelLegCard({ leg }: TravelLegProps
               <ArrowRight className="h-3 w-3 text-blue-400 flex-shrink-0" />
               <span className="truncate">{leg.to_city}</span>
             </div>
-            <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
+            <div className="flex items-center gap-3 mt-1 text-xs text-gray-600 flex-wrap">
+              {travelDate && (
+                <span className="flex items-center gap-1 font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                  <Calendar className="h-3 w-3" />
+                  {formatTravelDate(travelDate)}
+                </span>
+              )}
               {leg.mode && (
                 <span className="capitalize font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{leg.mode}</span>
               )}
@@ -84,24 +97,47 @@ export const TravelLegCard = memo(function TravelLegCard({ leg }: TravelLegProps
   );
 });
 
+interface TravelLegCompactProps extends TravelLegProps {
+  /** Optional color palette from destination city */
+  palette?: { gradientFrom: string; gradientTo: string; bgColor: string; borderColor: string; textColor: string };
+}
+
 /** Compact travel leg display for between day sections */
-export const TravelLegCompact = memo(function TravelLegCompact({ leg }: TravelLegProps) {
+export const TravelLegCompact = memo(function TravelLegCompact({ leg, palette }: TravelLegCompactProps) {
   const hasValidData = leg.duration_hours > 0 || (leg.distance_km && leg.distance_km > 0);
   
+  // Default to blue gradient if no palette provided
+  const gradient = palette 
+    ? `linear-gradient(135deg, ${palette.gradientFrom}, ${palette.gradientTo})`
+    : 'linear-gradient(135deg, #3b82f6, #6366f1)';
+  const bgStyle = palette
+    ? `linear-gradient(to right, ${palette.bgColor}, white, ${palette.bgColor})`
+    : 'linear-gradient(to right, #f8fafc, #eff6ff, #f8fafc)';
+  const borderColor = palette?.borderColor || '#bfdbfe';
+  const accentColor = palette?.textColor || '#2563eb';
+  
   return (
-    <div className="flex items-center gap-4 py-3 px-5 bg-gradient-to-r from-slate-50 via-blue-50/50 to-slate-50 rounded-xl border border-dashed border-blue-200 my-3">
+    <div 
+      className="flex items-center gap-4 py-3 px-5 rounded-xl border border-dashed my-3 shadow-sm"
+      style={{ background: bgStyle, borderColor }}
+    >
       <div 
         className="w-11 h-11 rounded-full flex items-center justify-center text-white shadow-md flex-shrink-0"
-        style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
+        style={{ background: gradient }}
       >
         {transportIcons[leg.mode?.toLowerCase()] || <Route className="h-5 w-5" />}
       </div>
       <div className="flex-1 flex items-center gap-3 text-sm flex-wrap">
-        <span className="text-gray-700 font-semibold">Next destination</span>
+        <span className="text-gray-700 font-semibold">
+          Travel to <span style={{ color: accentColor }}>{leg.to_city}</span>
+        </span>
         {leg.mode && (
           <>
-            <span className="text-blue-300">•</span>
-            <span className="font-bold text-blue-600 capitalize bg-blue-100 px-2 py-0.5 rounded-full text-xs">
+            <span style={{ color: `${accentColor}40` }}>•</span>
+            <span 
+              className="font-bold capitalize px-2 py-0.5 rounded-full text-xs"
+              style={{ backgroundColor: palette?.bgColor || '#dbeafe', color: accentColor }}
+            >
               {leg.mode}
             </span>
           </>

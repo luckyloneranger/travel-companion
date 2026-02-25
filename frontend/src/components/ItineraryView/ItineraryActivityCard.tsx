@@ -1,31 +1,27 @@
 /**
- * ActivityCard - Single activity display within a day plan
- * Enhanced design with route info and better styling
+ * ItineraryActivityCard - Single activity display within a day plan
+ * Matches V6JourneyPlanView design language
  */
 import { memo } from 'react';
 import { Clock, MapPin, Star, Navigation, ExternalLink } from 'lucide-react';
-import type { V6Activity } from '@/types';
-import { categoryStyles, getCategoryIcon, isMealActivity } from './styles';
+import type { Activity } from '@/types/itinerary';
+import { categoryStyles, getCategoryIcon, isMealActivity, formatDuration } from './styles';
 
-interface ActivityCardProps {
-  activity: V6Activity;
+interface ItineraryActivityCardProps {
+  activity: Activity;
   isLast: boolean;
   index: number;
 }
 
-/** Format duration in human readable form */
-const formatDuration = (minutes: number): string => {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-};
-
-export const ActivityCard = memo(function ActivityCard({ activity, isLast, index }: ActivityCardProps) {
+export const ItineraryActivityCard = memo(function ItineraryActivityCard({ 
+  activity, 
+  isLast, 
+  index 
+}: ItineraryActivityCardProps) {
   const category = activity.place.category?.toLowerCase() || 'default';
   const style = categoryStyles[category] || categoryStyles.default;
   const isMeal = isMealActivity(category);
-  
+
   return (
     <div 
       className="flex gap-3 group animate-fadeIn" 
@@ -54,7 +50,7 @@ export const ActivityCard = memo(function ActivityCard({ activity, isLast, index
       {/* Activity content */}
       <div className={`flex-1 min-w-0 ${isLast ? '' : 'pb-4'}`}>
         <div 
-          className="rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-all duration-200 group-hover:translate-x-0.5"
+          className="rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 group-hover:translate-x-0.5"
           style={{ 
             background: 'white',
             border: `1px solid ${style.border}`,
@@ -132,7 +128,6 @@ export const ActivityCard = memo(function ActivityCard({ activity, isLast, index
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium"
-                  onClick={(e) => e.stopPropagation()}
                 >
                   <ExternalLink className="h-3 w-3" />
                   Website
