@@ -1,11 +1,5 @@
 /**
  * V6JourneyPlanView - Display V6 journey plan results
- * 
- * Shows the multi-city journey with:
- * - Cities as cards with highlights
- * - Travel legs with transport mode, duration, and tips
- * - Overall journey stats
- * - Detailed day plans grouped by city when generated
  */
 import { useMemo } from 'react';
 import {
@@ -32,28 +26,26 @@ interface V6JourneyPlanViewProps {
   generatingDayPlans?: boolean;
 }
 
-export function V6JourneyPlanView({ 
-  journey, 
+export function V6JourneyPlanView({
+  journey,
   dayPlans,
   startDate,
-  onReset, 
-  onGenerateDayPlans, 
-  loading = false, 
-  generatingDayPlans = false 
+  onReset,
+  onGenerateDayPlans,
+  loading = false,
+  generatingDayPlans = false
 }: V6JourneyPlanViewProps) {
   const hasDayPlans = dayPlans && dayPlans.length > 0;
-  
+
   // Group day plans by city
   const cityDayGroups = useMemo<CityDayGroup[]>(() => {
     if (!hasDayPlans) return [];
-    
+
     const groups: CityDayGroup[] = [];
     let currentDayIndex = 0;
-    
+
     journey.cities.forEach((city, cityIndex) => {
       const cityDays = dayPlans!.slice(currentDayIndex, currentDayIndex + city.days);
-      // Use travel_legs[cityIndex + 1] for departure leg (travel TO the next city)
-      // travel_legs[0] is origin→city[0], so cityIndex+1 gives the leg AFTER this city
       groups.push({
         city,
         cityIndex,
@@ -63,73 +55,73 @@ export function V6JourneyPlanView({
       });
       currentDayIndex += city.days;
     });
-    
+
     return groups;
   }, [journey, dayPlans, hasDayPlans]);
-  
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto animate-fade-in">
       {/* Journey Header */}
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-        <div 
+      <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-gray-100/40">
+        <div
           className="text-white p-6"
-          style={{ background: `linear-gradient(to right, ${headerGradients.journey.from}, ${headerGradients.journey.to})` }}
+          style={{ background: headerGradients.journey.css }}
         >
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-5 w-5" />
-            <span className="text-sm font-medium opacity-90">Your Journey</span>
+            <span className="text-sm font-display font-semibold opacity-90">Your Journey</span>
           </div>
-          <h1 className="text-2xl font-bold">{journey.theme}</h1>
+          <h1 className="text-2xl font-display font-extrabold tracking-tight">{journey.theme}</h1>
           <p className="mt-2 text-white/80">{journey.summary}</p>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-px bg-gray-100">
+        <div className="grid grid-cols-4 gap-px bg-gray-100/60">
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-bold" style={{ color: headerGradients.journey.from }}>{journey.total_days}</p>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Days</p>
+            <p className="text-2xl font-display font-extrabold" style={{ color: headerGradients.journey.from }}>{journey.total_days}</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Days</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-bold" style={{ color: headerGradients.journey.from }}>{journey.cities.length}</p>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Cities</p>
+            <p className="text-2xl font-display font-extrabold" style={{ color: headerGradients.journey.from }}>{journey.cities.length}</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Cities</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-bold" style={{ color: headerGradients.journey.from }}>
+            <p className="text-2xl font-display font-extrabold" style={{ color: headerGradients.journey.from }}>
               {journey.total_distance_km ? Math.round(journey.total_distance_km) : '—'}
             </p>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">km</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">km</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-bold" style={{ color: headerGradients.journey.from }}>
+            <p className="text-2xl font-display font-extrabold" style={{ color: headerGradients.journey.from }}>
               {journey.review_score || '—'}
             </p>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Score</p>
+            <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Score</p>
           </div>
         </div>
       </div>
 
-      {/* Route visualization - Enhanced */}
-      <div className="bg-white rounded-xl p-4 mb-6 shadow-sm border border-gray-100">
+      {/* Route visualization */}
+      <div className="bg-white rounded-2xl p-4 mb-6 shadow-sm border border-gray-100/60">
         <div className="flex items-center gap-1 text-sm overflow-x-auto pb-2 scrollbar-thin scrollbar-hide hover:scrollbar-thin" role="navigation" aria-label="Journey route">
-          <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 rounded-full whitespace-nowrap flex-shrink-0">
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-gray-100/80 rounded-full whitespace-nowrap flex-shrink-0">
             <MapPin className="h-3.5 w-3.5 text-gray-500" />
-            <span className="font-semibold text-gray-700 truncate max-w-[120px]">{journey.origin}</span>
+            <span className="font-display font-semibold text-gray-700 truncate max-w-[120px]">{journey.origin}</span>
           </div>
           {journey.cities.map((city, idx) => {
             const palette = cityColorPalettes[idx % cityColorPalettes.length];
             return (
               <div key={idx} className="flex items-center gap-1 whitespace-nowrap flex-shrink-0">
                 <ArrowRight className="h-4 w-4 text-gray-300 flex-shrink-0 mx-1" />
-                <div 
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-full border font-semibold transition-transform hover:scale-105"
-                  style={{ 
-                    backgroundColor: palette.bgColor, 
+                <div
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-full border font-display font-semibold transition-all duration-200 hover:scale-105 hover:shadow-sm"
+                  style={{
+                    backgroundColor: palette.bgColor,
                     borderColor: palette.borderColor,
-                    color: palette.textColor 
+                    color: palette.textColor
                   }}
                 >
                   <span className="truncate max-w-[100px]">{city.name}</span>
-                  <span className="text-xs opacity-70 flex-shrink-0">({city.days}d)</span>
+                  <span className="text-xs opacity-60 flex-shrink-0">({city.days}d)</span>
                 </div>
               </div>
             );
@@ -140,59 +132,55 @@ export function V6JourneyPlanView({
       {/* Day Plans grouped by City */}
       {hasDayPlans && (
         <div className="mb-6">
-          {/* Section header - matching journey header sophistication */}
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
-            <div 
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-gray-100/40">
+            <div
               className="text-white p-5"
-              style={{ background: `linear-gradient(to right, ${headerGradients.dayPlan.from}, ${headerGradients.dayPlan.to})` }}
+              style={{ background: headerGradients.dayPlan.css }}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div 
+                  <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
                     style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}
                   >
                     <Calendar className="h-6 w-6" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold">Day-by-Day Itinerary</h2>
+                    <h2 className="text-xl font-display font-bold">Day-by-Day Itinerary</h2>
                     <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.85)' }}>{dayPlans.length} days of curated experiences across {journey.cities.length} destinations</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-3xl font-bold">{dayPlans.reduce((acc, d) => acc + d.activities.length, 0)}</p>
-                    <p className="text-xs uppercase tracking-wide" style={{ color: 'rgba(255,255,255,0.85)' }}>Activities</p>
+                    <p className="text-3xl font-display font-extrabold">{dayPlans.reduce((acc, d) => acc + d.activities.length, 0)}</p>
+                    <p className="text-xs uppercase tracking-wider font-medium" style={{ color: 'rgba(255,255,255,0.85)' }}>Activities</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          
+
           {cityDayGroups.map((group, idx) => (
             <CityDaySection key={idx} group={group} />
           ))}
         </div>
       )}
 
-      {/* Timeline view with cities and travel legs - Show when no day plans */}
+      {/* Timeline view with cities and travel legs */}
       {!hasDayPlans && (
         <div className="mb-6">
           {journey.cities.map((city, idx) => (
             <div key={idx}>
-              {/* City card */}
               <CityCard
                 city={city}
                 index={idx}
                 isLast={idx === journey.cities.length - 1 && !journey.travel_legs[idx]}
               />
-              {/* Travel leg FROM this city to the next */}
               {journey.travel_legs[idx] && (
-                <TravelLegCard 
-                  leg={journey.travel_legs[idx]} 
+                <TravelLegCard
+                  leg={journey.travel_legs[idx]}
                   travelDate={startDate ? (() => {
                     const start = new Date(startDate);
-                    // Days including this city = sum of cities up to and including this one
                     const daysToAdd = journey.cities.slice(0, idx + 1).reduce((sum, c) => sum + c.days, 0);
                     const date = new Date(start);
                     date.setDate(date.getDate() + daysToAdd);
@@ -206,11 +194,11 @@ export function V6JourneyPlanView({
       )}
 
       {/* Actions */}
-      <div className="flex gap-4 sticky bottom-4 bg-white/80 backdrop-blur-sm p-4 -mx-4 rounded-xl shadow-lg border border-gray-100">
+      <div className="flex gap-4 sticky bottom-4 glass-strong p-4 -mx-4 rounded-2xl shadow-lg border border-white/60">
         <button
           onClick={onReset}
           disabled={loading || generatingDayPlans}
-          className="flex-1 py-3 px-6 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          className="flex-1 py-3 px-6 border border-gray-200/80 text-gray-700 font-display font-medium rounded-xl hover:bg-gray-50 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 transition-all duration-300 flex items-center justify-center gap-2"
         >
           <RefreshCw className="h-4 w-4" />
           Plan Another Journey
@@ -219,8 +207,8 @@ export function V6JourneyPlanView({
           <button
             onClick={onGenerateDayPlans}
             disabled={!onGenerateDayPlans || generatingDayPlans}
-            className={`flex-1 py-3 px-6 bg-gradient-to-r from-primary-600 to-purple-600 text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 ${
-              !onGenerateDayPlans || generatingDayPlans ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:scale-[1.02]'
+            className={`flex-1 py-3 px-6 bg-gradient-to-r from-primary-600 to-purple-600 text-white font-display font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+              !onGenerateDayPlans || generatingDayPlans ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
             }`}
             title={generatingDayPlans ? 'Generating day plans...' : 'Create detailed itineraries for each city'}
           >

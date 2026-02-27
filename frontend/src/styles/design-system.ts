@@ -1,8 +1,8 @@
 /**
  * Travel Companion Design System
- * 
+ *
  * Centralized design tokens for consistent UI across the application.
- * Based on the Journey UI design language.
+ * Based on the Journey UI design language with modern, warm aesthetics.
  */
 
 // ============================================================================
@@ -36,67 +36,67 @@ export const semantic = {
  * Each palette includes gradient, background, border, text, and accent colors
  */
 export const colorPalettes = [
-  { 
+  {
     name: 'violet',
-    gradientFrom: '#7c3aed', 
+    gradientFrom: '#7c3aed',
     gradientTo: '#9333ea',
-    bgColor: '#f5f3ff', 
-    borderColor: '#ddd6fe', 
-    textColor: '#6d28d9', 
+    bgColor: '#f5f3ff',
+    borderColor: '#ddd6fe',
+    textColor: '#6d28d9',
     accentColor: '#7c3aed',
   },
-  { 
+  {
     name: 'emerald',
-    gradientFrom: '#059669', 
+    gradientFrom: '#059669',
     gradientTo: '#0d9488',
-    bgColor: '#ecfdf5', 
-    borderColor: '#a7f3d0', 
-    textColor: '#047857', 
+    bgColor: '#ecfdf5',
+    borderColor: '#a7f3d0',
+    textColor: '#047857',
     accentColor: '#059669',
   },
-  { 
+  {
     name: 'orange',
-    gradientFrom: '#f97316', 
+    gradientFrom: '#f97316',
     gradientTo: '#f59e0b',
-    bgColor: '#fff7ed', 
-    borderColor: '#fed7aa', 
-    textColor: '#c2410c', 
+    bgColor: '#fff7ed',
+    borderColor: '#fed7aa',
+    textColor: '#c2410c',
     accentColor: '#f97316',
   },
-  { 
+  {
     name: 'rose',
-    gradientFrom: '#e11d48', 
+    gradientFrom: '#e11d48',
     gradientTo: '#ec4899',
-    bgColor: '#fff1f2', 
-    borderColor: '#fecdd3', 
-    textColor: '#be123c', 
+    bgColor: '#fff1f2',
+    borderColor: '#fecdd3',
+    textColor: '#be123c',
     accentColor: '#e11d48',
   },
-  { 
+  {
     name: 'cyan',
-    gradientFrom: '#0891b2', 
+    gradientFrom: '#0891b2',
     gradientTo: '#2563eb',
-    bgColor: '#ecfeff', 
-    borderColor: '#a5f3fc', 
-    textColor: '#0e7490', 
+    bgColor: '#ecfeff',
+    borderColor: '#a5f3fc',
+    textColor: '#0e7490',
     accentColor: '#0891b2',
   },
-  { 
+  {
     name: 'indigo',
-    gradientFrom: '#4f46e5', 
+    gradientFrom: '#4f46e5',
     gradientTo: '#7c3aed',
-    bgColor: '#eef2ff', 
-    borderColor: '#c7d2fe', 
-    textColor: '#4338ca', 
+    bgColor: '#eef2ff',
+    borderColor: '#c7d2fe',
+    textColor: '#4338ca',
     accentColor: '#4f46e5',
   },
-  { 
+  {
     name: 'red',
-    gradientFrom: '#dc2626', 
+    gradientFrom: '#dc2626',
     gradientTo: '#f97316',
-    bgColor: '#fef2f2', 
-    borderColor: '#fecaca', 
-    textColor: '#b91c1c', 
+    bgColor: '#fef2f2',
+    borderColor: '#fecaca',
+    textColor: '#b91c1c',
     accentColor: '#dc2626',
   },
 ] as const;
@@ -104,7 +104,7 @@ export const colorPalettes = [
 export type ColorPalette = typeof colorPalettes[number];
 
 /** Get palette by index (wraps around) */
-export const getPalette = (index: number): ColorPalette => 
+export const getPalette = (index: number): ColorPalette =>
   colorPalettes[index % colorPalettes.length];
 
 /**
@@ -112,7 +112,7 @@ export const getPalette = (index: number): ColorPalette =>
  * Uses pastel tones and subtle gradients for a gentler look
  */
 export const lightPalettes = [
-  { 
+  {
     name: 'soft-violet',
     gradientFrom: '#ddd6fe',   // violet-200
     gradientTo: '#e9d5ff',     // purple-200
@@ -122,7 +122,7 @@ export const lightPalettes = [
     borderColor: '#c4b5fd',    // violet-300
     iconBg: 'linear-gradient(135deg, #a78bfa, #c084fc)',  // violet-400 to purple-400
   },
-  { 
+  {
     name: 'soft-emerald',
     gradientFrom: '#a7f3d0',   // emerald-200
     gradientTo: '#99f6e4',     // teal-200
@@ -132,7 +132,7 @@ export const lightPalettes = [
     borderColor: '#6ee7b7',    // emerald-300
     iconBg: 'linear-gradient(135deg, #34d399, #2dd4bf)',  // emerald-400 to teal-400
   },
-  { 
+  {
     name: 'soft-amber',
     gradientFrom: '#fde68a',   // amber-200
     gradientTo: '#fed7aa',     // orange-200
@@ -142,7 +142,7 @@ export const lightPalettes = [
     borderColor: '#fcd34d',    // amber-300
     iconBg: 'linear-gradient(135deg, #fbbf24, #fb923c)',  // amber-400 to orange-400
   },
-  { 
+  {
     name: 'soft-rose',
     gradientFrom: '#fecdd3',   // rose-200
     gradientTo: '#fbcfe8',     // pink-200
@@ -152,7 +152,7 @@ export const lightPalettes = [
     borderColor: '#fda4af',    // rose-300
     iconBg: 'linear-gradient(135deg, #fb7185, #f472b6)',  // rose-400 to pink-400
   },
-  { 
+  {
     name: 'soft-sky',
     gradientFrom: '#bae6fd',   // sky-200
     gradientTo: '#a5f3fc',     // cyan-200
@@ -162,7 +162,7 @@ export const lightPalettes = [
     borderColor: '#7dd3fc',    // sky-300
     iconBg: 'linear-gradient(135deg, #38bdf8, #22d3ee)',  // sky-400 to cyan-400
   },
-  { 
+  {
     name: 'soft-indigo',
     gradientFrom: '#c7d2fe',   // indigo-200
     gradientTo: '#ddd6fe',     // violet-200
@@ -172,7 +172,7 @@ export const lightPalettes = [
     borderColor: '#a5b4fc',    // indigo-300
     iconBg: 'linear-gradient(135deg, #818cf8, #a78bfa)',  // indigo-400 to violet-400
   },
-  { 
+  {
     name: 'soft-slate',
     gradientFrom: '#e2e8f0',   // slate-200
     gradientTo: '#e5e7eb',     // gray-200
@@ -187,7 +187,7 @@ export const lightPalettes = [
 export type LightPalette = typeof lightPalettes[number];
 
 /** Get light palette by index (wraps around) */
-export const getLightPalette = (index: number): LightPalette => 
+export const getLightPalette = (index: number): LightPalette =>
   lightPalettes[index % lightPalettes.length];
 
 // ============================================================================
@@ -199,22 +199,22 @@ export const getLightPalette = (index: number): LightPalette =>
  */
 export const headerGradients = {
   /** Main journey/trip header - violet-purple */
-  journey: { 
-    from: '#7c3aed', 
+  journey: {
+    from: '#7c3aed',
     to: '#9333ea',
     css: 'linear-gradient(135deg, #7c3aed, #9333ea)',
   },
   /** Day plans section header - emerald-teal */
-  dayPlan: { 
-    from: '#059669', 
+  dayPlan: {
+    from: '#059669',
     to: '#0d9488',
     css: 'linear-gradient(135deg, #059669, #0d9488)',
   },
   /** Statistics/metrics - blue-indigo */
-  stats: { 
-    from: '#3b82f6', 
-    to: '#6366f1',
-    css: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+  stats: {
+    from: '#6366f1',
+    to: '#8b5cf6',
+    css: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
   },
   /** Transport/travel - blue gradient */
   transport: {
@@ -255,7 +255,7 @@ export const categoryStyles: Record<string, {
   culture: { bg: '#f5f3ff', text: '#7c3aed', border: '#ddd6fe', accent: '#8b5cf6', gradient: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' },
   museum: { bg: '#f5f3ff', text: '#7c3aed', border: '#ddd6fe', accent: '#8b5cf6', gradient: 'linear-gradient(135deg, #a78bfa, #8b5cf6)' },
   art: { bg: '#fdf4ff', text: '#a21caf', border: '#f5d0fe', accent: '#d946ef', gradient: 'linear-gradient(135deg, #e879f9, #d946ef)' },
-  
+
   // Food & Dining
   food: { bg: '#fff7ed', text: '#ea580c', border: '#fed7aa', accent: '#f97316', gradient: 'linear-gradient(135deg, #f97316, #ea580c)' },
   breakfast: { bg: '#fef3c7', text: '#d97706', border: '#fde68a', accent: '#f59e0b', gradient: 'linear-gradient(135deg, #fbbf24, #f59e0b)' },
@@ -263,31 +263,31 @@ export const categoryStyles: Record<string, {
   dinner: { bg: '#fce7f3', text: '#be185d', border: '#fbcfe8', accent: '#ec4899', gradient: 'linear-gradient(135deg, #f472b6, #ec4899)' },
   restaurant: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa', accent: '#f97316', gradient: 'linear-gradient(135deg, #fb923c, #ea580c)' },
   cafe: { bg: '#fef3c7', text: '#92400e', border: '#fde68a', accent: '#d97706', gradient: 'linear-gradient(135deg, #fbbf24, #d97706)' },
-  
+
   // Nature & Outdoors
   nature: { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0', accent: '#10b981', gradient: 'linear-gradient(135deg, #34d399, #10b981)' },
   park: { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0', accent: '#10b981', gradient: 'linear-gradient(135deg, #34d399, #059669)' },
   beach: { bg: '#ecfeff', text: '#0891b2', border: '#a5f3fc', accent: '#06b6d4', gradient: 'linear-gradient(135deg, #22d3ee, #06b6d4)' },
-  
-  // History & Architecture  
+
+  // History & Architecture
   history: { bg: '#fef3c7', text: '#b45309', border: '#fde68a', accent: '#f59e0b', gradient: 'linear-gradient(135deg, #fbbf24, #d97706)' },
-  landmark: { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe', accent: '#3b82f6', gradient: 'linear-gradient(135deg, #60a5fa, #3b82f6)' },
+  landmark: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', accent: '#6366f1', gradient: 'linear-gradient(135deg, #818cf8, #6366f1)' },
   architecture: { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0', accent: '#22c55e', gradient: 'linear-gradient(135deg, #4ade80, #22c55e)' },
   religious: { bg: '#fefce8', text: '#a16207', border: '#fef08a', accent: '#eab308', gradient: 'linear-gradient(135deg, #facc15, #eab308)' },
-  
+
   // Entertainment & Lifestyle
   shopping: { bg: '#fdf2f8', text: '#db2777', border: '#fbcfe8', accent: '#ec4899', gradient: 'linear-gradient(135deg, #f472b6, #ec4899)' },
   nightlife: { bg: '#eef2ff', text: '#4f46e5', border: '#c7d2fe', accent: '#6366f1', gradient: 'linear-gradient(135deg, #818cf8, #6366f1)' },
   adventure: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca', accent: '#ef4444', gradient: 'linear-gradient(135deg, #f87171, #ef4444)' },
   relaxation: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd', accent: '#0ea5e9', gradient: 'linear-gradient(135deg, #38bdf8, #0ea5e9)' },
   entertainment: { bg: '#fdf4ff', text: '#a21caf', border: '#f5d0fe', accent: '#d946ef', gradient: 'linear-gradient(135deg, #e879f9, #d946ef)' },
-  
+
   // Default fallback
   default: { bg: '#f9fafb', text: '#4b5563', border: '#e5e7eb', accent: '#6b7280', gradient: 'linear-gradient(135deg, #9ca3af, #6b7280)' },
 };
 
 /** Get category style with fallback to default */
-export const getCategoryStyle = (category: string) => 
+export const getCategoryStyle = (category: string) =>
   categoryStyles[category?.toLowerCase()] || categoryStyles.default;
 
 /** Check if activity is a meal */
@@ -297,18 +297,23 @@ export const isMealCategory = (category: string): boolean => {
 };
 
 // ============================================================================
-// SHADOWS
+// SHADOWS — warm, modern, with depth
 // ============================================================================
 
 /**
- * Shadow scale for consistent elevation
+ * Shadow scale with warm tones for elegant depth
  */
 export const shadows = {
   none: 'none',
-  sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-  md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-  lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-  xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+  xs: '0 1px 2px rgba(124, 58, 237, 0.04)',
+  sm: '0 1px 3px rgba(124, 58, 237, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
+  md: '0 4px 12px rgba(124, 58, 237, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04)',
+  lg: '0 8px 24px rgba(124, 58, 237, 0.1), 0 4px 8px rgba(0, 0, 0, 0.04)',
+  xl: '0 16px 40px rgba(124, 58, 237, 0.12), 0 8px 16px rgba(0, 0, 0, 0.04)',
+  /** Focus ring shadow */
+  ring: '0 0 0 3px rgba(139, 92, 246, 0.15)',
+  /** Glow effect for CTAs */
+  glow: '0 8px 32px rgba(124, 58, 237, 0.25)',
 } as const;
 
 // ============================================================================
@@ -319,9 +324,9 @@ export const shadows = {
  * Card style presets for consistent look across components
  */
 export const cardStyles = {
-  /** Base card - white bg, subtle border, rounded */
+  /** Base card - soft background, subtle border */
   base: {
-    className: 'bg-white rounded-xl border border-gray-100',
+    className: 'bg-white rounded-2xl border border-gray-100/80',
     shadow: 'shadow-sm',
     hoverShadow: 'hover:shadow-md',
   },
@@ -339,9 +344,9 @@ export const cardStyles = {
   },
   /** Interactive card - for clickable items */
   interactive: {
-    className: 'bg-white rounded-xl border border-gray-100 cursor-pointer transition-all duration-200',
-    shadow: 'shadow-md',
-    hoverShadow: 'hover:shadow-lg hover:border-gray-200',
+    className: 'bg-white rounded-2xl border border-gray-100/80 cursor-pointer transition-all duration-300 ease-out',
+    shadow: 'shadow-sm',
+    hoverShadow: 'hover:shadow-lg hover:border-primary-200 hover:-translate-y-0.5',
   },
 } as const;
 
@@ -354,14 +359,14 @@ export const cardStyles = {
  */
 export const buttonStyles = {
   primary: {
-    base: 'bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold',
-    hover: 'hover:from-violet-700 hover:to-purple-700',
-    disabled: 'disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed',
+    base: 'bg-gradient-to-r from-primary-600 to-purple-600 text-white font-semibold',
+    hover: 'hover:from-primary-700 hover:to-purple-700 hover:-translate-y-0.5',
+    disabled: 'disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed disabled:translate-y-0',
     shadow: 'shadow-md hover:shadow-lg',
   },
   secondary: {
-    base: 'bg-white text-gray-700 font-semibold border border-gray-300',
-    hover: 'hover:bg-gray-50 hover:border-gray-400',
+    base: 'bg-white text-gray-700 font-semibold border border-gray-200',
+    hover: 'hover:bg-gray-50 hover:border-gray-300 hover:-translate-y-0.5',
     disabled: 'disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed',
     shadow: 'shadow-sm hover:shadow',
   },
@@ -373,7 +378,7 @@ export const buttonStyles = {
   },
   accent: {
     base: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold',
-    hover: 'hover:from-emerald-700 hover:to-teal-700',
+    hover: 'hover:from-emerald-700 hover:to-teal-700 hover:-translate-y-0.5',
     disabled: 'disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed',
     shadow: 'shadow-md hover:shadow-lg',
   },
@@ -426,10 +431,10 @@ export const badgeSizes = {
  */
 export const textStyles = {
   heading: {
-    xl: 'text-2xl font-bold text-gray-900',
-    lg: 'text-xl font-bold text-gray-900',
-    md: 'text-lg font-semibold text-gray-900',
-    sm: 'text-base font-semibold text-gray-900',
+    xl: 'font-display text-2xl font-bold text-gray-900',
+    lg: 'font-display text-xl font-bold text-gray-900',
+    md: 'font-display text-lg font-semibold text-gray-900',
+    sm: 'font-display text-base font-semibold text-gray-900',
   },
   body: {
     lg: 'text-base text-gray-700',
@@ -452,19 +457,19 @@ export const textStyles = {
  */
 export const glass = {
   light: {
-    bg: 'rgba(255, 255, 255, 0.15)',
-    backdrop: 'blur(10px)',
-    border: 'rgba(255, 255, 255, 0.2)',
+    bg: 'rgba(255, 255, 255, 0.12)',
+    backdrop: 'blur(12px) saturate(180%)',
+    border: 'rgba(255, 255, 255, 0.18)',
   },
   medium: {
-    bg: 'rgba(255, 255, 255, 0.25)',
-    backdrop: 'blur(10px)',
-    border: 'rgba(255, 255, 255, 0.3)',
+    bg: 'rgba(255, 255, 255, 0.2)',
+    backdrop: 'blur(16px) saturate(180%)',
+    border: 'rgba(255, 255, 255, 0.25)',
   },
   dark: {
-    bg: 'rgba(0, 0, 0, 0.1)',
-    backdrop: 'blur(10px)',
-    border: 'rgba(0, 0, 0, 0.1)',
+    bg: 'rgba(0, 0, 0, 0.08)',
+    backdrop: 'blur(12px) saturate(180%)',
+    border: 'rgba(0, 0, 0, 0.08)',
   },
 } as const;
 
@@ -476,9 +481,10 @@ export const glass = {
  * Consistent transition durations
  */
 export const transitions = {
-  fast: 'transition-all duration-150',
-  normal: 'transition-all duration-200',
-  slow: 'transition-all duration-300',
+  fast: 'transition-all duration-150 ease-out',
+  normal: 'transition-all duration-200 ease-out',
+  slow: 'transition-all duration-300 ease-out',
+  spring: 'transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
 } as const;
 
 // ============================================================================

@@ -20,8 +20,8 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
     <div className="flex gap-4">
       {/* Timeline */}
       <div className="flex flex-col items-center flex-shrink-0 w-12">
-        <div 
-          className="w-11 h-11 rounded-full text-white flex items-center justify-center font-bold text-lg z-10 shadow-lg"
+        <div
+          className="w-11 h-11 rounded-full text-white flex items-center justify-center font-display font-bold text-lg z-10 shadow-lg"
           style={{ backgroundColor: palette.accentColor }}
           aria-label={`City ${index + 1}`}
         >
@@ -32,7 +32,7 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
 
       {/* City content */}
       <div className="flex-1 min-w-0 pb-4">
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-200">
+        <div className="bg-white rounded-2xl shadow-md border border-gray-100/60 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300">
           {/* Header */}
           <div 
             className="p-4"
@@ -42,7 +42,7 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" style={{ color: palette.textColor }} />
-                  <h3 className="text-lg font-bold text-gray-900 truncate">
+                  <h3 className="text-lg font-display font-bold text-gray-900 truncate">
                     {city.name}, {city.country}
                   </h3>
                 </div>
@@ -61,7 +61,7 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
               </div>
               <button
                 onClick={() => setExpanded(!expanded)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100/80 rounded-xl transition-colors"
                 aria-expanded={expanded}
                 aria-label={expanded ? 'Collapse city details' : 'Expand city details'}
               >
@@ -81,8 +81,8 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
 
           {/* Highlights */}
           {expanded && city.highlights && city.highlights.length > 0 && (
-            <div className="p-4 border-t border-gray-100">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <div className="p-4 border-t border-gray-100/60">
+              <h4 className="text-sm font-display font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <Star className="h-4 w-4 text-amber-500" />
                 Top Highlights
               </h4>
@@ -92,12 +92,12 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
                   return (
                     <div
                       key={idx}
-                      className="bg-gray-50 border border-gray-100 rounded-lg p-3 hover:shadow-sm transition-shadow"
+                      className="bg-gray-50/80 border border-gray-100/60 rounded-xl p-3 hover:shadow-sm transition-all duration-200"
                       role="listitem"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h5 className="font-medium text-gray-900 text-sm">{highlight.name}</h5>
+                          <h5 className="font-display font-medium text-gray-900 text-sm">{highlight.name}</h5>
                           <span
                             className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs capitalize font-medium"
                             style={{ 

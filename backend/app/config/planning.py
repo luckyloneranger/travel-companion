@@ -1,7 +1,6 @@
 """Centralized configuration for itinerary planning parameters."""
 
 from dataclasses import dataclass
-from typing import Dict
 
 from app.models import Pace
 
@@ -17,7 +16,7 @@ class PaceConfig:
 
 
 # Pace-specific configurations
-PACE_CONFIGS: Dict[Pace, PaceConfig] = {
+PACE_CONFIGS: dict[Pace, PaceConfig] = {
     Pace.RELAXED: PaceConfig(
         activities_total="4-5",
         attractions_per_day="2-3",
@@ -43,7 +42,7 @@ PACE_CONFIGS: Dict[Pace, PaceConfig] = {
 
 
 # Duration estimates by place type (in minutes)
-DURATION_BY_TYPE: Dict[str, int] = {
+DURATION_BY_TYPE: dict[str, int] = {
     # Museums and galleries
     "museum": 90,
     "art_gallery": 60,
@@ -95,7 +94,7 @@ DURATION_BY_TYPE: Dict[str, int] = {
 # IMPORTANT: Only use types from Google Places API Table A
 # Reference: https://developers.google.com/maps/documentation/places/web-service/place-types#table-a
 # EXPANDED: More comprehensive mapping to capture diverse places
-INTEREST_TYPE_MAP: Dict[str, list[str]] = {
+INTEREST_TYPE_MAP: dict[str, list[str]] = {
     # Arts & Culture
     "art": ["art_gallery", "museum", "cultural_center"],
     "history": ["museum", "historical_landmark", "monument", "church", "hindu_temple", "mosque", "synagogue"],

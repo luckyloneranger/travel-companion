@@ -6,7 +6,7 @@ refinement, see the PristineItineraryGenerator in app.agents.orchestrator.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Awaitable, Callable, Optional, Self
 from uuid import uuid4
 
@@ -295,7 +295,7 @@ class FastItineraryGenerator:
                 interests_covered=request.interests,
                 estimated_cost_range=self._estimate_cost(days),
             ),
-            generated_at=datetime.utcnow().isoformat() + "Z",
+            generated_at=datetime.now(timezone.utc).isoformat(),
         )
 
     def _candidate_to_place(self, candidate: PlaceCandidate) -> Place:

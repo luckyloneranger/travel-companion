@@ -5,43 +5,12 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from typing import Optional
 
+from app.config.planning import DURATION_BY_TYPE
 from app.config.tuning import SCHEDULING
 from app.models import Pace, PlaceCandidate, Route, ScheduledActivity
 
 logger = logging.getLogger(__name__)
 
-
-# Default durations by place type (in minutes)
-DURATION_BY_TYPE = {
-    # Museums & Attractions
-    "museum": 120,
-    "art_gallery": 90,
-    "tourist_attraction": 60,
-    "historical_landmark": 45,
-    "monument": 30,
-    "church": 45,
-    "park": 60,
-    "amusement_park": 180,
-    "zoo": 180,
-    "aquarium": 120,
-    # Food & Drink
-    "restaurant": 75,
-    "cafe": 45,
-    "bakery": 30,
-    "bar": 60,
-    # Shopping
-    "shopping_mall": 90,
-    "market": 60,
-    "clothing_store": 45,
-    "store": 30,
-    # Other
-    "spa": 120,
-    "beach": 120,
-    "night_club": 120,
-    "casino": 120,
-    # Default
-    "default": 60,
-}
 
 # Pace multipliers for duration
 PACE_MULTIPLIERS = {
@@ -174,11 +143,15 @@ class ScheduleBuilder:
 
             # Check if exceeds day end
             if end_time > day_end:
+                # If already past day_end, skip entirely
+                if current_time >= day_end:
+                    logger.warning(f"Skipping {place.name}: already past day end")
+                    continue
                 logger.warning(
                     f"Activity {place.name} would exceed day end, adjusting or skipping"
                 )
                 # Try to fit with reduced duration
-                available_minutes = (day_end - current_time).seconds // 60
+                available_minutes = int((day_end - current_time).total_seconds()) // 60
                 if available_minutes >= SCHEDULING.min_activity_duration:
                     duration = available_minutes
                     end_time = day_end
@@ -262,14 +235,6 @@ class ScheduleBuilder:
         """Check if place is a restaurant/cafe suitable for meals."""
         meal_types = {"restaurant", "cafe", "bakery", "bar", "food"}
         return bool(set(place.types) & meal_types)
-
-    def _in_lunch_window(self, t: time) -> bool:
-        """Check if time is in lunch window."""
-        return self.config.lunch_window_start <= t < self.config.lunch_window_end
-
-    def _in_dinner_window(self, t: time) -> bool:
-        """Check if time is in dinner window."""
-        return self.config.dinner_window_start <= t < self.config.dinner_window_end
 
     def validate_schedule(
         self, schedule: list[ScheduledActivity], places: list[PlaceCandidate]

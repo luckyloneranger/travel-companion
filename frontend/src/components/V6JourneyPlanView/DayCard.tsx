@@ -42,9 +42,9 @@ export const DayCard = memo(function DayCard({
   });
 
   return (
-    <div 
-      className="rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200"
-      style={{ border: `1px solid ${palette.borderColor}` }}
+    <div
+      className="rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-300"
+      style={{ border: `1px solid ${palette.borderColor}40` }}
     >
       {/* Day Header with Light Gradient */}
       <button
@@ -64,7 +64,7 @@ export const DayCard = memo(function DayCard({
             <div className="flex items-center gap-4">
               {/* Day number badge with accent gradient */}
               <div 
-                className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-lg shadow-md flex-shrink-0 text-white"
+                className="w-11 h-11 rounded-xl flex items-center justify-center font-display font-extrabold text-lg shadow-md flex-shrink-0 text-white"
                 style={{ background: `linear-gradient(135deg, ${palette.gradientFrom}, ${palette.gradientTo})` }}
               >
                 {dayNumberInCity}
@@ -74,8 +74,8 @@ export const DayCard = memo(function DayCard({
                 {/* Theme */}
                 <div className="flex items-center gap-2 mb-1">
                   <Sparkles className="h-4 w-4" style={{ color: palette.accentColor }} />
-                  <h4 
-                    className="text-lg font-bold tracking-tight line-clamp-1"
+                  <h4
+                    className="text-lg font-display font-bold tracking-tight line-clamp-1"
                     style={{ color: palette.textColor }}
                   >
                     {dayPlan.theme}
@@ -114,10 +114,10 @@ export const DayCard = memo(function DayCard({
             <div className="flex items-center gap-3">
               {/* Activity count */}
               <div className="text-right hidden sm:block">
-                <p className="text-xl font-bold" style={{ color: palette.textColor }}>
+                <p className="text-xl font-display font-extrabold" style={{ color: palette.textColor }}>
                   {dayPlan.activities.length}
                 </p>
-                <p className="text-xs uppercase tracking-wide text-gray-500">activities</p>
+                <p className="text-xs uppercase tracking-wider text-gray-500 font-medium">activities</p>
               </div>
               
               <div 
@@ -147,7 +147,7 @@ export const DayCard = memo(function DayCard({
                 return (
                   <div 
                     key={i}
-                    className="w-6 h-6 rounded-md flex items-center justify-center text-white shadow-sm"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm"
                     style={{ background: catStyle.gradient }}
                     title={cat.charAt(0).toUpperCase() + cat.slice(1)}
                   >

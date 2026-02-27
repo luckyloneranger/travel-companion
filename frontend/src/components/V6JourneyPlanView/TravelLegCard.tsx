@@ -6,6 +6,7 @@ import { memo } from 'react';
 import { ArrowRight, Calendar, DollarSign, Info, Route } from 'lucide-react';
 import type { V6TravelLeg } from '@/types';
 import { transportIcons } from './styles';
+import { headerGradients } from '@/styles';
 
 /** Format date for display */
 function formatTravelDate(dateStr: string): string {
@@ -32,18 +33,18 @@ export const TravelLegCard = memo(function TravelLegCard({ leg, travelDate }: Tr
 
       {/* Travel info */}
       <div className="flex-1 min-w-0">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 flex items-center gap-4">
+        <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-100/60 rounded-2xl p-4 flex items-center gap-4">
           {/* Transport icon */}
           <div 
             className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-white shadow-md"
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
+            style={{ background: headerGradients.transport.css }}
           >
             {transportIcons[leg.mode?.toLowerCase()] || <Route className="h-5 w-5" />}
           </div>
 
           {/* Route info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <div className="flex items-center gap-2 text-sm font-display font-semibold text-gray-900">
               <span className="truncate">{leg.from_city}</span>
               <ArrowRight className="h-3 w-3 text-blue-400 flex-shrink-0" />
               <span className="truncate">{leg.to_city}</span>
@@ -87,7 +88,7 @@ export const TravelLegCard = memo(function TravelLegCard({ leg, travelDate }: Tr
 
         {/* Booking tip */}
         {(leg.booking_tip || leg.notes) && (
-          <div className="mt-2 flex items-start gap-2 text-xs text-gray-500 px-2 bg-gray-50 rounded-lg py-2">
+          <div className="mt-2 flex items-start gap-2 text-xs text-gray-500 px-2 bg-gray-50/80 rounded-xl py-2">
             <Info className="h-3 w-3 flex-shrink-0 mt-0.5 text-blue-400" />
             <span>{leg.booking_tip || leg.notes}</span>
           </div>
@@ -109,7 +110,7 @@ export const TravelLegCompact = memo(function TravelLegCompact({ leg, palette }:
   // Default to blue gradient if no palette provided
   const gradient = palette 
     ? `linear-gradient(135deg, ${palette.gradientFrom}, ${palette.gradientTo})`
-    : 'linear-gradient(135deg, #3b82f6, #6366f1)';
+    : headerGradients.transport.css;
   const bgStyle = palette
     ? `linear-gradient(to right, ${palette.bgColor}, white, ${palette.bgColor})`
     : 'linear-gradient(to right, #f8fafc, #eff6ff, #f8fafc)';
@@ -118,7 +119,7 @@ export const TravelLegCompact = memo(function TravelLegCompact({ leg, palette }:
   
   return (
     <div 
-      className="flex items-center gap-4 py-3 px-5 rounded-xl border border-dashed my-3 shadow-sm"
+      className="flex items-center gap-4 py-3 px-5 rounded-2xl border border-dashed my-3 shadow-sm"
       style={{ background: bgStyle, borderColor }}
     >
       <div 
@@ -128,7 +129,7 @@ export const TravelLegCompact = memo(function TravelLegCompact({ leg, palette }:
         {transportIcons[leg.mode?.toLowerCase()] || <Route className="h-5 w-5" />}
       </div>
       <div className="flex-1 flex items-center gap-3 text-sm flex-wrap">
-        <span className="text-gray-700 font-semibold">
+        <span className="text-gray-700 font-display font-semibold">
           Travel to <span style={{ color: accentColor }}>{leg.to_city}</span>
         </span>
         {leg.mode && (

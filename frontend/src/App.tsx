@@ -229,7 +229,7 @@ function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col">
+    <div className="min-h-screen bg-mesh flex flex-col">
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
@@ -286,7 +286,7 @@ function App() {
           <div className="max-w-2xl mx-auto">
             {/* Hero Section */}
             <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              <h1 className="text-4xl font-display font-extrabold text-gray-900 mb-4 tracking-tight">
                 Plan Your Dream {appMode === 'journey' ? 'Journey' : 'Trip'}
               </h1>
               <p className="text-lg text-gray-600 max-w-xl mx-auto">
@@ -299,28 +299,28 @@ function App() {
 
             {/* Mode Toggle */}
             <div className="flex justify-center mb-8">
-              <div className="bg-white rounded-xl p-1.5 shadow-lg border border-gray-100 inline-flex">
+              <div className="glass-strong rounded-2xl p-1.5 shadow-lg border border-white/60 inline-flex">
                 <button
                   onClick={() => setAppMode('journey')}
-                  className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  className={`px-6 py-2.5 rounded-xl font-display font-semibold text-sm transition-all duration-300 ${
                     appMode === 'journey'
                       ? 'text-white shadow-md'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
                   }`}
-                  style={appMode === 'journey' ? { background: `linear-gradient(to right, ${headerGradients.journey.from}, ${headerGradients.journey.to})` } : {}}
+                  style={appMode === 'journey' ? { background: `linear-gradient(135deg, ${headerGradients.journey.from}, ${headerGradients.journey.to})` } : {}}
                 >
-                  🌍 Multi-City Journey
+                  Multi-City Journey
                 </button>
                 <button
                   onClick={() => setAppMode('itinerary')}
-                  className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  className={`px-6 py-2.5 rounded-xl font-display font-semibold text-sm transition-all duration-300 ${
                     appMode === 'itinerary'
                       ? 'text-white shadow-md'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
                   }`}
-                  style={appMode === 'itinerary' ? { background: `linear-gradient(to right, ${headerGradients.journey.from}, ${headerGradients.journey.to})` } : {}}
+                  style={appMode === 'itinerary' ? { background: `linear-gradient(135deg, ${headerGradients.stats.from}, ${headerGradients.stats.to})` } : {}}
                 >
-                  📍 Single-City Itinerary
+                  Single-City Itinerary
                 </button>
               </div>
             </div>
@@ -345,7 +345,7 @@ function App() {
 
       {/* Day Plan Generation Side Panel - Slides in from right */}
       {generatingDayPlans && (
-        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out">
+        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white/95 backdrop-blur-xl shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out border-l border-white/60">
           {/* Panel Header */}
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 text-white flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -356,7 +356,7 @@ function App() {
                 </svg>
               </div>
               <div>
-                <h3 className="font-bold">Creating Day Plans</h3>
+                <h3 className="font-display font-bold">Creating Day Plans</h3>
                 <p className="text-sm text-white/80 truncate max-w-[200px]">{destinationName}</p>
               </div>
             </div>
@@ -378,10 +378,10 @@ function App() {
         <div className="fixed inset-0 bg-black/20 z-40 sm:hidden" />
       )}
 
-      <footer className="bg-white/50 backdrop-blur border-t py-6">
+      <footer className="glass border-t border-white/40 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-gray-500 text-sm">
-            Powered by Azure OpenAI & Google APIs • V6 Architecture
+          <p className="text-center text-gray-400 text-sm font-medium">
+            Powered by Azure OpenAI & Google APIs
           </p>
         </div>
       </footer>

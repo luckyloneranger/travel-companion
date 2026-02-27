@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.generators.journey_plan.request import JourneyRequest
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +40,18 @@ class JourneyPlanRequest(BaseModel):
     return_to_origin: bool = Field(default=False, description="Whether to return to starting city")
     must_include: list[str] = Field(default_factory=list, description="Cities that must be included")
     avoid: list[str] = Field(default_factory=list, description="Places or types to avoid")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "origin": "Bangalore, India",
-                "region": "Vietnam",
-                "total_days": 14,
-                "start_date": "2026-03-01",
-                "interests": ["culture", "food", "history", "nature"],
-                "pace": "moderate",
-                "return_to_origin": False
-            }
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "origin": "Bangalore, India",
+            "region": "Vietnam",
+            "total_days": 14,
+            "start_date": "2026-03-01",
+            "interests": ["culture", "food", "history", "nature"],
+            "pace": "moderate",
+            "return_to_origin": False
         }
+    })
 
 
 class DayPlansRequest(BaseModel):
@@ -62,26 +61,25 @@ class DayPlansRequest(BaseModel):
     interests: list[str] = Field(..., description="Travel interests for activity selection")
     pace: str = Field(default="moderate", description="Daily activity pace")
     travel_mode: str = Field(default="WALK", description="Preferred travel mode in cities: WALK, DRIVE, TRANSIT")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "journey": {
-                    "theme": "Cultural Vietnam",
-                    "total_days": 14,
-                    "cities": [
-                        {"name": "Hanoi", "country": "Vietnam", "days": 3},
-                        {"name": "Ninh Binh", "country": "Vietnam", "days": 2}
-                    ],
-                    "travel_legs": [
-                        {"from_city": "Hanoi", "to_city": "Ninh Binh", "mode": "bus", "duration_hours": 2}
-                    ]
-                },
-                "start_date": "2026-03-01",
-                "interests": ["culture", "food", "history"],
-                "pace": "moderate"
-            }
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "journey": {
+                "theme": "Cultural Vietnam",
+                "total_days": 14,
+                "cities": [
+                    {"name": "Hanoi", "country": "Vietnam", "days": 3},
+                    {"name": "Ninh Binh", "country": "Vietnam", "days": 2}
+                ],
+                "travel_legs": [
+                    {"from_city": "Hanoi", "to_city": "Ninh Binh", "mode": "bus", "duration_hours": 2}
+                ]
+            },
+            "start_date": "2026-03-01",
+            "interests": ["culture", "food", "history"],
+            "pace": "moderate"
         }
+    })
 
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
@@ -95,22 +93,21 @@ class JourneyPlanResponse(BaseModel):
     iterations: int = Field(..., description="Number of refinement iterations")
     total_travel_hours: float = Field(..., description="Total travel time between cities")
     total_distance_km: float = Field(..., description="Total distance traveled")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "journey": {
-                    "theme": "Cultural South India",
-                    "route": "Bangalore → Mysore → Ooty → Coorg",
-                    "total_days": 7,
-                    "cities": [{"name": "Mysore", "days": 2}]
-                },
-                "review_score": 85.0,
-                "iterations": 2,
-                "total_travel_hours": 12.5,
-                "total_distance_km": 450.0
-            }
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "journey": {
+                "theme": "Cultural South India",
+                "route": "Bangalore → Mysore → Ooty → Coorg",
+                "total_days": 7,
+                "cities": [{"name": "Mysore", "days": 2}]
+            },
+            "review_score": 85.0,
+            "iterations": 2,
+            "total_travel_hours": 12.5,
+            "total_distance_km": 450.0
         }
+    })
 
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
@@ -440,24 +437,23 @@ class ChatEditRequestModel(BaseModel):
     message: str = Field(..., min_length=1, max_length=1000, description="User's edit request")
     journey: dict = Field(..., description="Current journey plan to edit")
     context: dict = Field(default_factory=dict, description="Original trip context")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "message": "Add Hoi An after Da Nang for 2 days",
-                "journey": {
-                    "theme": "Cultural Vietnam",
-                    "cities": [{"name": "Da Nang", "days": 2}],
-                    "travel_legs": [],
-                    "total_days": 2
-                },
-                "context": {
-                    "origin": "Ho Chi Minh City",
-                    "interests": ["culture", "food"],
-                    "pace": "moderate"
-                }
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "message": "Add Hoi An after Da Nang for 2 days",
+            "journey": {
+                "theme": "Cultural Vietnam",
+                "cities": [{"name": "Da Nang", "days": 2}],
+                "travel_legs": [],
+                "total_days": 2
+            },
+            "context": {
+                "origin": "Ho Chi Minh City",
+                "interests": ["culture", "food"],
+                "pace": "moderate"
             }
         }
+    })
 
 
 class ChatEditResponseModel(BaseModel):
@@ -525,25 +521,24 @@ class DayPlanChatEditRequestModel(BaseModel):
     message: str = Field(..., min_length=1, max_length=1000, description="User's edit request")
     day_plans: list[dict] = Field(..., description="Current day plans to edit")
     context: dict = Field(default_factory=dict, description="Trip context")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "message": "Add a coffee break after the museum visit on day 1",
-                "day_plans": [
-                    {
-                        "date": "2026-03-01",
-                        "day_number": 1,
-                        "theme": "Cultural Exploration",
-                        "activities": []
-                    }
-                ],
-                "context": {
-                    "interests": ["culture", "food"],
-                    "pace": "moderate"
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "message": "Add a coffee break after the museum visit on day 1",
+            "day_plans": [
+                {
+                    "date": "2026-03-01",
+                    "day_number": 1,
+                    "theme": "Cultural Exploration",
+                    "activities": []
                 }
+            ],
+            "context": {
+                "interests": ["culture", "food"],
+                "pace": "moderate"
             }
         }
+    })
 
 
 class DayPlanChatEditResponseModel(BaseModel):

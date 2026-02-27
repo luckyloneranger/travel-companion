@@ -18,7 +18,6 @@ Usage:
 """
 
 from dataclasses import dataclass
-from typing import Dict
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -150,7 +149,7 @@ class SchedulingConfig:
 # Weights for final quality scoring (app/quality module)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-QUALITY_METRIC_WEIGHTS: Dict[str, float] = {
+QUALITY_METRIC_WEIGHTS: dict[str, float] = {
     "meal_timing": 0.20,
     "geographic_clustering": 0.15,
     "travel_efficiency": 0.15,

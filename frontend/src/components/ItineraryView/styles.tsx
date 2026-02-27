@@ -24,17 +24,8 @@ export {
 
 export { getCategoryIcon } from '@/styles/icons';
 
-// ============================================================================
-// ITINERARY-SPECIFIC UTILITIES
-// ============================================================================
-
-/** Format duration in human readable form */
-export const formatDuration = (minutes: number): string => {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-};
+// Re-export shared utilities
+export { formatDuration } from '@/components/shared/utils';
 
 /** Get quality grade color based on semantic colors */
 export const getGradeColor = (grade?: string): { bg: string; text: string; border: string } => {

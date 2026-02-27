@@ -42,5 +42,8 @@ export const transportIcons: Record<string, ReactNode> = {
   default: <Route className="h-4 w-4" />,
 };
 
-export const getTransportIcon = (mode: string): ReactNode => 
+export const getTransportIcon = (mode: string): ReactNode =>
   transportIcons[mode?.toLowerCase()] || transportIcons.default;
+
+// Re-export shared utilities
+export { formatDuration } from '@/components/shared/utils';

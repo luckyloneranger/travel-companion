@@ -36,7 +36,6 @@ class GenerationMode(str, Enum):
     """Itinerary generation mode."""
 
     FAST = "fast"  # Quick single-pass generation
-    PRISTINE = "pristine"  # Multi-agent high-quality generation
 
 
 class Location(BaseModel):
@@ -50,8 +49,6 @@ class Preferences(BaseModel):
     """User preferences for trip planning."""
 
     budget: Budget = Budget.MODERATE
-    accessibility: bool = False
-    avoid_crowds: bool = False
 
 
 class ItineraryRequest(BaseModel):
@@ -64,7 +61,7 @@ class ItineraryRequest(BaseModel):
     pace: Pace = Pace.MODERATE
     travel_mode: TravelMode = TravelMode.WALK
     preferences: Optional[Preferences] = None
-    mode: GenerationMode = GenerationMode.FAST  # "fast" or "pristine"
+    mode: GenerationMode = GenerationMode.FAST
 
     @field_validator("end_date")
     @classmethod

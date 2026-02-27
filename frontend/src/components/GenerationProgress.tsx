@@ -199,15 +199,15 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
   };
 
   return (
-    <div className="rounded-2xl shadow-xl overflow-hidden max-w-lg mx-auto bg-white">
+    <div className="rounded-2xl shadow-xl overflow-hidden max-w-lg mx-auto bg-white border border-gray-100/40">
       {/* Header with gradient */}
       <div className={`bg-gradient-to-r ${colors.gradient} p-6 text-white`}>
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
+          <div className="w-14 h-14 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shadow-lg">
             <Loader2 className="w-7 h-7 animate-spin" />
           </div>
           <div>
-            <h2 className="text-xl font-bold">{titles[detectedMode]}</h2>
+            <h2 className="text-xl font-display font-bold">{titles[detectedMode]}</h2>
             {destinationName && (
               <p className="text-white/80 text-sm mt-0.5">
                 {destinationName}
@@ -221,10 +221,10 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
         {/* Progress Bar */}
         <div className="mb-6">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-700 font-medium">{progress?.message || 'Starting...'}</span>
-            <span className="text-gray-500 font-semibold">{progress?.progress || 0}%</span>
+            <span className="text-gray-700 font-display font-medium">{progress?.message || 'Starting...'}</span>
+            <span className="text-gray-500 font-display font-semibold">{progress?.progress || 0}%</span>
           </div>
-          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-3 bg-gray-100/80 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ease-out bg-gradient-to-r ${colors.progressGradient}`}
               style={{ width: `${progress?.progress || 0}%` }}
@@ -257,7 +257,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold shadow-md flex-shrink-0 ${
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-display font-bold shadow-md flex-shrink-0 ${
                       isComplete 
                         ? 'bg-emerald-500 text-white'
                         : isError
@@ -275,7 +275,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className={`font-semibold truncate ${
+                      <div className={`font-display font-semibold truncate ${
                         isComplete ? 'text-emerald-700' : isActive ? 'text-gray-900' : 'text-gray-500'
                       }`}>
                         {city.name}
@@ -346,7 +346,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                   }`}
                 >
                   <div
-                    className={`flex items-center justify-center w-9 h-9 rounded-lg shadow-sm ${
+                    className={`flex items-center justify-center w-9 h-9 rounded-xl shadow-sm ${
                       isCurrent
                         ? `${colors.activeBg} text-white`
                         : isCompleted
@@ -364,7 +364,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                   </div>
                   <div className="flex-1 min-w-0">
                     <span
-                      className={`text-sm font-semibold ${
+                      className={`text-sm font-display font-semibold ${
                         isCurrent
                           ? colors.iconText.replace('text-', 'text-')
                           : isCompleted

@@ -7,8 +7,8 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
-  color: #1f2937;
-  background-color: #f9fafb;
+  color: #1e1b4b;
+  background-color: #faf9fe;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -24,49 +24,33 @@ body {
   min-height: 100vh;
 }
 
-/* Custom scrollbar */
+/* Display font utility */
+.font-display {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+}
+
+/* Custom scrollbar — minimal & elegant */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 99px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Date picker overrides */
-.react-datepicker-wrapper {
-  width: 100%;
-}
-
-.react-datepicker__input-container input {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.react-datepicker__input-container input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background: rgba(139, 92, 246, 0.3);
 }
 
 /* Thin scrollbar for horizontal scroll areas */
 .scrollbar-thin::-webkit-scrollbar {
-  height: 4px;
+  height: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
@@ -74,12 +58,12 @@ body {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 2px;
+  background: rgba(139, 92, 246, 0.12);
+  border-radius: 99px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
+  background: rgba(139, 92, 246, 0.25);
 }
 
 /* Hide scrollbar but allow scroll */
@@ -92,11 +76,36 @@ body {
   display: none;
 }
 
-/* Animation utilities */
+/* Date picker overrides — modern */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker__input-container input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #e9e5f5;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  background: #faf9fe;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.react-datepicker__input-container input:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  background: white;
+}
+
+/* =========================================================
+   Animation utilities
+   ========================================================= */
+
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -107,11 +116,40 @@ body {
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateX(-10px);
+    transform: translateX(-8px);
   }
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }
 
@@ -124,15 +162,51 @@ body {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out forwards;
 }
 
 .animate-pulse-slow {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* =========================================================
+   Glass morphism utility
+   ========================================================= */
+
+.glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+}
+
+/* =========================================================
+   Background mesh gradient
+   ========================================================= */
+
+.bg-mesh {
+  background-color: #faf9fe;
+  background-image:
+    radial-gradient(at 20% 0%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    radial-gradient(at 80% 10%, rgba(236, 72, 153, 0.04) 0%, transparent 50%),
+    radial-gradient(at 50% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
+    radial-gradient(at 0% 50%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
+}
+
+/* =========================================================
+   Focus ring utility
+   ========================================================= */
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(139, 92, 246, 0.5);
 }
