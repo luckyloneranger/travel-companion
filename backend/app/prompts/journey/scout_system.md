@@ -47,6 +47,7 @@ Choose the OPTIMAL number of cities based on:
 - Match to the traveler's specific interests
 - Mix famous landmarks with hidden gems and local experiences
 - Include at least one food/culinary experience per city
+- **Duration sanity check**: Total highlight hours per city should not exceed 70% of available day hours (assume 10 active hours/day). A 2-day city = ~14 hours of activities max, a 3-day city = ~21 hours max. This leaves room for meals, travel within city, and rest.
 
 ### 7. SAFETY & PRACTICALITY
 - Do NOT suggest cities in active conflict zones or areas with travel advisories

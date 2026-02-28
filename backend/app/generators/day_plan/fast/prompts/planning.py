@@ -4,6 +4,7 @@ Now uses centralized prompts from app.prompts folder.
 """
 
 import json
+import math
 from typing import Any
 
 from app.models import Pace
@@ -24,6 +25,13 @@ def _get_user_prompt_template() -> str:
 PLANNING_SYSTEM_PROMPT = get_planning_system_prompt()
 
 
+def _quality_score(place: dict[str, Any]) -> float:
+    """Score a place summary for sorting. Higher = better quality."""
+    rating = place.get("rating") or 3.5
+    reviews = place.get("reviews") or 1
+    return rating * math.log(reviews + 1)
+
+
 def build_planning_prompt(
     attractions: list[dict[str, Any]],
     dining: list[dict[str, Any]],
@@ -36,28 +44,23 @@ def build_planning_prompt(
 ) -> str:
     """
     Build the user prompt for itinerary planning.
-    
-    Args:
-        attractions: List of attraction place summaries
-        dining: List of dining place summaries
-        other: List of other place summaries
-        interests: User's interests
-        num_days: Number of days in the trip
-        pace: Trip pace
-        destination: Destination city name for context
-        travel_dates: Travel date range for seasonal awareness
-        
-    Returns:
-        Formatted user prompt string
+
+    Places are sorted by quality (rating * log(reviews)) before truncation,
+    ensuring the LLM sees the best candidates even when there are many.
     """
     from app.config.planning import PACE_CONFIGS
-    
+
     config = PACE_CONFIGS[pace]
-    
+
+    # Sort by quality before truncating — best places first
+    sorted_attractions = sorted(attractions, key=_quality_score, reverse=True)
+    sorted_dining = sorted(dining, key=_quality_score, reverse=True)
+    sorted_other = sorted(other, key=_quality_score, reverse=True)
+
     other_section = ""
-    if other:
-        other_section = f"=== OTHER ===\n{json.dumps(other[:10], indent=2)}"
-    
+    if sorted_other:
+        other_section = f"=== OTHER ===\n{json.dumps(sorted_other[:10], indent=2)}"
+
     return _get_user_prompt_template().format(
         num_days=num_days,
         interests=", ".join(interests),
@@ -65,8 +68,8 @@ def build_planning_prompt(
         total=config.activities_total,
         attractions=config.attractions_per_day,
         dining=config.dining_per_day,
-        attractions_json=json.dumps(attractions[:25], indent=2),
-        dining_json=json.dumps(dining[:15], indent=2),
+        attractions_json=json.dumps(sorted_attractions[:25], indent=2),
+        dining_json=json.dumps(sorted_dining[:15], indent=2),
         other_section=other_section,
         destination=destination or "the destination",
         travel_dates=travel_dates or "Flexible dates",

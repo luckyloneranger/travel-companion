@@ -47,6 +47,12 @@ class TravelLeg:
     estimated_cost: Optional[str] = None
     booking_tip: Optional[str] = None
 
+    # Transit-specific enrichment (from Google Directions API)
+    fare: Optional[str] = None  # e.g., "₹445"
+    num_transfers: int = 0
+    departure_time: Optional[str] = None  # e.g., "6:00 AM"
+    arrival_time: Optional[str] = None  # e.g., "8:30 AM"
+
 
 @dataclass
 class CityStop:

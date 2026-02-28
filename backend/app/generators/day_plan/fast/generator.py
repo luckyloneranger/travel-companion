@@ -216,7 +216,15 @@ class FastItineraryGenerator:
             ]
 
             if not day_places:
-                logger.warning(f"No valid places for day {day_idx + 1}")
+                logger.warning(f"No valid places for day {day_idx + 1}, adding empty day")
+                days.append(
+                    DayPlan(
+                        date=current_date,
+                        day_number=day_idx + 1,
+                        theme=day_group.theme or "Free Day",
+                        activities=[],
+                    )
+                )
                 continue
 
             # Calculate route metrics (preserving AI's logical order)
@@ -341,6 +349,7 @@ class FastItineraryGenerator:
             rating=candidate.rating,
             photo_url=photo_url,
             opening_hours=opening_hours_str,
+            website=candidate.website,
         )
 
     def _estimate_cost(self, days: list[DayPlan]) -> str:

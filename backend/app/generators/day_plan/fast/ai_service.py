@@ -109,6 +109,8 @@ class FastAIService:
                 "lat": round(c.location.lat, 5) if c.location else None,
                 "lng": round(c.location.lng, 5) if c.location else None,
             }
+            if c.editorial_summary:
+                summary["description"] = c.editorial_summary
             
             category = classify_place(c.types, c.name)
             if category == "dining":
@@ -202,13 +204,20 @@ class FastAIService:
                     day_places.append({"id": pid, "name": p.name, "type": ptype})
             plan_data.append({"day": i, "places": day_places})
         
-        # Get available dining and attractions
+        # Get available dining and attractions not already in the plan
         used_ids = set(plan.selected_place_ids)
         available_dining = []
         available_attractions = []
         for c in candidates:
             if c.place_id not in used_ids:
-                entry = {"id": c.place_id, "name": c.name}
+                entry = {
+                    "id": c.place_id,
+                    "name": c.name,
+                    "rating": c.rating,
+                    "reviews": c.user_ratings_total or 0,
+                    "lat": round(c.location.lat, 5) if c.location else None,
+                    "lng": round(c.location.lng, 5) if c.location else None,
+                }
                 if classify_place(c.types, c.name) == "dining":
                     available_dining.append(entry)
                 else:

@@ -64,5 +64,8 @@ Thumbs.db
 # Logs
 *.log
 
+# Claude Code local overrides
+.claude.local.md
+
 # Local development
 *.local

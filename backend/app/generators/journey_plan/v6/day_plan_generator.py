@@ -338,16 +338,29 @@ class V6DayPlanGenerator:
                         "theme": dp.theme,
                         "activities": [
                             {
+                                "id": a.id,
                                 "time_start": a.time_start,
                                 "time_end": a.time_end,
                                 "place": {
+                                    "place_id": a.place.place_id,
                                     "name": a.place.name,
                                     "category": a.place.category,
                                     "address": a.place.address,
                                     "location": {"lat": a.place.location.lat, "lng": a.place.location.lng},
                                     "rating": a.place.rating,
+                                    "photo_url": a.place.photo_url,
+                                    "website": a.place.website,
+                                    "opening_hours": a.place.opening_hours,
                                 },
                                 "duration_minutes": a.duration_minutes,
+                                "notes": a.notes,
+                                "route_to_next": {
+                                    "distance_meters": a.route_to_next.distance_meters,
+                                    "duration_seconds": a.route_to_next.duration_seconds,
+                                    "duration_text": a.route_to_next.duration_text,
+                                    "travel_mode": a.route_to_next.travel_mode.value,
+                                    "polyline": a.route_to_next.polyline,
+                                } if a.route_to_next else None,
                             }
                             for a in dp.activities
                         ],

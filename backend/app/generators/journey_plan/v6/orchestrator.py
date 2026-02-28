@@ -253,6 +253,8 @@ class V6Orchestrator:
             "theme": plan.theme,
             "summary": plan.summary,
             "route": plan.route_string,
+            "origin": plan.origin,
+            "region": plan.region,
             "total_days": plan.total_days,
             "total_travel_hours": enriched.total_travel_hours,
             "total_distance_km": enriched.total_distance_km,
@@ -285,7 +287,12 @@ class V6Orchestrator:
                     "duration_hours": leg.duration_hours,
                     "distance_km": leg.distance_km,
                     "notes": leg.notes,
+                    "estimated_cost": leg.estimated_cost,
                     "booking_tip": leg.booking_tip,
+                    "fare": leg.fare,
+                    "num_transfers": leg.num_transfers,
+                    "departure_time": leg.departure_time,
+                    "arrival_time": leg.arrival_time,
                 }
                 for leg in plan.travel_legs
             ],

@@ -61,10 +61,18 @@ class Scout:
         
         # Build transport guidance with regional intelligence
         transport_guidance = get_transport_guidance(
-            request.origin, 
+            request.origin,
             region,
             request.transport_preferences
         )
+
+        # Add return-to-origin guidance if requested
+        if request.return_to_origin:
+            transport_guidance += (
+                f"\n\n**RETURN JOURNEY:** The traveler needs to return to {request.origin} "
+                f"at the end of the trip. Include a final travel_leg from the last city back to "
+                f"{request.origin}. Choose the most practical transport mode for this return."
+            )
         
         # Derive travel dates string
         travel_dates = str(request.start_date) if request.start_date else "Flexible dates"
@@ -148,7 +156,14 @@ class Scout:
             origin=request.origin,
             region=region,
         )
-        
+
+        # Validate travel legs count: should be N-1 for N cities
+        expected_legs = len(cities) - 1
+        if len(travel_legs) != expected_legs and expected_legs > 0:
+            logger.warning(
+                f"[Scout] Travel legs mismatch: got {len(travel_legs)}, expected {expected_legs} for {len(cities)} cities"
+            )
+
         logger.info(f"[Scout] Generated plan with {len(cities)} cities: {plan.route_string}")
         
         return plan

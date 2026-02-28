@@ -1,5 +1,6 @@
 """Google Places API service for place discovery and details."""
 
+import asyncio
 import logging
 from typing import Optional, Self
 
@@ -12,6 +13,9 @@ from app.core.clients import HTTPClientPool
 from app.models import Destination, Location, PlaceCandidate, OpeningHours
 
 logger = logging.getLogger(__name__)
+
+# Timeout for individual API requests (seconds)
+_REQUEST_TIMEOUT = 15.0
 
 
 class GooglePlacesService:
@@ -71,6 +75,7 @@ class GooglePlacesService:
         response = await self.client.post(
             f"{self.BASE_URL}/places:searchText",
             headers=self._get_headers(field_mask),
+            timeout=_REQUEST_TIMEOUT,
             json={
                 "textQuery": query,
                 "maxResultCount": 1,
@@ -130,6 +135,7 @@ class GooglePlacesService:
             response = await self.client.post(
                 f"{self.BASE_URL}/places:searchText",
                 headers=self._get_headers(field_mask),
+                timeout=_REQUEST_TIMEOUT,
                 json={
                     "textQuery": query,
                     "maxResultCount": min(max_results, 20),  # API max is 20
@@ -174,58 +180,38 @@ class GooglePlacesService:
             ["historical_landmark", "monument"],
             ["park"],
         ]
-        
-        for place_types in essential_types:
-            try:
-                candidates = await self._nearby_search(
-                    location=location,
-                    included_types=place_types,
-                    radius_meters=int(radius_km * 1000),
-                    max_results=10,
-                )
-                for candidate in candidates:
-                    if candidate.place_id not in seen_place_ids:
-                        seen_place_ids.add(candidate.place_id)
-                        all_candidates.append(candidate)
-            except Exception as e:
-                logger.error(f"Failed to search for essential types {place_types}: {e}")
 
-        # ALWAYS fetch dining options (needed for lunch/dinner)
-        dining_types = ["restaurant", "cafe"]
-        try:
-            candidates = await self._nearby_search(
+        # Build interest-based search types
+        interest_types = [
+            INTEREST_TYPE_MAP.get(interest.lower(), ["tourist_attraction"])
+            for interest in interests
+        ]
+
+        # Dining types
+        dining_types = [["restaurant", "cafe"]]
+
+        # Run ALL searches in parallel
+        all_search_types = essential_types + dining_types + interest_types
+        search_tasks = [
+            self._nearby_search(
                 location=location,
-                included_types=dining_types,
+                included_types=place_types,
                 radius_meters=int(radius_km * 1000),
-                max_results=15,
+                max_results=15 if place_types == ["restaurant", "cafe"] else 10,
             )
-            for candidate in candidates:
+            for place_types in all_search_types
+        ]
+
+        results = await asyncio.gather(*search_tasks, return_exceptions=True)
+
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"Failed to search for types {all_search_types[i]}: {result}")
+                continue
+            for candidate in result:
                 if candidate.place_id not in seen_place_ids:
                     seen_place_ids.add(candidate.place_id)
                     all_candidates.append(candidate)
-        except Exception as e:
-            logger.error(f"Failed to search for dining: {e}")
-
-        # Then fetch based on user interests
-        for interest in interests:
-            place_types = INTEREST_TYPE_MAP.get(interest.lower(), ["tourist_attraction"])
-
-            try:
-                candidates = await self._nearby_search(
-                    location=location,
-                    included_types=place_types,
-                    radius_meters=int(radius_km * 1000),
-                    max_results=10,
-                )
-
-                for candidate in candidates:
-                    if candidate.place_id not in seen_place_ids:
-                        seen_place_ids.add(candidate.place_id)
-                        all_candidates.append(candidate)
-
-            except Exception as e:
-                logger.error(f"Failed to search for {interest}: {e}")
-                continue
 
         # Quality filtering and scoring
         filtered = self._filter_and_rank_by_quality(all_candidates)
@@ -346,11 +332,12 @@ class GooglePlacesService:
 
         Uses Google Places Nearby Search (New) API.
         """
-        field_mask = "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.priceLevel,places.regularOpeningHours,places.photos,places.businessStatus"
+        field_mask = "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.priceLevel,places.regularOpeningHours,places.photos,places.businessStatus,places.websiteUri,places.editorialSummary"
 
         response = await self.client.post(
             f"{self.BASE_URL}/places:searchNearby",
             headers=self._get_headers(field_mask),
+            timeout=_REQUEST_TIMEOUT,
             json={
                 "includedTypes": included_types,
                 "maxResultCount": max_results,
@@ -386,6 +373,11 @@ class GooglePlacesService:
             if place.get("photos"):
                 photo_ref = place["photos"][0].get("name")
 
+            # Get editorial summary if available
+            editorial_summary = None
+            if place.get("editorialSummary"):
+                editorial_summary = place["editorialSummary"].get("text")
+
             candidates.append(
                 PlaceCandidate(
                     place_id=place["id"],
@@ -402,6 +394,8 @@ class GooglePlacesService:
                     opening_hours=opening_hours,
                     photo_reference=photo_ref,
                     business_status=place.get("businessStatus"),
+                    website=place.get("websiteUri"),
+                    editorial_summary=editorial_summary,
                 )
             )
 
@@ -455,6 +449,7 @@ class GooglePlacesService:
         response = await self.client.get(
             f"{self.BASE_URL}/places/{place_id}",
             headers=self._get_headers(field_mask),
+            timeout=_REQUEST_TIMEOUT,
         )
 
         if response.status_code != 200:

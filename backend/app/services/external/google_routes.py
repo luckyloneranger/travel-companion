@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import re
 from typing import Optional, Self
 
 import httpx
@@ -12,6 +13,30 @@ from app.core.clients import HTTPClientPool
 from app.models import Location, Route, TravelMode
 
 logger = logging.getLogger(__name__)
+
+# Timeout for individual API requests (seconds)
+_REQUEST_TIMEOUT = 15.0
+
+# Shared travel mode mapping
+_TRAVEL_MODE_MAP = {
+    TravelMode.WALK: "WALK",
+    TravelMode.DRIVE: "DRIVE",
+    TravelMode.TRANSIT: "TRANSIT",
+}
+
+
+def _parse_duration(duration_str: str) -> int:
+    """Parse Google Routes API duration string to seconds.
+
+    Handles formats like "300s", "300", or empty/malformed strings.
+    """
+    if not duration_str:
+        return 0
+    match = re.match(r"^(\d+)", duration_str)
+    if not match:
+        logger.warning(f"Could not parse duration string: {duration_str!r}")
+        return 0
+    return int(match.group(1))
 
 
 class GoogleRoutesService:
@@ -75,15 +100,10 @@ class GoogleRoutesService:
         """
         field_mask = "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline"
 
-        travel_mode_map = {
-            TravelMode.WALK: "WALK",
-            TravelMode.DRIVE: "DRIVE",
-            TravelMode.TRANSIT: "TRANSIT",
-        }
-
         response = await self.client.post(
             f"{self.BASE_URL}/directions/v2:computeRoutes",
             headers=self._get_headers(field_mask),
+            timeout=_REQUEST_TIMEOUT,
             json={
                 "origin": {
                     "location": {
@@ -101,7 +121,7 @@ class GoogleRoutesService:
                         }
                     }
                 },
-                "travelMode": travel_mode_map[mode],
+                "travelMode": _TRAVEL_MODE_MAP[mode],
                 "computeAlternativeRoutes": False,
                 "routeModifiers": {
                     "avoidTolls": False,
@@ -124,9 +144,9 @@ class GoogleRoutesService:
 
         route_data = data["routes"][0]
 
-        # Parse duration (comes as "300s" format)
+        # Parse duration
         duration_str = route_data.get("duration", "0s")
-        duration_seconds = int(duration_str.rstrip("s"))
+        duration_seconds = _parse_duration(duration_str)
 
         # Format duration text
         if duration_seconds < 60:
@@ -202,7 +222,7 @@ class GoogleRoutesService:
         origins: list[Location],
         destinations: list[Location],
         mode: TravelMode = TravelMode.WALK,
-    ) -> list[list[int]]:
+    ) -> tuple[list[list[int]], list[list[int]]]:
         """
         Get a distance/duration matrix between all origin-destination pairs.
 
@@ -212,19 +232,15 @@ class GoogleRoutesService:
             mode: Travel mode
 
         Returns:
-            2D matrix of durations in seconds [origin_idx][destination_idx]
+            Tuple of (duration_matrix, distance_matrix) where each is
+            a 2D list [origin_idx][destination_idx] in seconds and meters respectively
         """
         field_mask = "originIndex,destinationIndex,duration,distanceMeters"
-
-        travel_mode_map = {
-            TravelMode.WALK: "WALK",
-            TravelMode.DRIVE: "DRIVE",
-            TravelMode.TRANSIT: "TRANSIT",
-        }
 
         response = await self.client.post(
             f"{self.BASE_URL}/distanceMatrix/v2:computeRouteMatrix",
             headers=self._get_headers(field_mask),
+            timeout=_REQUEST_TIMEOUT,
             json={
                 "origins": [
                     {
@@ -252,7 +268,7 @@ class GoogleRoutesService:
                     }
                     for loc in destinations
                 ],
-                "travelMode": travel_mode_map[mode],
+                "travelMode": _TRAVEL_MODE_MAP[mode],
             },
         )
 
@@ -260,16 +276,18 @@ class GoogleRoutesService:
             logger.error(f"Distance matrix failed: {response.text}")
             raise Exception(f"Distance matrix computation failed")
 
-        # Parse response into 2D matrix
+        # Parse response into 2D matrices
         n_origins = len(origins)
         n_destinations = len(destinations)
-        matrix = [[0] * n_destinations for _ in range(n_origins)]
+        duration_matrix = [[0] * n_destinations for _ in range(n_origins)]
+        distance_matrix = [[0] * n_destinations for _ in range(n_origins)]
 
         for element in response.json():
             origin_idx = element.get("originIndex", 0)
             dest_idx = element.get("destinationIndex", 0)
             duration_str = element.get("duration", "0s")
-            duration_seconds = int(duration_str.rstrip("s"))
-            matrix[origin_idx][dest_idx] = duration_seconds
+            duration_seconds = _parse_duration(duration_str)
+            duration_matrix[origin_idx][dest_idx] = duration_seconds
+            distance_matrix[origin_idx][dest_idx] = element.get("distanceMeters", 0)
 
-        return matrix
+        return duration_matrix, distance_matrix

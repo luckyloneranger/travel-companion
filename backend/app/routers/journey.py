@@ -359,6 +359,10 @@ def _format_journey_response(enriched) -> dict:
                 "notes": leg.notes,
                 "estimated_cost": leg.estimated_cost,
                 "booking_tip": leg.booking_tip,
+                "fare": leg.fare,
+                "num_transfers": leg.num_transfers,
+                "departure_time": leg.departure_time,
+                "arrival_time": leg.arrival_time,
             }
             for leg in enriched.plan.travel_legs
         ],
@@ -414,7 +418,12 @@ def _parse_journey_dict(journey_dict: dict):
             duration_hours=leg.get("duration_hours", 0),
             distance_km=leg.get("distance_km"),
             notes=leg.get("notes", ""),
+            estimated_cost=leg.get("estimated_cost"),
             booking_tip=leg.get("booking_tip"),
+            fare=leg.get("fare"),
+            num_transfers=leg.get("num_transfers", 0),
+            departure_time=leg.get("departure_time"),
+            arrival_time=leg.get("arrival_time"),
         ))
     
     return JourneyPlan(
@@ -493,7 +502,19 @@ async def chat_edit_journey(request: ChatEditRequestModel):
                 context=request.context,
             )
         )
-        
+
+        # Re-enrich transport data via Google Directions API
+        if result.success and result.updated_journey:
+            try:
+                from app.generators.journey_plan.v6.enricher import Enricher
+                enricher = Enricher()
+                journey_plan = _parse_journey_dict(result.updated_journey)
+                enriched = await enricher.enrich_plan(journey_plan)
+                result.updated_journey = _format_journey_response(enriched)
+            except Exception as e:
+                logger.warning(f"Enrichment failed after chat edit, returning unenriched result: {e}")
+                # Keep the LLM edit result as-is — better than losing the edit
+
         return ChatEditResponseModel(
             success=result.success,
             message=result.message,

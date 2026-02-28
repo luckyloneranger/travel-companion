@@ -119,6 +119,8 @@ class PlaceCandidate(BaseModel):
     opening_hours: Optional[list[OpeningHours]] = None
     photo_reference: Optional[str] = None
     business_status: Optional[str] = None
+    website: Optional[str] = None
+    editorial_summary: Optional[str] = None
     # LLM-estimated visit duration (used by ScheduleBuilder if available)
     suggested_duration_minutes: Optional[int] = None
 

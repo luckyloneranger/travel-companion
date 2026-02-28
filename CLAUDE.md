@@ -37,7 +37,7 @@ pytest -k "quality"       # Run specific tests
 pytest --cov              # With coverage
 ```
 
-Test files: `backend/tests/test_itinerary.py` (model validation), `test_quality.py` (quality scorer), `test_journey_live.py` (integration, requires API keys). Fixtures in `conftest.py` provide `client` (TestClient) and `sample_itinerary_request`.
+Test files: `backend/tests/test_itinerary.py` (model validation), `test_quality.py` (quality scorer), `test_itinerary_quality.py` (7-metric evaluator tests), `test_journey_live.py` (integration, requires API keys), `test_chat_edit_enrichment_live.py` (chat edit enrichment, requires API keys). Fixtures in `conftest.py` provide `client` (TestClient) and `sample_itinerary_request`.
 
 ## Architecture
 
@@ -49,23 +49,27 @@ Test files: `backend/tests/test_itinerary.py` (model validation), `test_quality.
   - `day_plan/fast/` — FastItineraryGenerator: geocode → discover → AI plan → TSP optimize → schedule → validate
   - `day_plan/quality/` — ItineraryScorer with 7 evaluators (meal timing, geographic clustering, travel efficiency, variety, opening hours, theme alignment, duration appropriateness)
   - `journey_plan/v6/` — V6Orchestrator: Scout(LLM) → Enrich(Google APIs) → Review(LLM, score≥70?) → Planner(LLM, fix issues) → loop
-- **External Services** (`app/services/external/`): Azure OpenAI, Google Places, Google Routes (driving/walking), Google Directions (transit/ferry/train)
+- **External Services** (`app/services/external/`): Azure OpenAI, Google Places, Google Routes (driving/walking via Routes API), Google Directions (transit/ferry/train via Directions API — separate service, instantiated ad-hoc, not in registry)
 - **Internal Services** (`app/services/internal/`): Route optimizer (TSP), schedule builder, journey chat (journey edit via LLM), dayplan chat (day plan edit with place search)
+- **Utilities** (`app/utils/`): Geo helpers, JSON parsing helpers, place classifier
+- **Core Clients** (`app/core/clients/`): `HTTPClientPool` (shared httpx client) and `OpenAIClient` (shared Azure OpenAI client) singletons
+- **Core Middleware** (`app/core/middleware/`): `RequestTracingMiddleware` (X-Request-ID + timing) and `RequestLoggingFilter` (request_id in logs)
 - **Prompts** (`app/prompts/`): Markdown templates loaded via `app.prompts.loader`
-- **Config** (`app/config/`): Settings (Pydantic BaseSettings), tuning params, planning configs, regional transport
+- **Config** (`app/config/`): Settings (Pydantic BaseSettings), tuning params, planning configs (`planning.py` — pace/duration configs), regional transport (`regional_transport.py` — steers LLM toward region-appropriate transport)
 
 ### Key Patterns
 
-**Service Registry** — lazy singletons via `app.core.registry`:
+**Service Registry** — lazy singletons via `app.core.registry` (covers Places + Routes only; `AzureOpenAIService` is instantiated directly in generators):
 ```python
-from app.core import services
-places = services.get_places()
-await services.close_all()  # cleanup on shutdown
+from app.core import registry
+places = registry.get_places()
+routes = registry.get_routes()
+await registry.close_all()  # cleanup on shutdown
 ```
 
 **Prompt Templates** — centralized .md templates:
 ```python
-from app.prompts.loader import journey_prompts, day_plan_prompts
+from app.prompts.loader import journey_prompts, day_plan_prompts, tips_prompts
 system = journey_prompts.load("scout_system")
 user = day_plan_prompts.load("planning_user")
 ```
@@ -86,7 +90,9 @@ data = await service.chat_completion_json(system, user)  # returns parsed JSON
 
 **Async throughout** — all I/O (LLM calls, Google API calls) uses async/await with shared `httpx.AsyncClient`.
 
-**Frontend state** — React hooks with `useState`/`useEffect`, no external state library. `App.tsx` manages dual-mode UI (`appMode: 'journey' | 'itinerary'`) with phase-based rendering (input → planning → preview → day-plans).
+**Request Tracing** — `RequestTracingMiddleware` (defined in `app/core/middleware/`, registered in `main.py`) adds `X-Request-ID` to every request/response with timing logs. `RequestLoggingFilter` injects `request_id` into log records.
+
+**Frontend state** — React hooks with `useState`/`useEffect`, no external state library. `App.tsx` manages dual-mode UI (`appMode: 'journey' | 'itinerary'`) with phase-based rendering (input → planning → preview → day-plans). `ErrorBoundary` wraps the app in `main.tsx`.
 
 ## Code Style
 
@@ -101,7 +107,7 @@ data = await service.chat_completion_json(system, user)  # returns parsed JSON
 - Strict mode enabled
 - Functional components with hooks
 - Path alias: `@/*` maps to `src/*`
-- Tailwind CSS for styling (custom primary blue palette, Inter font)
+- Tailwind CSS for styling (custom primary purple/violet palette, Inter + Plus Jakarta Sans fonts)
 
 ## API Endpoints
 - `POST /api/itinerary` — single-city itinerary
@@ -115,6 +121,8 @@ data = await service.chat_completion_json(system, user)  # returns parsed JSON
 - `POST /api/journey/chat/edit` — edit journey via natural language chat
 - `POST /api/journey/days/chat/edit` — edit day plans via chat
 - `GET /health` — health check
+
+**Legacy aliases** (hidden from schema, `include_in_schema=False`): `/api/journey/v6/plan`, `/api/journey/v6/plan/stream`, `/api/journey/v6/days/stream` — frontend currently hits these v6 paths.
 
 ## Environment Variables
 

@@ -154,30 +154,24 @@ class Enricher:
         if leg.mode == TransportMode.TRAIN and options.best_rail:
             rail = options.best_rail
             leg.duration_hours = round(rail.duration_seconds / 3600, 2)
-            if rail.steps:
-                step = rail.steps[0]
-                leg.notes = f"{step.line.name} - {step.departure_time} → {step.arrival_time}"
+            self._populate_transit_details(leg, rail)
             if options.driving:
                 leg.distance_km = options.driving.distance_km
             leg.route_polyline = None  # Transit doesn't have polyline
-            
+
         # For bus, use real bus data if available
         elif leg.mode == TransportMode.BUS and options.best_bus:
             bus = options.best_bus
             leg.duration_hours = round(bus.duration_seconds / 3600, 2)
-            if bus.steps:
-                step = bus.steps[0]
-                leg.notes = f"{step.line.name} - {step.departure_time} → {step.arrival_time}"
+            self._populate_transit_details(leg, bus)
             if options.driving:
                 leg.distance_km = options.driving.distance_km
-                
+
         # For ferry, use real ferry data if available
         elif leg.mode == TransportMode.FERRY and options.best_ferry:
             ferry = options.best_ferry
             leg.duration_hours = round(ferry.duration_seconds / 3600, 2)
-            if ferry.steps:
-                step = ferry.steps[0]
-                leg.notes = f"{step.line.name} - {step.departure_time} → {step.arrival_time}"
+            self._populate_transit_details(leg, ferry)
             # Ferry distance is usually not meaningful, keep LLM estimate if any
                 
         # For driving, use real driving data
@@ -190,9 +184,33 @@ class Enricher:
             
         # Fallback: If requested mode not available, use driving as baseline
         elif options.driving:
-            # Keep the original mode but update with driving estimate
             driving = options.driving
+            logger.info(
+                f"[Enricher] No {leg.mode.value} data for {leg.from_city}→{leg.to_city}, "
+                f"using driving distance ({driving.distance_km}km) as baseline"
+            )
+            # Always use real driving distance — it's more accurate than LLM guesses
+            leg.distance_km = driving.distance_km
+            # Only use driving duration if LLM didn't provide one
             if leg.duration_hours == 0:
                 leg.duration_hours = driving.duration_hours
-            if not leg.distance_km:
-                leg.distance_km = driving.distance_km
+
+    @staticmethod
+    def _populate_transit_details(leg: TravelLeg, route) -> None:
+        """Populate a travel leg with transit route details (fare, times, transfers)."""
+        leg.fare = route.fare
+        leg.num_transfers = route.num_transfers
+        leg.departure_time = route.departure_time
+        leg.arrival_time = route.arrival_time
+
+        # Build descriptive notes from all transit steps
+        if route.steps:
+            step_descriptions = []
+            for step in route.steps:
+                desc = step.line.name
+                if step.line.agency_name:
+                    desc += f" ({step.line.agency_name})"
+                step_descriptions.append(desc)
+            leg.notes = " → ".join(step_descriptions)
+            if route.departure_time and route.arrival_time:
+                leg.notes += f" | {route.departure_time} → {route.arrival_time}"

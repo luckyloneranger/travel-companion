@@ -106,7 +106,7 @@ Travel dates: {travel_dates}
 - Total days across all cities MUST equal {total_days}
 - Each city MUST have minimum 2 days
 - Each city MUST have 3-5 highlights with vivid descriptions
-- The origin city ({origin}) should be the FIRST city in the cities array if it has tourist value
+- The origin city ({origin}) is the departure point — only include it in cities if it matches the destination type AND has tourist value for day activities
 - Travel legs connect city1 → city2 → city3 → ... (first leg is from first city to second city)
 - Choose transport modes that are ACTUALLY available and popular in {region}
 - Return ONLY the JSON object — no markdown fences, no text before or after

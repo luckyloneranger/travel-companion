@@ -86,12 +86,14 @@ class AzureOpenAIService:
             max_completion_tokens=max_tokens or AGENT.max_tokens,
         )
         
+        if not response.choices:
+            raise ValueError("LLM returned empty choices array")
         content = response.choices[0].message.content
         if not content:
             raise ValueError("Empty response from LLM")
-        
+
         return content
-    
+
     async def chat_completion_json(
         self,
         system_prompt: str,
@@ -123,8 +125,10 @@ class AzureOpenAIService:
             max_completion_tokens=max_tokens or AGENT.max_tokens,
         )
         
+        if not response.choices:
+            raise ValueError("LLM returned empty choices array")
         content = response.choices[0].message.content
         if not content:
             raise ValueError("Empty response from LLM")
-        
+
         return json.loads(content)

@@ -23,6 +23,9 @@ from app.models import Location
 
 logger = logging.getLogger(__name__)
 
+# Timeout for individual API requests (seconds)
+_REQUEST_TIMEOUT = 15.0
+
 
 class TransitMode(str, Enum):
     """Transit modes supported by Google Directions API."""
@@ -193,6 +196,7 @@ class GoogleDirectionsService:
         try:
             response = await self.client.get(
                 self.BASE_URL,
+                timeout=_REQUEST_TIMEOUT,
                 params={
                     "origin": origin,
                     "destination": destination,
@@ -266,7 +270,7 @@ class GoogleDirectionsService:
             if transit_modes:
                 params["transit_mode"] = "|".join([m.value for m in transit_modes])
             
-            response = await self.client.get(self.BASE_URL, params=params)
+            response = await self.client.get(self.BASE_URL, timeout=_REQUEST_TIMEOUT, params=params)
             
             if response.status_code != 200:
                 logger.error(f"Transit API error: {response.status_code}")

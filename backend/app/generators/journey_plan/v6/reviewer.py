@@ -50,17 +50,30 @@ class Reviewer:
         Returns:
             ReviewResult with score, issues, and acceptability
         """
-        # Build cities detail
+        # Build cities detail with highlight count
         cities_detail = "\n".join([
-            f"- {c.name} ({c.days} days): {c.why_visit}"
+            f"- {c.name} ({c.days} days, {len(c.highlights)} highlights): {c.why_visit}"
             for c in plan.cities
         ])
-        
-        # Build travel detail
-        travel_detail = "\n".join([
-            f"- {leg.from_city} → {leg.to_city}: {leg.mode.value} ({leg.duration_hours}h)"
-            for leg in plan.travel_legs
-        ])
+
+        # Build travel detail with enriched data
+        travel_parts = []
+        for leg in plan.travel_legs:
+            detail = f"- {leg.from_city} → {leg.to_city}: {leg.mode.value} ({leg.duration_hours}h"
+            if leg.distance_km:
+                detail += f", {leg.distance_km}km"
+            detail += ")"
+            extras = []
+            if leg.fare:
+                extras.append(f"fare: {leg.fare}")
+            if leg.num_transfers > 0:
+                extras.append(f"{leg.num_transfers} transfer(s)")
+            if leg.departure_time and leg.arrival_time:
+                extras.append(f"{leg.departure_time} → {leg.arrival_time}")
+            if extras:
+                detail += f" [{', '.join(extras)}]"
+            travel_parts.append(detail)
+        travel_detail = "\n".join(travel_parts)
         
         user_prompt = self._user_prompt_template.format(
             total_days=plan.total_days,

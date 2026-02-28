@@ -99,10 +99,10 @@ class RouteOptimizer:
     ) -> OptimizationResult:
         """Pure TSP optimization for shortest route."""
         n = len(places)
-        
+
         # Build distance matrix
         try:
-            matrix = await self._build_distance_matrix(places)
+            matrix, dist_matrix = await self._build_distance_matrix(places)
         except Exception as e:
             logger.error(f"Failed to build distance matrix: {e}")
             return OptimizationResult(
@@ -111,13 +111,13 @@ class RouteOptimizer:
                 total_duration_seconds=n * 360,
             )
 
-        # Nearest neighbor + 2-opt
+        # Nearest neighbor + 2-opt (operates on duration matrix)
         order = self._nearest_neighbor(matrix, start_idx=0)
         order = self._two_opt_improve(order, matrix)
 
-        # Build result
+        # Build result using real distances
         optimized_places = [places[i] for i in order]
-        total_dist, total_dur = self._calculate_totals(order, matrix)
+        total_dist, total_dur = self._calculate_totals(order, matrix, dist_matrix)
 
         return OptimizationResult(
             places=optimized_places,
@@ -127,20 +127,23 @@ class RouteOptimizer:
 
     async def _build_distance_matrix(
         self, places: list[PlaceCandidate]
-    ) -> list[list[int]]:
+    ) -> tuple[list[list[int]], list[list[int]]]:
         """
-        Build a distance/duration matrix between all pairs of places.
+        Build duration and distance matrices between all pairs of places.
 
         Uses Google Distance Matrix API.
+
+        Returns:
+            Tuple of (duration_matrix, distance_matrix)
         """
         locations = [p.location for p in places]
 
-        # Get matrix from Google Routes
-        matrix = await self.routes.get_distance_matrix(
+        # Get matrices from Google Routes
+        duration_matrix, distance_matrix = await self.routes.get_distance_matrix(
             origins=locations, destinations=locations
         )
 
-        return matrix
+        return duration_matrix, distance_matrix
 
     def _nearest_neighbor(
         self, matrix: list[list[int]], start_idx: int = 0
@@ -231,16 +234,14 @@ class RouteOptimizer:
         return current_dist - new_dist
 
     def _calculate_totals(
-        self, order: list[int], matrix: list[list[int]]
+        self, order: list[int], duration_matrix: list[list[int]], distance_matrix: list[list[int]]
     ) -> tuple[int, int]:
-        """Calculate total duration for tour."""
+        """Calculate total distance and duration for tour using real data."""
         total_duration = 0
+        total_distance = 0
         for i in range(len(order) - 1):
-            total_duration += matrix[order[i]][order[i + 1]]
-
-        # Estimate distance from duration (avg walking speed 5 km/h)
-        # duration in seconds -> distance in meters
-        total_distance = int(total_duration * 5000 / 3600)
+            total_duration += duration_matrix[order[i]][order[i + 1]]
+            total_distance += distance_matrix[order[i]][order[i + 1]]
 
         return total_distance, total_duration
 

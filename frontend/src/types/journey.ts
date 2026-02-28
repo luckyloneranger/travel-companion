@@ -86,6 +86,10 @@ export interface V6TravelLeg {
   notes?: string;
   estimated_cost?: string;
   booking_tip?: string;
+  fare?: string;
+  num_transfers?: number;
+  departure_time?: string;
+  arrival_time?: string;
 }
 
 /** V6 Journey Plan - complete plan from Scout/Planner */

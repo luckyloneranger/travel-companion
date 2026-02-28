@@ -134,7 +134,7 @@ async def generate_itinerary_stream(request: ItineraryRequest):
                     break
                 
                 elif event["type"] == "error":
-                    yield f"data: {json.dumps({'type': 'error', 'message': event['message']})}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'error': event['message']})}\n\n"
                     break
 
         finally:

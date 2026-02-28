@@ -5,19 +5,11 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from typing import Optional
 
-from app.config.planning import DURATION_BY_TYPE
+from app.config.planning import DURATION_BY_TYPE, PACE_CONFIGS
 from app.config.tuning import SCHEDULING
 from app.models import Pace, PlaceCandidate, Route, ScheduledActivity
 
 logger = logging.getLogger(__name__)
-
-
-# Pace multipliers for duration
-PACE_MULTIPLIERS = {
-    Pace.RELAXED: 1.3,  # More time per activity
-    Pace.MODERATE: 1.0,
-    Pace.PACKED: 0.8,  # Less time per activity
-}
 
 
 def _parse_time_str(time_str: str) -> time:
@@ -200,8 +192,9 @@ class ScheduleBuilder:
                     base_duration = DURATION_BY_TYPE[place_type]
                     break
 
-        # Apply pace multiplier
-        multiplier = PACE_MULTIPLIERS.get(pace, 1.0)
+        # Apply pace multiplier from centralized config
+        pace_config = PACE_CONFIGS.get(pace)
+        multiplier = pace_config.duration_multiplier if pace_config else 1.0
         adjusted = int(base_duration * multiplier)
 
         # Round to nearest 15 minutes
