@@ -7,8 +7,8 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
-  color: #1e1b4b;
-  background-color: #faf9fe;
+  color: #3D3229;
+  background-color: #FBF8F4;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -29,7 +29,7 @@ body {
   font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
 }
 
-/* Custom scrollbar — minimal & elegant */
+/* Custom scrollbar — minimal & warm */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -40,12 +40,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.15);
+  background: rgba(201, 123, 90, 0.15);
   border-radius: 99px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(201, 123, 90, 0.3);
 }
 
 /* Thin scrollbar for horizontal scroll areas */
@@ -58,12 +58,12 @@ body {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.12);
+  background: rgba(201, 123, 90, 0.12);
   border-radius: 99px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.25);
+  background: rgba(201, 123, 90, 0.25);
 }
 
 /* Hide scrollbar but allow scroll */
@@ -76,7 +76,7 @@ body {
   display: none;
 }
 
-/* Date picker overrides — modern */
+/* Date picker overrides — warm */
 .react-datepicker-wrapper {
   width: 100%;
 }
@@ -84,17 +84,17 @@ body {
 .react-datepicker__input-container input {
   width: 100%;
   padding: 0.625rem 0.875rem;
-  border: 1px solid #e9e5f5;
+  border: 1px solid #E8E0D4;
   border-radius: 0.75rem;
   font-size: 0.875rem;
   outline: none;
-  background: #faf9fe;
+  background: #FBF8F4;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .react-datepicker__input-container input:focus {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+  border-color: #C97B5A;
+  box-shadow: 0 0 0 3px rgba(201, 123, 90, 0.1);
   background: white;
 }
 
@@ -153,6 +153,17 @@ body {
   }
 }
 
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
 .animate-slide-in {
   animation: slideIn 0.3s ease-out forwards;
 }
@@ -170,37 +181,12 @@ body {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* =========================================================
-   Glass morphism utility
-   ========================================================= */
-
-.glass {
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-}
-
-.glass-strong {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px) saturate(200%);
-  -webkit-backdrop-filter: blur(20px) saturate(200%);
+.animate-slide-in-right {
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* =========================================================
-   Background mesh gradient
-   ========================================================= */
-
-.bg-mesh {
-  background-color: #faf9fe;
-  background-image:
-    radial-gradient(at 20% 0%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
-    radial-gradient(at 80% 10%, rgba(236, 72, 153, 0.04) 0%, transparent 50%),
-    radial-gradient(at 50% 80%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
-    radial-gradient(at 0% 50%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
-}
-
-/* =========================================================
-   Focus ring utility
+   Focus ring utility — warm terracotta
    ========================================================= */
 
 .focus-ring {
@@ -208,5 +194,5 @@ body {
 }
 
 .focus-ring:focus-visible {
-  box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(201, 123, 90, 0.4);
 }
