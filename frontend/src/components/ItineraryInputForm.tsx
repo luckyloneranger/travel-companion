@@ -6,7 +6,6 @@ import { useState, useCallback } from 'react';
 import { MapPin, Calendar, Sparkles, Zap, AlertCircle } from 'lucide-react';
 import type { ItineraryRequest, Pace } from '@/types/itinerary';
 import { INTERESTS } from '@/types/itinerary';
-import { headerGradients } from '@/styles';
 
 interface ItineraryInputFormProps {
   onSubmit: (request: ItineraryRequest) => void;
@@ -71,10 +70,7 @@ export function ItineraryInputForm({ onSubmit, loading, error }: ItineraryInputF
 
       {/* Destination Card */}
       <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100/60 transition-all duration-300 hover:shadow-lg">
-        <div
-          className="text-white p-4"
-          style={{ background: headerGradients.stats.css }}
-        >
+        <div className="text-white p-4 bg-[#8E8478]">
           <div className="flex items-center gap-2">
             <MapPin className="h-5 w-5" />
             <h3 className="font-display font-semibold">Destination</h3>
@@ -95,10 +91,7 @@ export function ItineraryInputForm({ onSubmit, loading, error }: ItineraryInputF
 
       {/* Dates Card */}
       <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100/60 transition-all duration-300 hover:shadow-lg">
-        <div
-          className="text-white p-4"
-          style={{ background: headerGradients.dayPlan.css }}
-        >
+        <div className="text-white p-4 bg-[#8B9E6B]">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
             <h3 className="font-display font-semibold">Trip Dates</h3>
@@ -140,10 +133,7 @@ export function ItineraryInputForm({ onSubmit, loading, error }: ItineraryInputF
 
       {/* Interests Card */}
       <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100/60 transition-all duration-300 hover:shadow-lg">
-        <div
-          className="text-white p-4"
-          style={{ background: headerGradients.accent.css }}
-        >
+        <div className="text-white p-4 bg-[#D4A574]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" />
@@ -162,10 +152,9 @@ export function ItineraryInputForm({ onSubmit, loading, error }: ItineraryInputF
                 disabled={loading}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                   selectedInterests.includes(interest.id)
-                    ? 'text-white shadow-md scale-[1.03]'
+                    ? 'bg-[#D4A574] text-white shadow-md scale-[1.03]'
                     : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200/60'
                 } disabled:opacity-50`}
-                style={selectedInterests.includes(interest.id) ? { background: headerGradients.accent.css } : {}}
               >
                 <span className="mr-1.5">{interest.icon}</span>
                 {interest.label}
@@ -180,10 +169,7 @@ export function ItineraryInputForm({ onSubmit, loading, error }: ItineraryInputF
 
       {/* Pace Card */}
       <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100/60 transition-all duration-300 hover:shadow-lg">
-        <div
-          className="text-white p-4"
-          style={{ background: headerGradients.rose.css }}
-        >
+        <div className="text-white p-4 bg-[#B07878]">
           <div className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
             <h3 className="font-display font-semibold">Trip Pace</h3>
@@ -222,10 +208,9 @@ export function ItineraryInputForm({ onSubmit, loading, error }: ItineraryInputF
         disabled={!isValid || loading}
         className={`w-full py-4 px-6 rounded-2xl font-display font-bold text-lg transition-all duration-300 flex items-center justify-center gap-3 ${
           isValid && !loading
-            ? 'text-white hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0'
+            ? 'bg-[#C97B5A] hover:bg-[#A66244] text-white hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0'
             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
         }`}
-        style={isValid && !loading ? { background: headerGradients.stats.css } : {}}
       >
         {loading ? (
           <>
