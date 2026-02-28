@@ -15,7 +15,6 @@ import {
   SUGGESTED_REGIONS,
   DAYS_OPTIONS,
 } from '@/types';
-import { headerGradients } from '@/styles';
 
 interface JourneyInputFormProps {
   onSubmit: (request: JourneyRequest) => Promise<void>;
@@ -111,7 +110,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
       {/* Origin */}
       <div>
         <label className="flex items-center gap-2 text-sm font-medium text-gray-600 mb-2">
-          <Plane className="h-4 w-4 text-primary-400" />
+          <Plane className="h-4 w-4 text-[#C97B5A]" />
           Where are you starting from?
         </label>
         <input
@@ -119,7 +118,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
           value={origin}
           onChange={(e) => setOrigin(e.target.value)}
           placeholder="e.g., New York, London, Tokyo"
-          className="w-full px-4 py-3 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 transition-all bg-gray-50/50 focus:bg-white"
+          className="w-full px-4 py-3 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-[#C97B5A]/20 focus:border-[#C97B5A] transition-all bg-gray-50/50 focus:bg-white"
           required
         />
       </div>
@@ -127,7 +126,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
       {/* Destination Region */}
       <div className="relative" ref={regionDropdownRef}>
         <label className="flex items-center gap-2 text-sm font-medium text-gray-600 mb-2">
-          <MapPin className="h-4 w-4 text-primary-400" />
+          <MapPin className="h-4 w-4 text-[#C97B5A]" />
           Where do you want to explore?
         </label>
         <input
@@ -139,7 +138,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
           }}
           onFocus={() => setShowSuggestions(true)}
           placeholder="e.g., Northern Italy, Japanese Alps, Greek Islands"
-          className="w-full px-4 py-3 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 transition-all bg-gray-50/50 focus:bg-white"
+          className="w-full px-4 py-3 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-[#C97B5A]/20 focus:border-[#C97B5A] transition-all bg-gray-50/50 focus:bg-white"
           required
           aria-expanded={showSuggestions}
           aria-haspopup="listbox"
@@ -149,7 +148,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
         {/* Region Suggestions Dropdown */}
         {showSuggestions && (
           <div
-            className="absolute z-10 w-full mt-2 bg-white/95 backdrop-blur-xl border border-gray-200/60 rounded-2xl shadow-xl max-h-60 overflow-y-auto"
+            className="absolute z-10 w-full mt-2 bg-white/95 border border-gray-200/60 rounded-2xl shadow-xl max-h-60 overflow-y-auto"
             role="listbox"
             aria-label="Suggested regions"
           >
@@ -161,7 +160,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
                   type="button"
                   role="option"
                   onClick={() => handleRegionSelect(suggestion.value)}
-                  className="w-full px-4 py-3 text-left hover:bg-primary-50/50 flex justify-between items-center border-b border-gray-100/60 last:border-0 transition-colors"
+                  className="w-full px-4 py-3 text-left hover:bg-primary-50 flex justify-between items-center border-b border-gray-100/60 last:border-0 transition-colors"
                 >
                   <span className="font-medium text-gray-900">{suggestion.label}</span>
                   <span className="text-xs text-gray-400">{suggestion.example}</span>
@@ -175,13 +174,13 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-600 mb-2">
-            <Calendar className="h-4 w-4 text-primary-400" />
+            <Calendar className="h-4 w-4 text-[#C97B5A]" />
             How many days?
           </label>
           <select
             value={totalDays}
             onChange={(e) => setTotalDays(Number(e.target.value))}
-            className="w-full px-4 py-3 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 transition-all bg-gray-50/50 focus:bg-white"
+            className="w-full px-4 py-3 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-[#C97B5A]/20 focus:border-[#C97B5A] transition-all bg-gray-50/50 focus:bg-white"
           >
             {DAYS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -192,7 +191,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
         </div>
         <div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-600 mb-2">
-            <Calendar className="h-4 w-4 text-primary-400" />
+            <Calendar className="h-4 w-4 text-[#C97B5A]" />
             When?
           </label>
           <input
@@ -200,7 +199,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             min={format(new Date(), 'yyyy-MM-dd')}
-            className="w-full px-4 py-3 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 transition-all bg-gray-50/50 focus:bg-white"
+            className="w-full px-4 py-3 border border-gray-200/80 rounded-xl focus:ring-2 focus:ring-[#C97B5A]/20 focus:border-[#C97B5A] transition-all bg-gray-50/50 focus:bg-white"
             required
           />
         </div>
@@ -209,7 +208,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
       {/* Interests */}
       <div>
         <label className="flex items-center gap-2 text-sm font-medium text-gray-600 mb-3">
-          <Sparkles className="h-4 w-4 text-primary-400" />
+          <Sparkles className="h-4 w-4 text-[#C97B5A]" />
           What do you love?
         </label>
         <div className="flex flex-wrap gap-2">
@@ -220,7 +219,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
               onClick={() => handleInterestToggle(interest.id)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
                 selectedInterests.includes(interest.id)
-                  ? 'bg-primary-100 text-primary-700 ring-2 ring-primary-400/50 shadow-sm'
+                  ? 'bg-primary-100 text-primary-700 ring-2 ring-primary-400/40 shadow-sm'
                   : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200/60'
               }`}
             >
@@ -253,7 +252,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
               onClick={() => setPace(option.value)}
               className={`flex-1 py-3 px-4 rounded-xl text-center transition-all duration-200 ${
                 pace === option.value
-                  ? 'bg-primary-50/50 ring-2 ring-primary-400/50 text-primary-700 shadow-sm'
+                  ? 'bg-primary-50 ring-2 ring-primary-400/40 text-primary-700 shadow-sm'
                   : 'bg-gray-50/50 text-gray-600 hover:bg-gray-100 border border-gray-200/60'
               }`}
             >
@@ -268,8 +267,7 @@ export function JourneyInputForm({ onSubmit, loading, error }: JourneyInputFormP
       <button
         type="submit"
         disabled={loading || !origin.trim() || !region.trim() || selectedInterests.length === 0}
-        className="w-full py-4 px-6 text-white font-display font-semibold rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
-        style={{ background: headerGradients.journey.css }}
+        className="w-full py-4 px-6 bg-[#C97B5A] hover:bg-[#A66244] text-white font-display font-semibold rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2"
       >
         {loading ? (
           <>
