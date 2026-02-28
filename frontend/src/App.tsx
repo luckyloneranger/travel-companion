@@ -6,8 +6,9 @@ import { V6JourneyPlanView } from './components/V6JourneyPlanView';
 import { ItineraryView } from './components/ItineraryView';
 import { GenerationProgress, type ProgressEvent } from './components/GenerationProgress';
 import { JourneyChat } from './components/JourneyChat';
+import { PhaseIndicator } from './components/PhaseIndicator';
+import { PhaseTransition } from './components/PhaseTransition';
 import { planJourneyV6Stream, generateV6DayPlansStream, extractV6JourneyFromEvent, generateItineraryStream } from './services/api';
-import { headerGradients } from '@/styles';
 import type { 
   JourneyRequest, 
   V6JourneyPlan,
@@ -228,128 +229,162 @@ function App() {
     setDayPlans(updatedDayPlans);
   }, []);
 
+  // Cancel in-flight generation
+  const handleCancel = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setLoading(false);
+    setGeneratingDayPlans(false);
+    setProgress(null);
+    // Return to appropriate phase
+    if (journeyPlan) {
+      setJourneyPhase('preview');
+    } else {
+      setJourneyPhase('input');
+    }
+  }, [journeyPlan]);
+
+  const handleBack = useCallback(() => {
+    if (journeyPhase === 'preview' || journeyPhase === 'day-plans') {
+      handleReset();
+    }
+  }, [journeyPhase, handleReset]);
+
   return (
-    <div className="min-h-screen bg-mesh flex flex-col">
+    <div className="min-h-screen bg-[#FBF8F4] flex flex-col">
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+        <PhaseIndicator
+          currentPhase={journeyPhase}
+          onBack={journeyPhase !== 'planning' ? handleBack : undefined}
+          backLabel={journeyPhase === 'preview' || journeyPhase === 'day-plans' ? 'New Plan' : undefined}
+        />
+
         {/* Show full-screen progress only for journey planning, not day plans */}
         {loading && !generatingDayPlans ? (
-          <GenerationProgress 
-            progress={progress} 
-            destinationName={destinationName}
-            mode={appMode === 'itinerary' ? 'itinerary' : 'journey'}
-          />
-        ) : journeyPhase === 'preview' && appMode === 'itinerary' && itinerary ? (
-          <ItineraryView
-            itinerary={itinerary}
-            onReset={handleReset}
-            loading={loading}
-          />
-        ) : (journeyPhase === 'preview' || journeyPhase === 'day-plans') && journeyPlan ? (
-          <>
-            <V6JourneyPlanView
-              journey={journeyPlan}
-              dayPlans={dayPlans}
-              startDate={originalRequest?.start_date}
-              onReset={handleReset}
-              onGenerateDayPlans={handleGenerateDayPlans}
-              loading={loading}
-              generatingDayPlans={generatingDayPlans}
+          <PhaseTransition phase="planning" animation="fade">
+            <GenerationProgress
+              progress={progress}
+              destinationName={destinationName}
+              mode={appMode === 'itinerary' ? 'itinerary' : 'journey'}
+              onCancel={handleCancel}
             />
-            {/* Chat for editing - switches mode based on whether day plans exist */}
-            {dayPlans && dayPlans.length > 0 ? (
-              <JourneyChat
-                mode="dayplan"
-                dayPlans={dayPlans}
-                onDayPlansUpdate={handleDayPlansUpdate}
-                context={originalRequest ? {
-                  interests: originalRequest.interests,
-                  pace: originalRequest.pace,
-                } : undefined}
-              />
-            ) : (
-              <JourneyChat
-                mode="journey"
+          </PhaseTransition>
+        ) : journeyPhase === 'preview' && appMode === 'itinerary' && itinerary ? (
+          <PhaseTransition phase="itinerary-preview" animation="slide-right">
+            <ItineraryView
+              itinerary={itinerary}
+              onReset={handleReset}
+              loading={loading}
+            />
+          </PhaseTransition>
+        ) : (journeyPhase === 'preview' || journeyPhase === 'day-plans') && journeyPlan ? (
+          <PhaseTransition phase="journey-preview" animation="slide-right">
+            <>
+              <V6JourneyPlanView
                 journey={journeyPlan}
-                onJourneyUpdate={handleJourneyUpdate}
-                context={originalRequest ? {
-                  origin: originalRequest.origin,
-                  region: originalRequest.region,
-                  interests: originalRequest.interests,
-                  pace: originalRequest.pace,
-                } : undefined}
+                dayPlans={dayPlans}
+                startDate={originalRequest?.start_date}
+                onReset={handleReset}
+                onGenerateDayPlans={handleGenerateDayPlans}
+                loading={loading}
+                generatingDayPlans={generatingDayPlans}
               />
-            )}
-          </>
+              {/* Chat for editing - switches mode based on whether day plans exist */}
+              {dayPlans && dayPlans.length > 0 ? (
+                <JourneyChat
+                  mode="dayplan"
+                  dayPlans={dayPlans}
+                  onDayPlansUpdate={handleDayPlansUpdate}
+                  context={originalRequest ? {
+                    interests: originalRequest.interests,
+                    pace: originalRequest.pace,
+                  } : undefined}
+                />
+              ) : (
+                <JourneyChat
+                  mode="journey"
+                  journey={journeyPlan}
+                  onJourneyUpdate={handleJourneyUpdate}
+                  context={originalRequest ? {
+                    origin: originalRequest.origin,
+                    region: originalRequest.region,
+                    interests: originalRequest.interests,
+                    pace: originalRequest.pace,
+                  } : undefined}
+                />
+              )}
+            </>
+          </PhaseTransition>
         ) : (
-          <div className="max-w-2xl mx-auto">
-            {/* Hero Section */}
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-display font-extrabold text-gray-900 mb-4 tracking-tight">
-                Plan Your Dream {appMode === 'journey' ? 'Journey' : 'Trip'}
-              </h1>
-              <p className="text-lg text-gray-600 max-w-xl mx-auto">
-                {appMode === 'journey' 
-                  ? 'Tell us where you want to go and what you love. Our AI will craft the perfect multi-city adventure tailored just for you.'
-                  : 'Create a detailed day-by-day itinerary for your single-city adventure with AI-powered recommendations.'
-                }
-              </p>
-            </div>
-
-            {/* Mode Toggle */}
-            <div className="flex justify-center mb-8">
-              <div className="glass-strong rounded-2xl p-1.5 shadow-lg border border-white/60 inline-flex">
-                <button
-                  onClick={() => setAppMode('journey')}
-                  className={`px-6 py-2.5 rounded-xl font-display font-semibold text-sm transition-all duration-300 ${
-                    appMode === 'journey'
-                      ? 'text-white shadow-md'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-                  }`}
-                  style={appMode === 'journey' ? { background: `linear-gradient(135deg, ${headerGradients.journey.from}, ${headerGradients.journey.to})` } : {}}
-                >
-                  Multi-City Journey
-                </button>
-                <button
-                  onClick={() => setAppMode('itinerary')}
-                  className={`px-6 py-2.5 rounded-xl font-display font-semibold text-sm transition-all duration-300 ${
-                    appMode === 'itinerary'
-                      ? 'text-white shadow-md'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-                  }`}
-                  style={appMode === 'itinerary' ? { background: `linear-gradient(135deg, ${headerGradients.stats.from}, ${headerGradients.stats.to})` } : {}}
-                >
-                  Single-City Itinerary
-                </button>
+          <PhaseTransition phase="input" animation="fade">
+            <div className="max-w-2xl mx-auto">
+              {/* Hero Section */}
+              <div className="text-center mb-8">
+                <h1 className="text-4xl font-display font-extrabold text-[#3D3229] mb-4 tracking-tight">
+                  Plan Your Dream {appMode === 'journey' ? 'Journey' : 'Trip'}
+                </h1>
+                <p className="text-lg text-[#9C8E82] max-w-xl mx-auto">
+                  {appMode === 'journey'
+                    ? 'Tell us where you want to go and what you love. Our AI will craft the perfect multi-city adventure tailored just for you.'
+                    : 'Create a detailed day-by-day itinerary for your single-city adventure with AI-powered recommendations.'
+                  }
+                </p>
               </div>
-            </div>
 
-            {/* Form based on mode */}
-            {appMode === 'journey' ? (
-              <JourneyInputForm
-                onSubmit={handleJourneySubmit}
-                loading={loading}
-                error={error}
-              />
-            ) : (
-              <ItineraryInputForm
-                onSubmit={handleItinerarySubmit}
-                loading={loading}
-                error={error}
-              />
-            )}
-          </div>
+              {/* Mode Toggle */}
+              <div className="flex justify-center mb-8">
+                <div className="bg-[#F5F0E8] rounded-2xl p-1.5 shadow-sm border border-[#E8E0D4] inline-flex">
+                  <button
+                    onClick={() => setAppMode('journey')}
+                    className={`px-6 py-2.5 rounded-xl font-display font-semibold text-sm transition-all duration-300 ${
+                      appMode === 'journey'
+                        ? 'bg-[#C97B5A] text-white shadow-sm'
+                        : 'text-[#3D3229] hover:text-[#3D3229] hover:bg-white/50'
+                    }`}
+                  >
+                    Multi-City Journey
+                  </button>
+                  <button
+                    onClick={() => setAppMode('itinerary')}
+                    className={`px-6 py-2.5 rounded-xl font-display font-semibold text-sm transition-all duration-300 ${
+                      appMode === 'itinerary'
+                        ? 'bg-[#C97B5A] text-white shadow-sm'
+                        : 'text-[#3D3229] hover:text-[#3D3229] hover:bg-white/50'
+                    }`}
+                  >
+                    Single-City Itinerary
+                  </button>
+                </div>
+              </div>
+
+              {/* Form based on mode */}
+              {appMode === 'journey' ? (
+                <JourneyInputForm
+                  onSubmit={handleJourneySubmit}
+                  loading={loading}
+                  error={error}
+                />
+              ) : (
+                <ItineraryInputForm
+                  onSubmit={handleItinerarySubmit}
+                  loading={loading}
+                  error={error}
+                />
+              )}
+            </div>
+          </PhaseTransition>
         )}
       </main>
 
       {/* Day Plan Generation Side Panel - Slides in from right */}
       {generatingDayPlans && (
-        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white/95 backdrop-blur-xl shadow-2xl z-50 flex flex-col transform transition-transform duration-300 ease-out border-l border-white/60">
+        <div className="fixed right-0 top-0 h-full w-full sm:w-96 bg-white shadow-xl z-50 flex flex-col transform transition-transform duration-300 ease-out border-l border-[#E8E0D4]">
           {/* Panel Header */}
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 text-white flex items-center justify-between">
+          <div className="bg-[#8B9E6B] p-4 text-white flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-white/25 flex items-center justify-center">
                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
@@ -357,17 +392,18 @@ function App() {
               </div>
               <div>
                 <h3 className="font-display font-bold">Creating Day Plans</h3>
-                <p className="text-sm text-white/80 truncate max-w-[200px]">{destinationName}</p>
+                <p className="text-sm text-white/85 truncate max-w-[200px]">{destinationName}</p>
               </div>
             </div>
           </div>
-          
+
           {/* Panel Content */}
           <div className="flex-1 overflow-y-auto p-4">
-            <GenerationProgress 
-              progress={progress} 
+            <GenerationProgress
+              progress={progress}
               destinationName={destinationName}
               mode="day-plans"
+              onCancel={handleCancel}
             />
           </div>
         </div>
@@ -375,12 +411,12 @@ function App() {
 
       {/* Backdrop for mobile */}
       {generatingDayPlans && (
-        <div className="fixed inset-0 bg-black/20 z-40 sm:hidden" />
+        <div className="fixed inset-0 bg-[#3D3229]/15 z-40 sm:hidden" />
       )}
 
-      <footer className="glass border-t border-white/40 py-6">
+      <footer className="bg-[#FBF8F4] border-t border-[#E8E0D4] py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-gray-400 text-sm font-medium">
+          <p className="text-center text-[#9C8E82] text-sm font-medium">
             Powered by Azure OpenAI & Google APIs
           </p>
         </div>
@@ -393,51 +429,26 @@ function App() {
  * Map V6 progress events to GenerationProgress component format
  */
 function mapV6EventToProgress(event: V6ProgressEvent): ProgressEvent {
-  const phaseEmojis: Record<string, string> = {
-    scout: '🔭',
-    enrich: '🗺️',
-    review: '🔍',
-    planner: '🛠️',
-    complete: '🎉',
-    error: '❌',
-  };
-
-  const stepMessages: Record<string, Record<string, string>> = {
-    scout: {
-      start: 'Scout is generating initial journey plan...',
-      complete: 'Scout found the perfect route!',
-    },
-    enrich: {
-      start: 'Enriching plan with real transport data...',
-      complete: 'Transport data enriched!',
-    },
-    review: {
-      start: 'Reviewing journey feasibility...',
-      complete: 'Review complete!',
-    },
-    planner: {
-      start: 'Planner is fixing issues...',
-      complete: 'Plan revised!',
-    },
-  };
-
-  const emoji = phaseEmojis[event.phase] || '📍';
   let message = event.message;
-  
-  // Use more descriptive message if available
-  if (!message && stepMessages[event.phase]?.[event.step]) {
-    message = stepMessages[event.phase][event.step];
+
+  if (!message) {
+    const stepMessages: Record<string, Record<string, string>> = {
+      scout: { start: 'Scout is generating initial journey plan...', complete: 'Scout found the perfect route!' },
+      enrich: { start: 'Enriching plan with real transport data...', complete: 'Transport data enriched!' },
+      review: { start: 'Reviewing journey feasibility...', complete: 'Review complete!' },
+      planner: { start: 'Planner is fixing issues...', complete: 'Plan revised!' },
+    };
+    message = stepMessages[event.phase]?.[event.step] || message;
   }
-  
-  // Add iteration info for multiple iterations
+
   if (event.iteration > 1) {
-    message = `[Iteration ${event.iteration}] ${message}`;
+    message = `Refining... (iteration ${event.iteration}) ${message}`;
   }
 
   return {
     type: 'progress',
     phase: event.phase,
-    message: `${emoji} ${message}`,
+    message: message || 'Processing...',
     progress: event.progress,
     data: {
       destination: event.data?.route as string,
@@ -450,24 +461,13 @@ function mapV6EventToProgress(event: V6ProgressEvent): ProgressEvent {
  * Map day plan progress events to GenerationProgress component format
  */
 function mapDayPlanEventToProgress(event: V6DayPlanProgress): ProgressEvent {
-  const phaseEmojis: Record<string, string> = {
-    city_start: '🏙️',
-    city_complete: '✅',
-    city_error: '⚠️',
-    complete: '🎉',
-    error: '❌',
-  };
-
-  const emoji = phaseEmojis[event.phase] || '📍';
   const cityInfo = event.city_name ? ` - ${event.city_name}` : '';
-  const progressInfo = event.total_cities > 0 
-    ? ` (${event.city_index + 1}/${event.total_cities})`
-    : '';
+  const progressInfo = event.total_cities > 0 ? ` (${event.city_index + 1}/${event.total_cities})` : '';
 
   return {
     type: 'progress',
     phase: event.phase,
-    message: `${emoji} ${event.message}${cityInfo}${progressInfo}`,
+    message: `${event.message}${cityInfo}${progressInfo}`,
     progress: event.progress,
     data: {
       city_name: event.city_name,
@@ -484,23 +484,10 @@ function mapDayPlanEventToProgress(event: V6DayPlanProgress): ProgressEvent {
  * Map itinerary progress events to GenerationProgress component format
  */
 function mapItineraryEventToProgress(event: ItineraryProgressEvent): ProgressEvent {
-  const phaseEmojis: Record<string, string> = {
-    geocoding: '📍',
-    discovering: '🔍',
-    planning: '🧠',
-    optimizing: '🗺️',
-    scheduling: '📅',
-    validating: '✅',
-    complete: '🎉',
-    error: '❌',
-  };
-
-  const emoji = phaseEmojis[event.phase || ''] || '📍';
-  
   return {
     type: event.type,
     phase: event.phase || '',
-    message: `${emoji} ${event.message || 'Processing...'}`,
+    message: event.message || 'Processing...',
     progress: event.progress || 0,
     data: {},
   };
