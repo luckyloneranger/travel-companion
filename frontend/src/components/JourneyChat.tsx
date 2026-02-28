@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import type { V6JourneyPlan, V6DayPlan, ChatMessage } from '@/types';
 import { editJourneyViaChat, editDayPlansViaChat } from '@/services/api';
-import { headerGradients, shadows } from '@/styles';
 
 type ChatMode = 'journey' | 'dayplan';
 
@@ -60,10 +59,6 @@ const DAYPLAN_QUICK_ACTIONS = [
   'Make day 1 more relaxed',
 ];
 
-// Use different gradients for different modes
-const getModeGradient = (mode: ChatMode) => 
-  mode === 'journey' ? headerGradients.journey : headerGradients.dayPlan;
-
 const getModeTitle = (mode: ChatMode) => 
   mode === 'journey' ? 'Edit Your Journey' : 'Edit Day Plans';
 
@@ -75,7 +70,6 @@ const getModeButtonText = (mode: ChatMode) =>
 
 export function JourneyChat(props: PlanChatProps) {
   const { mode, context } = props;
-  const gradient = getModeGradient(mode);
   const quickActions = mode === 'journey' ? JOURNEY_QUICK_ACTIONS : DAYPLAN_QUICK_ACTIONS;
   
   const [isOpen, setIsOpen] = useState(false);
@@ -226,11 +220,9 @@ export function JourneyChat(props: PlanChatProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-3 text-white rounded-full transition-all duration-300 hover:scale-105 z-50"
-        style={{
-          background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})`,
-          boxShadow: shadows.lg,
-        }}
+        className={`fixed bottom-6 right-6 flex items-center gap-2 px-4 py-3 text-white rounded-full transition-all duration-300 hover:scale-105 shadow-lg z-50 ${
+          mode === 'journey' ? 'bg-[#C97B5A]' : 'bg-[#8B9E6B]'
+        }`}
         aria-label={getModeButtonText(mode)}
       >
         <MessageCircle className="h-5 w-5" />
@@ -242,13 +234,14 @@ export function JourneyChat(props: PlanChatProps) {
   
   return (
     <div
-      className="fixed bottom-6 right-6 w-96 bg-white/95 backdrop-blur-xl rounded-2xl overflow-hidden z-50 border border-gray-100/60"
-      style={{ boxShadow: shadows.xl, maxHeight: 'calc(100vh - 100px)' }}
+      className="fixed bottom-6 right-6 w-96 bg-white/95 backdrop-blur-xl rounded-2xl overflow-hidden z-50 border border-gray-100/60 shadow-xl"
+      style={{ maxHeight: 'calc(100vh - 100px)' }}
     >
       {/* Header */}
-      <div 
-        className="flex items-center justify-between px-4 py-3 text-white"
-        style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
+      <div
+        className={`flex items-center justify-between px-4 py-3 text-white ${
+          mode === 'journey' ? 'bg-[#C97B5A]' : 'bg-[#8B9E6B]'
+        }`}
       >
         <div className="flex items-center gap-2">
           {getModeIcon(mode)}
@@ -264,22 +257,18 @@ export function JourneyChat(props: PlanChatProps) {
       </div>
       
       {/* Messages */}
-      <div className="h-80 overflow-y-auto p-4 space-y-4 bg-gray-50/50">
+      <div className="h-80 overflow-y-auto p-4 space-y-4 bg-[#FBF8F4]">
         {messages.map((msg) => (
           <div
             key={msg.id}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 transition-all duration-200 ${
                 msg.role === 'user'
-                  ? 'text-white rounded-br-md'
-                  : 'bg-white shadow-sm border border-gray-100/60 rounded-bl-md'
+                  ? 'bg-primary-50 border border-[#EDCDB8] rounded-br-md'
+                  : 'bg-[#F5F0E8] border border-[#E8E0D4] rounded-bl-md'
               }`}
-              style={msg.role === 'user' ? { 
-                background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})`,
-                transition: 'all 0.2s' 
-              } : { transition: 'all 0.2s' }}
             >
               {msg.isLoading ? (
                 <div className="flex items-center gap-2 text-gray-500">
@@ -288,7 +277,7 @@ export function JourneyChat(props: PlanChatProps) {
                 </div>
               ) : (
                 <>
-                  <p className={msg.role === 'user' ? 'text-white' : 'text-gray-700'}>
+                  <p className={msg.role === 'user' ? 'text-gray-800' : 'text-gray-700'}>
                     {msg.content}
                   </p>
                   
@@ -323,13 +312,7 @@ export function JourneyChat(props: PlanChatProps) {
               <button
                 key={action}
                 onClick={() => handleQuickAction(action)}
-                className="text-xs px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:text-white transition-colors"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = `linear-gradient(135deg, ${gradient.from}, ${gradient.to})`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '';
-                }}
+                className="text-xs px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-600 hover:bg-primary-50 hover:text-[#C97B5A] transition-colors"
               >
                 {action}
               </button>
@@ -349,16 +332,13 @@ export function JourneyChat(props: PlanChatProps) {
             onKeyDown={handleKeyDown}
             placeholder="Type your edit request..."
             disabled={isLoading}
-            className="flex-1 px-4 py-2.5 rounded-full bg-gray-100/80 border-0 focus:ring-2 focus:ring-primary-400/30 focus:bg-white transition-all text-sm disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 rounded-full bg-gray-100/80 border-0 focus:ring-2 focus:ring-[#C97B5A]/20 focus:border-[#C97B5A] focus:bg-white transition-all text-sm disabled:opacity-50"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="p-2.5 rounded-full text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
+            className="p-2.5 rounded-full text-white bg-[#C97B5A] hover:bg-[#A66244] disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105 active:scale-95"
             aria-label={isLoading ? 'Sending message' : 'Send message'}
-            style={{ 
-              background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})`,
-            }}
           >
             {isLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
