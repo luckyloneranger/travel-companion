@@ -69,3 +69,7 @@ Thumbs.db
 
 # Local development
 *.local
+
+# Screenshots
+screenshots/
+mobile-full-page.png
