@@ -36,7 +36,7 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
           {/* Header */}
           <div 
             className="p-4"
-            style={{ background: `linear-gradient(to right, ${palette.bgColor}, white)` }}
+            style={{ backgroundColor: palette.bgColor }}
           >
             <div className="flex items-center justify-between">
               <div className="flex-1">

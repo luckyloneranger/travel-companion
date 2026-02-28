@@ -11,7 +11,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import type { V6JourneyPlan, V6DayPlan } from '@/types';
-import { cityColorPalettes, headerGradients } from './styles';
+import { cityColorPalettes } from './styles';
 import { CityCard } from './CityCard';
 import { TravelLegCard } from './TravelLegCard';
 import { CityDaySection, type CityDayGroup } from './CityDaySection';
@@ -64,8 +64,7 @@ export function V6JourneyPlanView({
       {/* Journey Header */}
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-gray-100/40">
         <div
-          className="text-white p-6"
-          style={{ background: headerGradients.journey.css }}
+          className="text-white p-6 bg-[#C97B5A]"
         >
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-5 w-5" />
@@ -78,21 +77,21 @@ export function V6JourneyPlanView({
         {/* Stats */}
         <div className="grid grid-cols-4 gap-px bg-gray-100/60">
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-display font-extrabold" style={{ color: headerGradients.journey.from }}>{journey.total_days}</p>
+            <p className="text-2xl font-display font-extrabold text-[#C97B5A]">{journey.total_days}</p>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Days</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-display font-extrabold" style={{ color: headerGradients.journey.from }}>{journey.cities.length}</p>
+            <p className="text-2xl font-display font-extrabold text-[#C97B5A]">{journey.cities.length}</p>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Cities</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-display font-extrabold" style={{ color: headerGradients.journey.from }}>
+            <p className="text-2xl font-display font-extrabold text-[#C97B5A]">
               {journey.total_distance_km ? Math.round(journey.total_distance_km) : '—'}
             </p>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">km</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-display font-extrabold" style={{ color: headerGradients.journey.from }}>
+            <p className="text-2xl font-display font-extrabold text-[#C97B5A]">
               {journey.review_score || '—'}
             </p>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Score</p>
@@ -134,8 +133,7 @@ export function V6JourneyPlanView({
         <div className="mb-6">
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-gray-100/40">
             <div
-              className="text-white p-5"
-              style={{ background: headerGradients.dayPlan.css }}
+              className="text-white p-5 bg-[#8B9E6B]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -194,7 +192,7 @@ export function V6JourneyPlanView({
       )}
 
       {/* Actions */}
-      <div className="flex gap-4 sticky bottom-4 glass-strong p-4 -mx-4 rounded-2xl shadow-lg border border-white/60">
+      <div className="flex gap-4 sticky bottom-4 bg-[#F5F0E8] border border-[#E8E0D4] p-4 -mx-4 rounded-2xl shadow-lg">
         <button
           onClick={onReset}
           disabled={loading || generatingDayPlans}
@@ -207,7 +205,7 @@ export function V6JourneyPlanView({
           <button
             onClick={onGenerateDayPlans}
             disabled={!onGenerateDayPlans || generatingDayPlans}
-            className={`flex-1 py-3 px-6 bg-gradient-to-r from-primary-600 to-purple-600 text-white font-display font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
+            className={`flex-1 py-3 px-6 bg-[#C97B5A] hover:bg-[#A66244] text-white font-display font-semibold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 ${
               !onGenerateDayPlans || generatingDayPlans ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'
             }`}
             title={generatingDayPlans ? 'Generating day plans...' : 'Create detailed itineraries for each city'}
