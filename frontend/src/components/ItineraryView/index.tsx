@@ -49,7 +49,7 @@ export function ItineraryView({
       {/* Header Card */}
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-gray-100/40">
         {/* Gradient Header */}
-        <div className="bg-gradient-to-r from-primary-600 via-purple-600 to-pink-500 text-white p-6">
+        <div className="bg-[#C97B5A] text-white p-6">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-5 w-5" />
             <span className="text-sm font-display font-semibold opacity-90">Your Itinerary</span>
@@ -91,21 +91,21 @@ export function ItineraryView({
         {/* Stats Grid */}
         <div className="grid grid-cols-4 gap-px bg-gray-100/60">
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-display font-extrabold text-primary-600">{itinerary.days.length}</p>
+            <p className="text-2xl font-display font-extrabold text-[#C97B5A]">{itinerary.days.length}</p>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Days</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-display font-extrabold text-primary-600">{stats.totalActivities}</p>
+            <p className="text-2xl font-display font-extrabold text-[#C97B5A]">{stats.totalActivities}</p>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Activities</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-display font-extrabold text-primary-600">
+            <p className="text-2xl font-display font-extrabold text-[#C97B5A]">
               {itinerary.summary.total_distance_km.toFixed(1)}
             </p>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">km</p>
           </div>
           <div className="bg-white p-4 text-center">
-            <p className="text-2xl font-display font-extrabold text-primary-600">
+            <p className="text-2xl font-display font-extrabold text-[#C97B5A]">
               {Math.round(stats.totalDuration / 60)}h
             </p>
             <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">Planned</p>
@@ -139,18 +139,17 @@ export function ItineraryView({
       <div className="mb-6">
         {/* Section header */}
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-gray-100/40">
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-5">
+          <div className="bg-[#8B9E6B] text-white p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}
+                  className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg bg-white/30"
                 >
                   <Calendar className="h-6 w-6" />
                 </div>
                 <div>
                   <h2 className="text-xl font-display font-bold">Day-by-Day Itinerary</h2>
-                  <p className="text-emerald-100 text-sm mt-0.5">
+                  <p className="text-white/80 text-sm mt-0.5">
                     {itinerary.days.length} days of curated experiences in {itinerary.destination.name}
                   </p>
                 </div>
@@ -158,7 +157,7 @@ export function ItineraryView({
               <div className="flex items-center gap-6">
                 <div className="text-right">
                   <p className="text-3xl font-display font-extrabold">{stats.totalActivities}</p>
-                  <p className="text-xs text-emerald-100 uppercase tracking-wider font-medium">Activities</p>
+                  <p className="text-xs text-white/80 uppercase tracking-wider font-medium">Activities</p>
                 </div>
               </div>
             </div>
@@ -223,11 +222,11 @@ export function ItineraryView({
       )}
 
       {/* Actions */}
-      <div className="flex gap-4 sticky bottom-4 glass-strong p-4 -mx-4 rounded-2xl shadow-lg border border-white/60">
+      <div className="flex gap-4 sticky bottom-4 bg-[#F5F0E8] border border-[#E8E0D4] p-4 -mx-4 rounded-2xl shadow-lg">
         <button
           onClick={onReset}
           disabled={loading}
-          className="flex-1 py-3 px-6 bg-gradient-to-r from-primary-600 to-purple-600 text-white font-display font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 transition-all duration-300 flex items-center justify-center gap-2"
+          className="flex-1 py-3 px-6 bg-[#C97B5A] hover:bg-[#A66244] text-white font-display font-semibold rounded-xl hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 transition-all duration-300 flex items-center justify-center gap-2"
         >
           <RefreshCw className="h-4 w-4" />
           Plan Another Trip
