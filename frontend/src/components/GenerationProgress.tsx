@@ -35,7 +35,8 @@ interface CityProgressState {
 interface GenerationProgressProps {
   progress: ProgressEvent | null;
   destinationName?: string;
-  mode?: 'journey' | 'day-plans' | 'itinerary';  // What we're generating
+  mode?: 'journey' | 'day-plans' | 'itinerary';
+  onCancel?: () => void;
 }
 
 interface Phase {
@@ -71,44 +72,44 @@ const ITINERARY_PHASES: Phase[] = [
   { id: 'finalizing', label: 'Finalizing', icon: CheckCircle },
 ];
 
-// Gradient colors for different modes
+// Earth-tone colors for different modes
 const MODE_COLORS = {
   journey: {
-    gradient: 'from-violet-600 to-purple-600',
-    iconBg: 'bg-violet-100',
-    iconText: 'text-violet-600',
-    activeBg: 'bg-violet-500',
-    completeBg: 'bg-emerald-500',
-    progressGradient: 'from-violet-500 to-purple-600',
-    ring: 'ring-violet-200',
-    border: 'border-violet-200',
-    bgActive: 'bg-violet-50'
+    gradient: 'from-[#C97B5A] to-[#D4956F]',
+    iconBg: 'bg-primary-50',
+    iconText: 'text-[#C97B5A]',
+    activeBg: 'bg-[#C97B5A]',
+    completeBg: 'bg-[#8B9E6B]',
+    progressGradient: 'from-[#C97B5A] to-[#D4956F]',
+    ring: 'ring-[#E8E0D4]',
+    border: 'border-[#E8E0D4]',
+    bgActive: 'bg-primary-50'
   },
   'day-plans': {
-    gradient: 'from-emerald-600 to-teal-600',
-    iconBg: 'bg-emerald-100',
-    iconText: 'text-emerald-600',
-    activeBg: 'bg-emerald-500',
-    completeBg: 'bg-emerald-500',
-    progressGradient: 'from-emerald-500 to-teal-600',
-    ring: 'ring-emerald-200',
-    border: 'border-emerald-200',
-    bgActive: 'bg-emerald-50'
+    gradient: 'from-[#8B9E6B] to-[#A3B584]',
+    iconBg: 'bg-[#F5F7F0]',
+    iconText: 'text-[#728556]',
+    activeBg: 'bg-[#8B9E6B]',
+    completeBg: 'bg-[#8B9E6B]',
+    progressGradient: 'from-[#8B9E6B] to-[#A3B584]',
+    ring: 'ring-[#D4DFC4]',
+    border: 'border-[#D4DFC4]',
+    bgActive: 'bg-[#F5F7F0]'
   },
   itinerary: {
-    gradient: 'from-primary-600 to-purple-600',
-    iconBg: 'bg-primary-100',
-    iconText: 'text-primary-600',
-    activeBg: 'bg-primary-500',
-    completeBg: 'bg-green-500',
-    progressGradient: 'from-primary-500 to-primary-600',
-    ring: 'ring-primary-200',
-    border: 'border-primary-200',
-    bgActive: 'bg-primary-50'
+    gradient: 'from-[#8E8478] to-[#A39A8F]',
+    iconBg: 'bg-[#F7F5F2]',
+    iconText: 'text-[#6E655B]',
+    activeBg: 'bg-[#8E8478]',
+    completeBg: 'bg-[#8B9E6B]',
+    progressGradient: 'from-[#C97B5A] to-[#D4956F]',
+    ring: 'ring-[#E8E0D4]',
+    border: 'border-[#E8E0D4]',
+    bgActive: 'bg-[#F7F5F2]'
   },
 };
 
-export function GenerationProgress({ progress, destinationName, mode = 'journey' }: GenerationProgressProps) {
+export function GenerationProgress({ progress, destinationName, mode = 'journey', onCancel }: GenerationProgressProps) {
   // Track city progress history for day-plans mode
   const [cityStates, setCityStates] = useState<CityProgressState[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -203,10 +204,10 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
       {/* Header with gradient */}
       <div className={`bg-gradient-to-r ${colors.gradient} p-6 text-white`}>
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center shadow-lg">
+          <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center shadow-lg">
             <Loader2 className="w-7 h-7 animate-spin" />
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className="text-xl font-display font-bold">{titles[detectedMode]}</h2>
             {destinationName && (
               <p className="text-white/80 text-sm mt-0.5">
@@ -214,19 +215,28 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
               </p>
             )}
           </div>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="bg-white border border-[#E8E0D4] text-[#3D3229] hover:bg-[#F5F0E8] rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+              aria-label="Cancel generation"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       </div>
 
       <div className="p-6">
         {/* Progress Bar */}
         <div className="mb-6">
-          <div className="flex justify-between text-sm mb-2">
+          <div className="flex justify-between text-sm mb-2" role="status" aria-live="polite">
             <span className="text-gray-700 font-display font-medium">{progress?.message || 'Starting...'}</span>
             <span className="text-gray-500 font-display font-semibold">{progress?.progress || 0}%</span>
           </div>
-          <div className="h-3 bg-gray-100/80 rounded-full overflow-hidden">
+          <div className="h-1 bg-gray-100/80 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ease-out bg-gradient-to-r ${colors.progressGradient}`}
+              className="h-full rounded-full transition-all duration-500 ease-out bg-[#C97B5A]"
               style={{ width: `${progress?.progress || 0}%` }}
             />
           </div>
@@ -247,10 +257,10 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                 <div 
                   key={city.index}
                   className={`p-4 rounded-xl transition-all duration-300 ${
-                    isActive 
-                      ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 shadow-sm scale-[1.02]' 
+                    isActive
+                      ? 'bg-[#F5F0E8] border border-[#D4DFC4] shadow-sm scale-[1.02]'
                       : isComplete
-                      ? 'bg-emerald-50/50 border border-emerald-100'
+                      ? 'bg-[#F5F7F0] border border-[#E8E0D4]'
                       : isError
                       ? 'bg-red-50 border border-red-100'
                       : 'bg-gray-50 border border-gray-100'
@@ -258,12 +268,12 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-display font-bold shadow-md flex-shrink-0 ${
-                      isComplete 
-                        ? 'bg-emerald-500 text-white'
+                      isComplete
+                        ? 'bg-[#8B9E6B] text-white'
                         : isError
                         ? 'bg-red-500 text-white'
                         : isActive
-                        ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
+                        ? 'bg-[#8B9E6B] text-white'
                         : 'bg-gray-300 text-white'
                     }`}>
                       {isComplete ? (
@@ -276,7 +286,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className={`font-display font-semibold truncate ${
-                        isComplete ? 'text-emerald-700' : isActive ? 'text-gray-900' : 'text-gray-500'
+                        isComplete ? 'text-[#728556]' : isActive ? 'text-gray-900' : 'text-gray-500'
                       }`}>
                         {city.name}
                       </div>
@@ -286,13 +296,13 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                     </div>
                     <div className="text-right flex-shrink-0">
                       {isComplete ? (
-                        <div className="text-emerald-600 text-sm font-semibold flex items-center gap-1">
+                        <div className="text-[#728556] text-sm font-semibold flex items-center gap-1">
                           <CheckCircle className="w-4 h-4" />
                           Done
                         </div>
                       ) : isActive ? (
                         <>
-                          <div className="text-lg font-bold text-emerald-600 flex items-center gap-1">
+                          <div className="text-lg font-bold text-[#728556] flex items-center gap-1">
                             <Loader2 className="w-4 h-4 animate-spin" />
                           </div>
                           <div className="text-xs text-gray-500">Planning</div>
@@ -306,9 +316,9 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                   </div>
                   {/* Animated progress bar for active city */}
                   {isActive && (
-                    <div className="mt-3 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full animate-pulse"
+                    <div className="mt-3 h-1.5 bg-[#E8E0D4] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-[#8B9E6B] rounded-full animate-pulse"
                         style={{ width: '100%', opacity: 0.6 }}
                       />
                     </div>
@@ -341,7 +351,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                     isCurrent
                       ? `${colors.bgActive} border ${colors.border}`
                       : isCompleted
-                      ? 'bg-emerald-50'
+                      ? 'bg-[#F5F7F0]'
                       : 'bg-gray-50'
                   }`}
                 >
@@ -350,7 +360,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                       isCurrent
                         ? `${colors.activeBg} text-white`
                         : isCompleted
-                        ? 'bg-emerald-500 text-white'
+                        ? 'bg-[#8B9E6B] text-white'
                         : 'bg-gray-200 text-gray-400'
                     }`}
                   >
@@ -368,7 +378,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                         isCurrent
                           ? colors.iconText.replace('text-', 'text-')
                           : isCompleted
-                          ? 'text-emerald-700'
+                          ? 'text-[#728556]'
                           : 'text-gray-400'
                       }`}
                     >
