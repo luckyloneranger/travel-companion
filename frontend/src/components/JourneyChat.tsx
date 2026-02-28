@@ -234,7 +234,7 @@ export function JourneyChat(props: PlanChatProps) {
   
   return (
     <div
-      className="fixed bottom-6 right-6 w-96 bg-white/95 backdrop-blur-xl rounded-2xl overflow-hidden z-50 border border-gray-100/60 shadow-xl"
+      className="fixed bottom-6 right-6 w-96 bg-white rounded-2xl overflow-hidden z-50 border border-[#E8E0D4] shadow-xl"
       style={{ maxHeight: 'calc(100vh - 100px)' }}
     >
       {/* Header */}
