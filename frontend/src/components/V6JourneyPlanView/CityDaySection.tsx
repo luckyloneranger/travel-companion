@@ -35,8 +35,7 @@ export const CityDaySection = memo(function CityDaySection({ group }: CityDaySec
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center font-display font-extrabold text-2xl shadow-lg"
-                style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}
+                className="w-14 h-14 rounded-2xl flex items-center justify-center font-display font-extrabold text-2xl shadow-lg bg-white/25"
                 aria-label={`City ${cityIndex + 1}`}
               >
                 {cityIndex + 1}

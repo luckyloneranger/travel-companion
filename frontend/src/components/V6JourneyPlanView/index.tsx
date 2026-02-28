@@ -138,8 +138,7 @@ export function V6JourneyPlanView({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}
+                    className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg bg-white/25"
                   >
                     <Calendar className="h-6 w-6" />
                   </div>

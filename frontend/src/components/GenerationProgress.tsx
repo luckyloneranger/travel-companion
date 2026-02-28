@@ -376,7 +376,7 @@ export function GenerationProgress({ progress, destinationName, mode = 'journey'
                     <span
                       className={`text-sm font-display font-semibold ${
                         isCurrent
-                          ? colors.iconText.replace('text-', 'text-')
+                          ? colors.iconText
                           : isCompleted
                           ? 'text-[#728556]'
                           : 'text-gray-400'
