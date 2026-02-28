@@ -10,15 +10,15 @@
 // ============================================================================
 
 /**
- * Primary brand colors - Violet/Purple theme
+ * Primary brand colors - Earth-tone theme
  */
 export const brand = {
-  primary: '#7c3aed',      // violet-600
-  primaryDark: '#6d28d9',  // violet-700
-  primaryLight: '#8b5cf6', // violet-500
-  secondary: '#059669',    // emerald-600
-  secondaryDark: '#047857',// emerald-700
-  accent: '#f97316',       // orange-500
+  primary: '#C97B5A',
+  primaryDark: '#A66244',
+  primaryLight: '#D4956F',
+  secondary: '#8B9E6B',
+  secondaryDark: '#728556',
+  accent: '#D4A574',
 } as const;
 
 /**
@@ -37,67 +37,49 @@ export const semantic = {
  */
 export const colorPalettes = [
   {
-    name: 'violet',
-    gradientFrom: '#7c3aed',
-    gradientTo: '#9333ea',
-    bgColor: '#f5f3ff',
-    borderColor: '#ddd6fe',
-    textColor: '#6d28d9',
-    accentColor: '#7c3aed',
+    name: 'terracotta',
+    gradientFrom: '#C97B5A',
+    gradientTo: '#D4956F',
+    bgColor: '#FCF8F5',
+    borderColor: '#EDCDB8',
+    textColor: '#A66244',
+    accentColor: '#C97B5A',
   },
   {
-    name: 'emerald',
-    gradientFrom: '#059669',
-    gradientTo: '#0d9488',
-    bgColor: '#ecfdf5',
-    borderColor: '#a7f3d0',
-    textColor: '#047857',
-    accentColor: '#059669',
+    name: 'sage',
+    gradientFrom: '#8B9E6B',
+    gradientTo: '#A3B584',
+    bgColor: '#F5F7F0',
+    borderColor: '#C5D4AB',
+    textColor: '#728556',
+    accentColor: '#8B9E6B',
   },
   {
-    name: 'orange',
-    gradientFrom: '#f97316',
-    gradientTo: '#f59e0b',
-    bgColor: '#fff7ed',
-    borderColor: '#fed7aa',
-    textColor: '#c2410c',
-    accentColor: '#f97316',
+    name: 'sand',
+    gradientFrom: '#D4A574',
+    gradientTo: '#E0BB91',
+    bgColor: '#FDF8F3',
+    borderColor: '#E8D4BC',
+    textColor: '#B8884F',
+    accentColor: '#D4A574',
   },
   {
-    name: 'rose',
-    gradientFrom: '#e11d48',
-    gradientTo: '#ec4899',
-    bgColor: '#fff1f2',
-    borderColor: '#fecdd3',
-    textColor: '#be123c',
-    accentColor: '#e11d48',
+    name: 'clay',
+    gradientFrom: '#B07878',
+    gradientTo: '#C4918F',
+    bgColor: '#FBF5F5',
+    borderColor: '#DAC0C0',
+    textColor: '#96615F',
+    accentColor: '#B07878',
   },
   {
-    name: 'cyan',
-    gradientFrom: '#0891b2',
-    gradientTo: '#2563eb',
-    bgColor: '#ecfeff',
-    borderColor: '#a5f3fc',
-    textColor: '#0e7490',
-    accentColor: '#0891b2',
-  },
-  {
-    name: 'indigo',
-    gradientFrom: '#4f46e5',
-    gradientTo: '#7c3aed',
-    bgColor: '#eef2ff',
-    borderColor: '#c7d2fe',
-    textColor: '#4338ca',
-    accentColor: '#4f46e5',
-  },
-  {
-    name: 'red',
-    gradientFrom: '#dc2626',
-    gradientTo: '#f97316',
-    bgColor: '#fef2f2',
-    borderColor: '#fecaca',
-    textColor: '#b91c1c',
-    accentColor: '#dc2626',
+    name: 'stone',
+    gradientFrom: '#8E8478',
+    gradientTo: '#A39A8F',
+    bgColor: '#F7F5F2',
+    borderColor: '#D4CEC7',
+    textColor: '#6E655B',
+    accentColor: '#8E8478',
   },
 ] as const;
 
@@ -113,74 +95,54 @@ export const getPalette = (index: number): ColorPalette =>
  */
 export const lightPalettes = [
   {
-    name: 'soft-violet',
-    gradientFrom: '#ddd6fe',   // violet-200
-    gradientTo: '#e9d5ff',     // purple-200
-    headerBg: 'linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%)',
-    textColor: '#6d28d9',      // violet-700
-    accentColor: '#7c3aed',    // violet-600
-    borderColor: '#c4b5fd',    // violet-300
-    iconBg: 'linear-gradient(135deg, #a78bfa, #c084fc)',  // violet-400 to purple-400
+    name: 'soft-terracotta',
+    gradientFrom: '#EDCDB8',
+    gradientTo: '#F0D5C2',
+    headerBg: 'linear-gradient(135deg, #FCF8F5 0%, #FDF5EF 100%)',
+    textColor: '#A66244',
+    accentColor: '#C97B5A',
+    borderColor: '#E0B89E',
+    iconBg: 'linear-gradient(135deg, #C97B5A, #D4956F)',
   },
   {
-    name: 'soft-emerald',
-    gradientFrom: '#a7f3d0',   // emerald-200
-    gradientTo: '#99f6e4',     // teal-200
-    headerBg: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%)',
-    textColor: '#047857',      // emerald-700
-    accentColor: '#059669',    // emerald-600
-    borderColor: '#6ee7b7',    // emerald-300
-    iconBg: 'linear-gradient(135deg, #34d399, #2dd4bf)',  // emerald-400 to teal-400
+    name: 'soft-sage',
+    gradientFrom: '#C5D4AB',
+    gradientTo: '#D0DDB8',
+    headerBg: 'linear-gradient(135deg, #F5F7F0 0%, #F0F4E8 100%)',
+    textColor: '#728556',
+    accentColor: '#8B9E6B',
+    borderColor: '#B5C89A',
+    iconBg: 'linear-gradient(135deg, #8B9E6B, #A3B584)',
   },
   {
-    name: 'soft-amber',
-    gradientFrom: '#fde68a',   // amber-200
-    gradientTo: '#fed7aa',     // orange-200
-    headerBg: 'linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%)',
-    textColor: '#b45309',      // amber-700
-    accentColor: '#f59e0b',    // amber-500
-    borderColor: '#fcd34d',    // amber-300
-    iconBg: 'linear-gradient(135deg, #fbbf24, #fb923c)',  // amber-400 to orange-400
+    name: 'soft-sand',
+    gradientFrom: '#E8D4BC',
+    gradientTo: '#EDDCC8',
+    headerBg: 'linear-gradient(135deg, #FDF8F3 0%, #FBF3EA 100%)',
+    textColor: '#B8884F',
+    accentColor: '#D4A574',
+    borderColor: '#DEC8AE',
+    iconBg: 'linear-gradient(135deg, #D4A574, #E0BB91)',
   },
   {
-    name: 'soft-rose',
-    gradientFrom: '#fecdd3',   // rose-200
-    gradientTo: '#fbcfe8',     // pink-200
-    headerBg: 'linear-gradient(135deg, #fff1f2 0%, #fdf2f8 100%)',
-    textColor: '#be123c',      // rose-700
-    accentColor: '#e11d48',    // rose-600
-    borderColor: '#fda4af',    // rose-300
-    iconBg: 'linear-gradient(135deg, #fb7185, #f472b6)',  // rose-400 to pink-400
+    name: 'soft-clay',
+    gradientFrom: '#DAC0C0',
+    gradientTo: '#E0CACA',
+    headerBg: 'linear-gradient(135deg, #FBF5F5 0%, #F9F0F0 100%)',
+    textColor: '#96615F',
+    accentColor: '#B07878',
+    borderColor: '#D0B2B2',
+    iconBg: 'linear-gradient(135deg, #B07878, #C4918F)',
   },
   {
-    name: 'soft-sky',
-    gradientFrom: '#bae6fd',   // sky-200
-    gradientTo: '#a5f3fc',     // cyan-200
-    headerBg: 'linear-gradient(135deg, #f0f9ff 0%, #ecfeff 100%)',
-    textColor: '#0369a1',      // sky-700
-    accentColor: '#0ea5e9',    // sky-500
-    borderColor: '#7dd3fc',    // sky-300
-    iconBg: 'linear-gradient(135deg, #38bdf8, #22d3ee)',  // sky-400 to cyan-400
-  },
-  {
-    name: 'soft-indigo',
-    gradientFrom: '#c7d2fe',   // indigo-200
-    gradientTo: '#ddd6fe',     // violet-200
-    headerBg: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
-    textColor: '#4338ca',      // indigo-700
-    accentColor: '#6366f1',    // indigo-500
-    borderColor: '#a5b4fc',    // indigo-300
-    iconBg: 'linear-gradient(135deg, #818cf8, #a78bfa)',  // indigo-400 to violet-400
-  },
-  {
-    name: 'soft-slate',
-    gradientFrom: '#e2e8f0',   // slate-200
-    gradientTo: '#e5e7eb',     // gray-200
-    headerBg: 'linear-gradient(135deg, #f8fafc 0%, #f9fafb 100%)',
-    textColor: '#334155',      // slate-700
-    accentColor: '#64748b',    // slate-500
-    borderColor: '#cbd5e1',    // slate-300
-    iconBg: 'linear-gradient(135deg, #94a3b8, #9ca3af)',  // slate-400 to gray-400
+    name: 'soft-stone',
+    gradientFrom: '#D4CEC7',
+    gradientTo: '#DCD7D0',
+    headerBg: 'linear-gradient(135deg, #F7F5F2 0%, #F3F0EC 100%)',
+    textColor: '#6E655B',
+    accentColor: '#8E8478',
+    borderColor: '#C8C0B8',
+    iconBg: 'linear-gradient(135deg, #8E8478, #A39A8F)',
   },
 ] as const;
 
@@ -198,41 +160,41 @@ export const getLightPalette = (index: number): LightPalette =>
  * Predefined gradients for major UI sections
  */
 export const headerGradients = {
-  /** Main journey/trip header - violet-purple */
+  /** Main journey/trip header - terracotta */
   journey: {
-    from: '#7c3aed',
-    to: '#9333ea',
-    css: 'linear-gradient(135deg, #7c3aed, #9333ea)',
+    from: '#C97B5A',
+    to: '#D4956F',
+    css: 'linear-gradient(135deg, #C97B5A, #D4956F)',
   },
-  /** Day plans section header - emerald-teal */
+  /** Day plans section header - sage green */
   dayPlan: {
-    from: '#059669',
-    to: '#0d9488',
-    css: 'linear-gradient(135deg, #059669, #0d9488)',
+    from: '#8B9E6B',
+    to: '#A3B584',
+    css: 'linear-gradient(135deg, #8B9E6B, #A3B584)',
   },
-  /** Statistics/metrics - blue-indigo */
+  /** Statistics/metrics - stone */
   stats: {
-    from: '#6366f1',
-    to: '#8b5cf6',
-    css: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+    from: '#8E8478',
+    to: '#A39A8F',
+    css: 'linear-gradient(135deg, #8E8478, #A39A8F)',
   },
-  /** Transport/travel - blue gradient */
+  /** Transport/travel - sand */
   transport: {
-    from: '#3b82f6',
-    to: '#6366f1',
-    css: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+    from: '#D4A574',
+    to: '#B8884F',
+    css: 'linear-gradient(135deg, #D4A574, #B8884F)',
   },
-  /** Interests/features - orange-amber */
+  /** Interests/features - warm sand */
   accent: {
-    from: '#f97316',
-    to: '#f59e0b',
-    css: 'linear-gradient(135deg, #f97316, #f59e0b)',
+    from: '#D4A574',
+    to: '#E0BB91',
+    css: 'linear-gradient(135deg, #D4A574, #E0BB91)',
   },
-  /** Pace/energy - rose-pink */
+  /** Pace/energy - clay */
   rose: {
-    from: '#e11d48',
-    to: '#ec4899',
-    css: 'linear-gradient(135deg, #e11d48, #ec4899)',
+    from: '#B07878',
+    to: '#C4918F',
+    css: 'linear-gradient(135deg, #B07878, #C4918F)',
   },
 } as const;
 
@@ -252,38 +214,38 @@ export const categoryStyles: Record<string, {
   gradient: string;
 }> = {
   // Culture & Arts
-  culture: { bg: '#f5f3ff', text: '#7c3aed', border: '#ddd6fe', accent: '#8b5cf6', gradient: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' },
-  museum: { bg: '#f5f3ff', text: '#7c3aed', border: '#ddd6fe', accent: '#8b5cf6', gradient: 'linear-gradient(135deg, #a78bfa, #8b5cf6)' },
-  art: { bg: '#fdf4ff', text: '#a21caf', border: '#f5d0fe', accent: '#d946ef', gradient: 'linear-gradient(135deg, #e879f9, #d946ef)' },
+  culture: { bg: '#FCF8F5', text: '#A66244', border: '#EDCDB8', accent: '#C97B5A', gradient: 'linear-gradient(135deg, #C97B5A, #A66244)' },
+  museum: { bg: '#FCF8F5', text: '#A66244', border: '#EDCDB8', accent: '#C97B5A', gradient: 'linear-gradient(135deg, #C97B5A, #A66244)' },
+  art: { bg: '#FBF5F5', text: '#96615F', border: '#DAC0C0', accent: '#B07878', gradient: 'linear-gradient(135deg, #B07878, #96615F)' },
 
   // Food & Dining
-  food: { bg: '#fff7ed', text: '#ea580c', border: '#fed7aa', accent: '#f97316', gradient: 'linear-gradient(135deg, #f97316, #ea580c)' },
-  breakfast: { bg: '#fef3c7', text: '#d97706', border: '#fde68a', accent: '#f59e0b', gradient: 'linear-gradient(135deg, #fbbf24, #f59e0b)' },
-  lunch: { bg: '#ffedd5', text: '#c2410c', border: '#fed7aa', accent: '#f97316', gradient: 'linear-gradient(135deg, #fb923c, #f97316)' },
-  dinner: { bg: '#fce7f3', text: '#be185d', border: '#fbcfe8', accent: '#ec4899', gradient: 'linear-gradient(135deg, #f472b6, #ec4899)' },
-  restaurant: { bg: '#fff7ed', text: '#c2410c', border: '#fed7aa', accent: '#f97316', gradient: 'linear-gradient(135deg, #fb923c, #ea580c)' },
-  cafe: { bg: '#fef3c7', text: '#92400e', border: '#fde68a', accent: '#d97706', gradient: 'linear-gradient(135deg, #fbbf24, #d97706)' },
+  food: { bg: '#FDF8F3', text: '#B8884F', border: '#E8D4BC', accent: '#D4A574', gradient: 'linear-gradient(135deg, #D4A574, #B8884F)' },
+  breakfast: { bg: '#FDF8F3', text: '#B8884F', border: '#E8D4BC', accent: '#D4A574', gradient: 'linear-gradient(135deg, #D4A574, #B8884F)' },
+  lunch: { bg: '#FCF8F5', text: '#A66244', border: '#EDCDB8', accent: '#C97B5A', gradient: 'linear-gradient(135deg, #C97B5A, #A66244)' },
+  dinner: { bg: '#FBF5F5', text: '#96615F', border: '#DAC0C0', accent: '#B07878', gradient: 'linear-gradient(135deg, #B07878, #96615F)' },
+  restaurant: { bg: '#FDF8F3', text: '#B8884F', border: '#E8D4BC', accent: '#D4A574', gradient: 'linear-gradient(135deg, #D4A574, #B8884F)' },
+  cafe: { bg: '#FDF8F3', text: '#8E7656', border: '#E0D4C2', accent: '#B8975E', gradient: 'linear-gradient(135deg, #B8975E, #8E7656)' },
 
   // Nature & Outdoors
-  nature: { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0', accent: '#10b981', gradient: 'linear-gradient(135deg, #34d399, #10b981)' },
-  park: { bg: '#ecfdf5', text: '#047857', border: '#a7f3d0', accent: '#10b981', gradient: 'linear-gradient(135deg, #34d399, #059669)' },
-  beach: { bg: '#ecfeff', text: '#0891b2', border: '#a5f3fc', accent: '#06b6d4', gradient: 'linear-gradient(135deg, #22d3ee, #06b6d4)' },
+  nature: { bg: '#F5F7F0', text: '#728556', border: '#C5D4AB', accent: '#8B9E6B', gradient: 'linear-gradient(135deg, #8B9E6B, #728556)' },
+  park: { bg: '#F5F7F0', text: '#728556', border: '#C5D4AB', accent: '#8B9E6B', gradient: 'linear-gradient(135deg, #8B9E6B, #728556)' },
+  beach: { bg: '#F5F7F2', text: '#6B8A6B', border: '#B8D4B8', accent: '#7BA37B', gradient: 'linear-gradient(135deg, #7BA37B, #6B8A6B)' },
 
   // History & Architecture
-  history: { bg: '#fef3c7', text: '#b45309', border: '#fde68a', accent: '#f59e0b', gradient: 'linear-gradient(135deg, #fbbf24, #d97706)' },
-  landmark: { bg: '#eef2ff', text: '#4338ca', border: '#c7d2fe', accent: '#6366f1', gradient: 'linear-gradient(135deg, #818cf8, #6366f1)' },
-  architecture: { bg: '#f0fdf4', text: '#166534', border: '#bbf7d0', accent: '#22c55e', gradient: 'linear-gradient(135deg, #4ade80, #22c55e)' },
-  religious: { bg: '#fefce8', text: '#a16207', border: '#fef08a', accent: '#eab308', gradient: 'linear-gradient(135deg, #facc15, #eab308)' },
+  history: { bg: '#F7F5F2', text: '#6E655B', border: '#D4CEC7', accent: '#8E8478', gradient: 'linear-gradient(135deg, #8E8478, #6E655B)' },
+  landmark: { bg: '#FCF8F5', text: '#A66244', border: '#EDCDB8', accent: '#C97B5A', gradient: 'linear-gradient(135deg, #C97B5A, #A66244)' },
+  architecture: { bg: '#F7F5F2', text: '#6E655B', border: '#D4CEC7', accent: '#8E8478', gradient: 'linear-gradient(135deg, #8E8478, #6E655B)' },
+  religious: { bg: '#FDF8F3', text: '#B8884F', border: '#E8D4BC', accent: '#D4A574', gradient: 'linear-gradient(135deg, #D4A574, #B8884F)' },
 
   // Entertainment & Lifestyle
-  shopping: { bg: '#fdf2f8', text: '#db2777', border: '#fbcfe8', accent: '#ec4899', gradient: 'linear-gradient(135deg, #f472b6, #ec4899)' },
-  nightlife: { bg: '#eef2ff', text: '#4f46e5', border: '#c7d2fe', accent: '#6366f1', gradient: 'linear-gradient(135deg, #818cf8, #6366f1)' },
-  adventure: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca', accent: '#ef4444', gradient: 'linear-gradient(135deg, #f87171, #ef4444)' },
-  relaxation: { bg: '#f0f9ff', text: '#0369a1', border: '#bae6fd', accent: '#0ea5e9', gradient: 'linear-gradient(135deg, #38bdf8, #0ea5e9)' },
-  entertainment: { bg: '#fdf4ff', text: '#a21caf', border: '#f5d0fe', accent: '#d946ef', gradient: 'linear-gradient(135deg, #e879f9, #d946ef)' },
+  shopping: { bg: '#FBF5F5', text: '#96615F', border: '#DAC0C0', accent: '#B07878', gradient: 'linear-gradient(135deg, #B07878, #96615F)' },
+  nightlife: { bg: '#F7F5F2', text: '#6E655B', border: '#D4CEC7', accent: '#8E8478', gradient: 'linear-gradient(135deg, #8E8478, #6E655B)' },
+  adventure: { bg: '#FCF8F5', text: '#A66244', border: '#EDCDB8', accent: '#C97B5A', gradient: 'linear-gradient(135deg, #C97B5A, #A66244)' },
+  relaxation: { bg: '#F5F7F0', text: '#728556', border: '#C5D4AB', accent: '#8B9E6B', gradient: 'linear-gradient(135deg, #8B9E6B, #728556)' },
+  entertainment: { bg: '#FBF5F5', text: '#96615F', border: '#DAC0C0', accent: '#B07878', gradient: 'linear-gradient(135deg, #B07878, #96615F)' },
 
   // Default fallback
-  default: { bg: '#f9fafb', text: '#4b5563', border: '#e5e7eb', accent: '#6b7280', gradient: 'linear-gradient(135deg, #9ca3af, #6b7280)' },
+  default: { bg: '#F7F5F2', text: '#6E655B', border: '#D4CEC7', accent: '#8E8478', gradient: 'linear-gradient(135deg, #8E8478, #6E655B)' },
 };
 
 /** Get category style with fallback to default */
@@ -305,15 +267,15 @@ export const isMealCategory = (category: string): boolean => {
  */
 export const shadows = {
   none: 'none',
-  xs: '0 1px 2px rgba(124, 58, 237, 0.04)',
-  sm: '0 1px 3px rgba(124, 58, 237, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
-  md: '0 4px 12px rgba(124, 58, 237, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04)',
-  lg: '0 8px 24px rgba(124, 58, 237, 0.1), 0 4px 8px rgba(0, 0, 0, 0.04)',
-  xl: '0 16px 40px rgba(124, 58, 237, 0.12), 0 8px 16px rgba(0, 0, 0, 0.04)',
+  xs: '0 1px 2px rgba(61, 50, 41, 0.04)',
+  sm: '0 1px 3px rgba(61, 50, 41, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
+  md: '0 4px 12px rgba(61, 50, 41, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04)',
+  lg: '0 8px 24px rgba(61, 50, 41, 0.1), 0 4px 8px rgba(0, 0, 0, 0.04)',
+  xl: '0 16px 40px rgba(61, 50, 41, 0.12), 0 8px 16px rgba(0, 0, 0, 0.04)',
   /** Focus ring shadow */
-  ring: '0 0 0 3px rgba(139, 92, 246, 0.15)',
+  ring: '0 0 0 3px rgba(201, 123, 90, 0.15)',
   /** Glow effect for CTAs */
-  glow: '0 8px 32px rgba(124, 58, 237, 0.25)',
+  glow: '0 8px 32px rgba(201, 123, 90, 0.2)',
 } as const;
 
 // ============================================================================
@@ -359,27 +321,27 @@ export const cardStyles = {
  */
 export const buttonStyles = {
   primary: {
-    base: 'bg-gradient-to-r from-primary-600 to-purple-600 text-white font-semibold',
-    hover: 'hover:from-primary-700 hover:to-purple-700 hover:-translate-y-0.5',
-    disabled: 'disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed disabled:translate-y-0',
+    base: 'bg-primary-600 text-white font-semibold',
+    hover: 'hover:bg-primary-700 hover:-translate-y-0.5',
+    disabled: 'disabled:bg-gray-300 disabled:cursor-not-allowed disabled:translate-y-0',
     shadow: 'shadow-md hover:shadow-lg',
   },
   secondary: {
-    base: 'bg-white text-gray-700 font-semibold border border-gray-200',
-    hover: 'hover:bg-gray-50 hover:border-gray-300 hover:-translate-y-0.5',
+    base: 'bg-white text-gray-700 font-semibold border border-[#E8E0D4]',
+    hover: 'hover:bg-[#F5F0E8] hover:border-[#D4CEC7] hover:-translate-y-0.5',
     disabled: 'disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed',
     shadow: 'shadow-sm hover:shadow',
   },
   ghost: {
-    base: 'bg-transparent text-gray-600 font-medium',
-    hover: 'hover:bg-gray-100 hover:text-gray-900',
+    base: 'bg-transparent text-[#3D3229] font-medium',
+    hover: 'hover:bg-[#F5F0E8] hover:text-gray-900',
     disabled: 'disabled:text-gray-300 disabled:cursor-not-allowed',
     shadow: '',
   },
   accent: {
-    base: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold',
-    hover: 'hover:from-emerald-700 hover:to-teal-700 hover:-translate-y-0.5',
-    disabled: 'disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed',
+    base: 'bg-[#8B9E6B] text-white font-semibold',
+    hover: 'hover:bg-[#728556] hover:-translate-y-0.5',
+    disabled: 'disabled:bg-gray-300 disabled:cursor-not-allowed',
     shadow: 'shadow-md hover:shadow-lg',
   },
 } as const;
@@ -449,31 +411,6 @@ export const textStyles = {
 } as const;
 
 // ============================================================================
-// GLASS MORPHISM
-// ============================================================================
-
-/**
- * Glass effect styles for overlays on gradients
- */
-export const glass = {
-  light: {
-    bg: 'rgba(255, 255, 255, 0.12)',
-    backdrop: 'blur(12px) saturate(180%)',
-    border: 'rgba(255, 255, 255, 0.18)',
-  },
-  medium: {
-    bg: 'rgba(255, 255, 255, 0.2)',
-    backdrop: 'blur(16px) saturate(180%)',
-    border: 'rgba(255, 255, 255, 0.25)',
-  },
-  dark: {
-    bg: 'rgba(0, 0, 0, 0.08)',
-    backdrop: 'blur(12px) saturate(180%)',
-    border: 'rgba(0, 0, 0, 0.08)',
-  },
-} as const;
-
-// ============================================================================
 // TRANSITIONS
 // ============================================================================
 
@@ -502,12 +439,4 @@ export const buildGradient = (palette: ColorPalette, direction = '135deg'): stri
  */
 export const gradientStyle = (gradient: { from: string; to: string }, direction = 'to right') => ({
   background: `linear-gradient(${direction}, ${gradient.from}, ${gradient.to})`,
-});
-
-/**
- * Build glass morphism style object
- */
-export const glassStyle = (variant: keyof typeof glass = 'medium') => ({
-  backgroundColor: glass[variant].bg,
-  backdropFilter: glass[variant].backdrop,
 });
