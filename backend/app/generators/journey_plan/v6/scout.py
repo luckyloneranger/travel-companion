@@ -19,6 +19,7 @@ from app.generators.journey_plan.v6.models import (
     CityHighlight,
     TravelLeg,
     TransportMode,
+    Accommodation,
 )
 from app.prompts.loader import journey_prompts
 from app.services.external import AzureOpenAIService
@@ -118,6 +119,12 @@ class Scout:
                     suggested_duration_hours=h.get("suggested_duration_hours", 2.0),
                 ))
             
+            # Parse accommodation
+            accommodation = None
+            acc_data = c.get("accommodation")
+            if acc_data and acc_data.get("name"):
+                accommodation = Accommodation(name=acc_data["name"])
+
             cities.append(CityStop(
                 name=c.get("name", ""),
                 country=c.get("country", ""),
@@ -125,6 +132,7 @@ class Scout:
                 highlights=highlights,
                 why_visit=c.get("why_visit", ""),
                 best_time_to_visit=c.get("best_time_to_visit", ""),
+                accommodation=accommodation,
             ))
         
         # Parse travel legs
