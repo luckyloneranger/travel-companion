@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { APIProvider } from '@vis.gl/react-google-maps';
 import { Header } from './components/Header';
 import { JourneyInputForm } from './components/JourneyInputForm';
 import { ItineraryInputForm } from './components/ItineraryInputForm';
@@ -251,6 +252,7 @@ function App() {
   }, [journeyPhase, handleReset]);
 
   return (
+    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''}>
     <div className="min-h-screen bg-[#FBF8F4] flex flex-col">
       <Header />
 
@@ -422,6 +424,7 @@ function App() {
         </div>
       </footer>
     </div>
+    </APIProvider>
   );
 }
 
