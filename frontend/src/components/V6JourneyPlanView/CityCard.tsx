@@ -2,7 +2,7 @@
  * CityCard - Display a city in the journey timeline (without day plans)
  */
 import { memo, useState } from 'react';
-import { Calendar, ChevronDown, ChevronUp, Clock, MapPin, Star } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, Clock, Hotel, MapPin, Star } from 'lucide-react';
 import type { V6CityStop } from '@/types';
 import { categoryStyles, cityColorPalettes, getCategoryIcon } from './styles';
 
@@ -121,6 +121,39 @@ export const CityCard = memo(function CityCard({ city, index, isLast }: CityCard
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Accommodation */}
+          {expanded && city.accommodation && (
+            <div className="px-4 pb-4">
+              <div
+                className="flex items-center gap-3 p-3 rounded-xl"
+                style={{ backgroundColor: `${palette.accentColor}08`, border: `1px solid ${palette.borderColor}` }}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `linear-gradient(135deg, ${palette.gradientFrom}, ${palette.gradientTo})` }}
+                >
+                  <Hotel className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display font-semibold text-gray-900 text-sm truncate">
+                    {city.accommodation.name}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {city.accommodation.rating && (
+                      <span className="text-xs text-gray-600 flex items-center gap-1">
+                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                        {city.accommodation.rating.toFixed(1)}
+                      </span>
+                    )}
+                    {city.accommodation.address && (
+                      <span className="text-xs text-gray-500 truncate">{city.accommodation.address}</span>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

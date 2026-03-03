@@ -2,7 +2,7 @@
  * CityDaySection - City header with its day cards when day plans are generated
  */
 import { memo, useState } from 'react';
-import { Calendar, ChevronDown, ChevronUp, MapPin, Star } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, Hotel, MapPin, Star } from 'lucide-react';
 import type { V6CityStop, V6DayPlan, V6TravelLeg } from '@/types';
 import type { CityColorPalette } from './styles';
 import { DayCard } from './DayCard';
@@ -57,6 +57,12 @@ export const CityDaySection = memo(function CityDaySection({ group }: CityDaySec
                     <Star className="h-3.5 w-3.5" />
                     {days.reduce((acc, d) => acc + d.activities.length, 0)} activities
                   </span>
+                  {city.accommodation && (
+                    <span className="flex items-center gap-1.5 bg-white/15 px-2.5 py-0.5 rounded-full">
+                      <Hotel className="h-3.5 w-3.5" />
+                      {city.accommodation.name}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

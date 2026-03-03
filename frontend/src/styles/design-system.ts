@@ -244,6 +244,9 @@ export const categoryStyles: Record<string, {
   relaxation: { bg: '#F5F7F0', text: '#728556', border: '#C5D4AB', accent: '#8B9E6B', gradient: 'linear-gradient(135deg, #8B9E6B, #728556)' },
   entertainment: { bg: '#FBF5F5', text: '#96615F', border: '#DAC0C0', accent: '#B07878', gradient: 'linear-gradient(135deg, #B07878, #96615F)' },
 
+  // Accommodation
+  accommodation: { bg: '#F3F0FF', text: '#6B5B95', border: '#D4CCE6', accent: '#6B5B95', gradient: 'linear-gradient(135deg, #6B5B95, #8B7FB5)' },
+
   // Default fallback
   default: { bg: '#F7F5F2', text: '#6E655B', border: '#D4CEC7', accent: '#8E8478', gradient: 'linear-gradient(135deg, #8E8478, #6E655B)' },
 };
