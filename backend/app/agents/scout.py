@@ -6,6 +6,7 @@ It suggests cities, creates a sensible route, and recommends transport modes.
 
 import logging
 
+from app.config.regional_transport import get_transport_guidance
 from app.models.common import TransportMode
 from app.models.journey import (
     Accommodation,
@@ -49,11 +50,17 @@ class ScoutAgent:
             real API data).
         """
         system_prompt = journey_prompts.load("scout_system")
+
+        transport_guidance = get_transport_guidance(
+            origin=request.origin or "",
+            region=request.destination,
+        )
+
         user_prompt = journey_prompts.load("scout_user").format(
-            destination=request.destination,
+            region=request.destination,
             origin=request.origin or "not specified",
             total_days=request.total_days,
-            start_date=str(request.start_date),
+            travel_dates=str(request.start_date),
             interests=(
                 ", ".join(request.interests) if request.interests else "general sightseeing"
             ),
@@ -62,6 +69,7 @@ class ScoutAgent:
                 ", ".join(request.must_include) if request.must_include else "none"
             ),
             avoid=", ".join(request.avoid) if request.avoid else "none",
+            transport_guidance=transport_guidance,
         )
 
         logger.info(

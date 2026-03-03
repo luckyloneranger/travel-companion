@@ -9,6 +9,9 @@ from .base import LLMService
 
 logger = logging.getLogger(__name__)
 
+# Models that only support temperature=1 and max_completion_tokens (not max_tokens)
+_REASONING_MODEL_PREFIXES = ("o1", "o3", "gpt-5")
+
 
 class AzureOpenAILLMService(LLMService):
     def __init__(
@@ -24,6 +27,21 @@ class AzureOpenAILLMService(LLMService):
             api_key=api_key,
             api_version=api_version,
         )
+        self._is_reasoning = any(
+            deployment.lower().startswith(p) for p in _REASONING_MODEL_PREFIXES
+        )
+
+    def _build_params(
+        self, max_tokens: int, temperature: float, **extra: Any,
+    ) -> dict[str, Any]:
+        """Build model params, omitting temperature for reasoning models."""
+        params: dict[str, Any] = {
+            "max_completion_tokens": max_tokens,
+            **extra,
+        }
+        if not self._is_reasoning:
+            params["temperature"] = temperature
+        return params
 
     async def generate(
         self,
@@ -34,14 +52,14 @@ class AzureOpenAILLMService(LLMService):
     ) -> str:
         """Generate text response."""
         try:
+            params = self._build_params(max_tokens, temperature)
             response = await self.client.chat.completions.create(
                 model=self.deployment,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=max_tokens,
-                temperature=temperature,
+                **params,
             )
             return response.choices[0].message.content or ""
         except openai.OpenAIError as e:
@@ -59,15 +77,17 @@ class AzureOpenAILLMService(LLMService):
         """Generate structured JSON response matching schema."""
         json_system_prompt = f"{system_prompt}\n\nYou must respond with valid JSON."
         try:
+            params = self._build_params(
+                max_tokens, temperature,
+                response_format={"type": "json_object"},
+            )
             response = await self.client.chat.completions.create(
                 model=self.deployment,
                 messages=[
                     {"role": "system", "content": json_system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
-                max_tokens=max_tokens,
-                temperature=temperature,
-                response_format={"type": "json_object"},
+                **params,
             )
             content = response.choices[0].message.content or "{}"
             return json.loads(content)

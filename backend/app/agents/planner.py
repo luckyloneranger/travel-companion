@@ -9,6 +9,7 @@ from app.models.journey import (
     Accommodation,
     ReviewResult,
 )
+from app.models.trip import TripRequest
 from app.services.llm.base import LLMService
 from app.prompts import journey_prompts
 
@@ -19,19 +20,25 @@ class PlannerAgent:
     def __init__(self, llm: LLMService):
         self.llm = llm
 
-    async def fix_plan(self, plan: JourneyPlan, review: ReviewResult) -> JourneyPlan:
+    async def fix_plan(self, plan: JourneyPlan, review: ReviewResult, request: TripRequest) -> JourneyPlan:
         """Fix a journey plan based on reviewer feedback."""
         system_prompt = journey_prompts.load("planner_system")
 
-        # Format current plan and issues
-        plan_text = self._format_plan(plan)
+        cities_detail = self._format_cities(plan)
+        travel_detail = self._format_travel(plan)
         issues_text = self._format_issues(review)
 
         user_prompt = journey_prompts.load("planner_user").format(
-            journey_plan=plan_text,
-            review_score=review.score,
-            review_summary=review.summary,
+            route=plan.route or "N/A",
+            total_days=plan.total_days,
             issues=issues_text,
+            origin=request.origin or "not specified",
+            region=request.destination,
+            interests=", ".join(request.interests) if request.interests else "general sightseeing",
+            pace=request.pace.value,
+            travel_dates=str(request.start_date),
+            cities_detail=cities_detail,
+            travel_detail=travel_detail,
         )
 
         data = await self.llm.generate_structured(
@@ -44,14 +51,27 @@ class PlannerAgent:
 
         return self._parse_plan(data, plan)
 
-    def _format_plan(self, plan: JourneyPlan) -> str:
-        """Format plan for the planner prompt."""
-        # Same format as reviewer
-        lines = [f"Theme: {plan.theme}", f"Total Days: {plan.total_days}", f"Route: {plan.route}", ""]
+    def _format_cities(self, plan: JourneyPlan) -> str:
+        """Format city details for the prompt."""
+        lines = []
         for i, city in enumerate(plan.cities):
             lines.append(f"{i+1}. {city.name}, {city.country} ({city.days} days)")
+            if city.highlights:
+                lines.append(f"   Highlights: {', '.join(h.name for h in city.highlights)}")
+            if city.accommodation:
+                lines.append(f"   Hotel: {city.accommodation.name}")
+        return "\n".join(lines) if lines else "No cities specified."
+
+    def _format_travel(self, plan: JourneyPlan) -> str:
+        """Format travel leg details for the prompt."""
+        if not plan.travel_legs:
+            return "No travel legs."
+        lines = []
         for leg in plan.travel_legs:
-            lines.append(f"   {leg.from_city} → {leg.to_city}: {leg.mode.value}, {leg.duration_hours}h")
+            detail = f"{leg.from_city} → {leg.to_city}: {leg.mode.value}, {leg.duration_hours}h"
+            if leg.distance_km:
+                detail += f", {leg.distance_km}km"
+            lines.append(detail)
         return "\n".join(lines)
 
     def _format_issues(self, review: ReviewResult) -> str:

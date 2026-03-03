@@ -120,7 +120,7 @@ class JourneyOrchestrator:
                 logger.info(
                     "[Orchestrator] Reviewing plan (iteration %d)", iteration
                 )
-                review = await self.reviewer.review(plan, iteration)
+                review = await self.reviewer.review(plan, request, iteration)
                 plan.review_score = review.score
                 logger.info(
                     "[Orchestrator] Review score: %d (acceptable=%s, iteration=%d)",
@@ -143,7 +143,7 @@ class JourneyOrchestrator:
                     review.score,
                     iteration,
                 )
-                plan = await self.planner.fix_plan(plan, review)
+                plan = await self.planner.fix_plan(plan, review, request)
                 iteration += 1
 
             # ── Complete ─────────────────────────────────────────────
