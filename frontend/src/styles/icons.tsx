@@ -22,6 +22,7 @@ import {
   Heart,
   Music,
   Church,
+  Hotel,
   Plane,
   Train,
   Bus,
@@ -81,6 +82,9 @@ export const getCategoryIcon = (category: string, size: keyof typeof iconSizes =
     highlight: <Sparkles className={sizeClass} />,
     morning: <Sun className={sizeClass} />,
     photography: <Camera className={sizeClass} />,
+
+    // Accommodation
+    accommodation: <Hotel className={sizeClass} />,
   };
   
   return icons[category?.toLowerCase()] || <MapPin className={sizeClass} />;
