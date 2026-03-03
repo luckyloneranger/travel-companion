@@ -2,11 +2,13 @@
  * DayCard - Expandable card showing a single day's activities
  * Uses the same color palette as city cards for visual consistency
  */
-import { memo, useState } from 'react';
-import { Calendar, ChevronDown, ChevronUp, Clock, Sparkles } from 'lucide-react';
+import { lazy, memo, Suspense, useState } from 'react';
+import { Calendar, ChevronDown, ChevronUp, Clock, Map as MapIcon, Sparkles } from 'lucide-react';
 import type { V6DayPlan } from '@/types';
 import { categoryStyles, getCategoryIcon, cityColorPalettes } from './styles';
 import { ActivityCard } from './ActivityCard';
+
+const DayMap = lazy(() => import('@/components/maps/DayMap').then(m => ({ default: m.DayMap })));
 
 interface DayCardProps {
   dayPlan: V6DayPlan;
@@ -22,6 +24,8 @@ export const DayCard = memo(function DayCard({
   defaultExpanded = false,
 }: DayCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [showMap, setShowMap] = useState(false);
+  const hasLocations = dayPlan.activities.some(a => a.place?.location);
   const palette = cityColorPalettes[paletteIndex % cityColorPalettes.length];
   
   // Get unique categories for preview icons
@@ -166,6 +170,25 @@ export const DayCard = memo(function DayCard({
       {/* Activities */}
       {expanded && (
         <div className="p-4 bg-gray-50/50">
+          {/* Day Map Toggle */}
+          {hasLocations && (
+            <div className="mb-4">
+              <button
+                onClick={() => setShowMap(!showMap)}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-display font-semibold rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all duration-200"
+              >
+                <MapIcon className="h-3.5 w-3.5" />
+                {showMap ? 'Hide Map' : 'Show Map'}
+              </button>
+              {showMap && (
+                <div className="mt-3">
+                  <Suspense fallback={<div className="h-[350px] rounded-xl bg-gray-100 animate-pulse" />}>
+                    <DayMap activities={dayPlan.activities} />
+                  </Suspense>
+                </div>
+              )}
+            </div>
+          )}
           <div className="space-y-0">
             {dayPlan.activities.map((activity, idx) => (
               <ActivityCard 

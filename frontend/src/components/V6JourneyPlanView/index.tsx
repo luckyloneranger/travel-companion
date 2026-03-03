@@ -1,7 +1,7 @@
 /**
  * V6JourneyPlanView - Display V6 journey plan results
  */
-import { useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import {
   MapPin,
   Calendar,
@@ -9,12 +9,16 @@ import {
   ArrowRight,
   RefreshCw,
   CheckCircle2,
+  Map as MapIcon,
 } from 'lucide-react';
+
 import type { V6JourneyPlan, V6DayPlan } from '@/types';
 import { cityColorPalettes } from './styles';
 import { CityCard } from './CityCard';
 import { TravelLegCard } from './TravelLegCard';
 import { CityDaySection, type CityDayGroup } from './CityDaySection';
+
+const JourneyMap = lazy(() => import('@/components/maps/JourneyMap').then(m => ({ default: m.JourneyMap })));
 
 interface V6JourneyPlanViewProps {
   journey: V6JourneyPlan;
@@ -35,6 +39,8 @@ export function V6JourneyPlanView({
   loading = false,
   generatingDayPlans = false
 }: V6JourneyPlanViewProps) {
+  const [showJourneyMap, setShowJourneyMap] = useState(false);
+  const hasCoordinates = journey.cities.some(c => c.latitude != null && c.longitude != null);
   const hasDayPlans = dayPlans && dayPlans.length > 0;
 
   // Group day plans by city
@@ -127,6 +133,30 @@ export function V6JourneyPlanView({
           })}
         </div>
       </div>
+
+      {/* Journey Map Toggle */}
+      {hasCoordinates && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowJourneyMap(!showJourneyMap)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-display font-semibold rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all duration-200 shadow-sm"
+          >
+            <MapIcon className="h-4 w-4" />
+            {showJourneyMap ? 'Hide Map' : 'Show Map'}
+          </button>
+          {showJourneyMap && (
+            <div className="mt-3">
+              <Suspense fallback={<div className="h-[400px] rounded-xl bg-gray-100 animate-pulse" />}>
+                <JourneyMap
+                  cities={journey.cities}
+                  travelLegs={journey.travel_legs}
+                  origin={journey.origin}
+                />
+              </Suspense>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Day Plans grouped by City */}
       {hasDayPlans && (
