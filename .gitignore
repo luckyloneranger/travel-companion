@@ -73,3 +73,6 @@ Thumbs.db
 # Screenshots
 screenshots/
 mobile-full-page.png
+
+# SQLite databases
+*.db

@@ -30,9 +30,15 @@ def setup_logging() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
+    settings = get_settings()
     await get_http_client()
+
+    from app.db.engine import close_db, init_db
+
+    await init_db(settings)
     logger.info("Travel Companion V2 started")
     yield
+    await close_db()
     await close_http_client()
     logger.info("Travel Companion V2 stopped")
 
