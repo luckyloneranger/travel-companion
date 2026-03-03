@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.core.http import get_http_client, close_http_client
 from app.core.middleware import RequestTracingMiddleware, RequestLoggingFilter
+from app.routers import trips, places
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     application.add_middleware(RequestTracingMiddleware)
+
+    application.include_router(trips.router)
+    application.include_router(places.router)
 
     @application.get("/health")
     async def health() -> dict[str, str]:

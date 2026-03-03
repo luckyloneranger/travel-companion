@@ -2,12 +2,76 @@ from fastapi import Depends
 
 from app.config import Settings
 from app.config.settings import get_settings as _get_settings
+from app.core.http import get_http_client
 from app.db.engine import get_session as _get_db_session
 from app.db.repository import TripRepository
+from app.orchestrators.day_plan import DayPlanOrchestrator
+from app.orchestrators.journey import JourneyOrchestrator
+from app.services.chat import ChatService
+from app.services.google.directions import GoogleDirectionsService
+from app.services.google.places import GooglePlacesService
+from app.services.google.routes import GoogleRoutesService
+from app.services.llm.base import LLMService
+from app.services.llm.factory import create_llm_service
+from app.services.tips import TipsService
 
 
 def get_settings() -> Settings:
     return _get_settings()
+
+
+def get_llm_service(settings: Settings = Depends(get_settings)) -> LLMService:
+    return create_llm_service(settings)
+
+
+async def get_http():
+    return await get_http_client()
+
+
+def get_places_service(
+    settings: Settings = Depends(get_settings), http=Depends(get_http)
+) -> GooglePlacesService:
+    return GooglePlacesService(settings.google_places_api_key, http)
+
+
+def get_routes_service(
+    settings: Settings = Depends(get_settings), http=Depends(get_http)
+) -> GoogleRoutesService:
+    return GoogleRoutesService(settings.google_routes_api_key, http)
+
+
+def get_directions_service(
+    settings: Settings = Depends(get_settings), http=Depends(get_http)
+) -> GoogleDirectionsService:
+    return GoogleDirectionsService(settings.google_places_api_key, http)
+
+
+def get_journey_orchestrator(
+    llm=Depends(get_llm_service),
+    places=Depends(get_places_service),
+    routes=Depends(get_routes_service),
+    directions=Depends(get_directions_service),
+) -> JourneyOrchestrator:
+    return JourneyOrchestrator(llm, places, routes, directions)
+
+
+def get_day_plan_orchestrator(
+    llm=Depends(get_llm_service),
+    places=Depends(get_places_service),
+    routes=Depends(get_routes_service),
+) -> DayPlanOrchestrator:
+    return DayPlanOrchestrator(llm, places, routes)
+
+
+def get_chat_service(
+    llm=Depends(get_llm_service),
+    places=Depends(get_places_service),
+) -> ChatService:
+    return ChatService(llm, places)
+
+
+def get_tips_service(llm=Depends(get_llm_service)) -> TipsService:
+    return TipsService(llm)
 
 
 async def get_db_session(settings: Settings = Depends(_get_settings)):
