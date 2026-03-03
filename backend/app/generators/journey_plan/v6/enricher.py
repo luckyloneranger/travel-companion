@@ -21,6 +21,7 @@ from app.generators.journey_plan.v6.models import (
     EnrichedPlan,
     TravelLeg,
     TransportMode,
+    Accommodation,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,10 @@ class Enricher:
         
         # Phase 1: Geocode all cities
         await self._geocode_cities(plan)
-        
+
+        # Phase 1.5: Enrich accommodations
+        await self._enrich_accommodation(plan)
+
         # Phase 2: Get directions for all legs
         direction_data = {}
         total_travel_hours = 0.0
@@ -214,3 +218,51 @@ class Enricher:
             leg.notes = " → ".join(step_descriptions)
             if route.departure_time and route.arrival_time:
                 leg.notes += f" | {route.departure_time} → {route.arrival_time}"
+
+    async def _enrich_accommodation(self, plan: JourneyPlan) -> None:
+        """Enrich accommodation data for each city using Google Places."""
+        tasks = []
+        for city in plan.cities:
+            if city.accommodation and city.accommodation.name:
+                city_location = None
+                if city.latitude and city.longitude:
+                    from app.models import Location
+                    city_location = Location(lat=city.latitude, lng=city.longitude)
+                tasks.append(self._enrich_city_accommodation(city, city_location))
+
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _enrich_city_accommodation(self, city, city_location) -> None:
+        """Enrich a single city's accommodation."""
+        from app.models import Location
+        try:
+            query = f"{city.accommodation.name} hotel {city.name}"
+
+            if not city_location:
+                logger.warning(f"No location for {city.name}, skipping accommodation enrichment")
+                return
+
+            result = await self.places_service.search_lodging(
+                query=query,
+                location=city_location,
+            )
+
+            if result:
+                city.accommodation.address = result.address
+                city.accommodation.latitude = result.location.lat
+                city.accommodation.longitude = result.location.lng
+                city.accommodation.place_id = result.place_id
+                city.accommodation.rating = result.rating
+                city.accommodation.price_level = (
+                    result.price_level if result.price_level is not None else None
+                )
+                if result.photo_reference:
+                    city.accommodation.photo_url = self.places_service.get_photo_url(
+                        result.photo_reference
+                    )
+                logger.info(f"[Enricher] Enriched accommodation for {city.name}: {result.name}")
+            else:
+                logger.warning(f"[Enricher] No lodging found for {city.accommodation.name} in {city.name}")
+        except Exception as e:
+            logger.warning(f"[Enricher] Accommodation enrichment failed for {city.name}: {e}")

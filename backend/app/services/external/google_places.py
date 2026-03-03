@@ -153,6 +153,69 @@ class GooglePlacesService:
             logger.error(f"Text search error for '{query}': {e}")
             return []
 
+    async def search_lodging(
+        self,
+        query: str,
+        location: Location,
+        radius_meters: int = 10000,
+    ) -> Optional[PlaceCandidate]:
+        """Search for a lodging establishment near a location."""
+        field_mask = "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.priceLevel,places.photos,places.websiteUri"
+
+        try:
+            response = await self.client.post(
+                f"{self.BASE_URL}/places:searchText",
+                headers=self._get_headers(field_mask),
+                timeout=_REQUEST_TIMEOUT,
+                json={
+                    "textQuery": query,
+                    "includedType": "lodging",
+                    "maxResultCount": 1,
+                    "locationBias": {
+                        "circle": {
+                            "center": {
+                                "latitude": location.lat,
+                                "longitude": location.lng,
+                            },
+                            "radius": float(radius_meters),
+                        }
+                    },
+                },
+            )
+
+            if response.status_code != 200:
+                logger.warning(f"Lodging search failed: {response.text}")
+                return None
+
+            data = response.json()
+            places = data.get("places", [])
+            if not places:
+                return None
+
+            place = places[0]
+            photo_ref = None
+            if place.get("photos"):
+                photo_ref = place["photos"][0].get("name")
+
+            return PlaceCandidate(
+                place_id=place["id"],
+                name=place["displayName"]["text"],
+                address=place.get("formattedAddress", ""),
+                location=Location(
+                    lat=place["location"]["latitude"],
+                    lng=place["location"]["longitude"],
+                ),
+                types=place.get("types", []),
+                rating=place.get("rating"),
+                user_ratings_total=place.get("userRatingCount"),
+                price_level=self._parse_price_level(place.get("priceLevel")),
+                photo_reference=photo_ref,
+                website=place.get("websiteUri"),
+            )
+        except Exception as e:
+            logger.warning(f"Lodging search error for '{query}': {e}")
+            return None
+
     async def discover_places(
         self,
         location: Location,
