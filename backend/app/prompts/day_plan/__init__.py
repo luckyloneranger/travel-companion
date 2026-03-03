@@ -1,1 +1,0 @@
-"""Day plan prompts."""

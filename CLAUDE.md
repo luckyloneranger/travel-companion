@@ -61,10 +61,11 @@ Test files: `backend/tests/test_itinerary.py` (model validation), `test_quality.
 
 **Service Registry** — lazy singletons via `app.core.registry` (covers Places + Routes only; `AzureOpenAIService` is instantiated directly in generators):
 ```python
-from app.core import registry
-places = registry.get_places()
-routes = registry.get_routes()
-await registry.close_all()  # cleanup on shutdown
+from app.core import services  # convenience alias for ServiceRegistry
+
+places = services.get_places()
+routes = services.get_routes()
+await services.close_all()  # cleanup on shutdown
 ```
 
 **Prompt Templates** — centralized .md templates:
