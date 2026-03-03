@@ -1,55 +1,55 @@
-# Travel Companion - AI Agent Guidelines
+# Travel Companion V2 - AI Agent Guidelines
 
 ## Architecture
 
-Hybrid AI + deterministic approach: LLMs (Azure OpenAI) handle creative decisions, Google APIs provide real-time data.
+Hybrid AI + deterministic approach: LLMs (Azure OpenAI or Anthropic) handle creative decisions, Google APIs provide real-time data.
 
-**Two generation modes:**
-- **FAST**: Single-pass AI + route optimization (~15-30s) - [fast/generator.py](../backend/app/generators/day_plan/fast/generator.py)
-- **JOURNEY (V6)**: Multi-city with Scout → Enrich → Review → Planner loop (~2-5min) - [v6/orchestrator.py](../backend/app/generators/journey_plan/v6/orchestrator.py)
+**Unified pipeline:** Multi-city journey planning with Scout -> Enrich -> Review -> Planner loop. Day plans generated per-city with discover -> AI plan -> TSP optimize -> schedule -> route computation.
 
-**Service flow**: `routers/` → `generators/` → `services/{external,internal}/`
+**Service flow**: `routers/` -> `orchestrators/` -> `agents/` + `services/` + `algorithms/`
 
 **Key directories:**
-- `config/` - Settings (`settings.py`), tunable params (`tuning.py`), planning constants (`planning.py`)
-- `prompts/` - Centralized .md templates loaded via `PromptLoader`
-- `core/` - Singleton clients (`clients/`), request tracing middleware
-- `services/external/` - API wrappers (Azure OpenAI, Google Places/Routes/Directions)
+- `app/config/` - Settings (`settings.py`), planning constants (`planning.py`), regional transport (`regional_transport.py`)
+- `app/prompts/` - Centralized .md templates loaded via `PromptLoader`
+- `app/core/` - Shared HTTP client (`http.py`), request tracing middleware (`middleware.py`)
+- `app/services/llm/` - Abstract LLM base + Azure OpenAI and Anthropic implementations
+- `app/services/google/` - Places, Routes, Directions services
+- `app/agents/` - Scout, Enricher, Reviewer, Planner, DayPlanner agents
+- `app/orchestrators/` - Journey and DayPlan orchestrators
+- `app/db/` - SQLAlchemy async + aiosqlite persistence
+- `app/dependencies.py` - FastAPI Depends() wiring
 
 ## Code Style
 
 ### Python
-- **Types**: Generic hints (`list[str]`), `Optional[T]`, `TYPE_CHECKING` for circular imports
+- **Types**: Generic hints (`list[str]`, `dict[str, Any]`)
 - **Docstrings**: Google-style with Args/Returns
 - **Async**: All LLM/API calls `async` with `httpx.AsyncClient`
 - **Enums**: `class Pace(str, Enum)` for JSON serialization
 
-### Pydantic Models ([models/itinerary.py](../backend/app/models/itinerary.py))
+### Pydantic Models (`app/models/`)
 ```python
-class Request(BaseModel):
-    field: str = Field(..., min_length=2, max_length=200)
-    optional_field: Optional[str] = None
-    id: str = Field(default_factory=lambda: str(uuid4()))
-
-    @field_validator("end_date")
-    @classmethod
-    def validate(cls, v, info):
-        if invalid: raise ValueError("message")
-        return v
+class TripRequest(BaseModel):
+    destination: str = Field(..., min_length=2, max_length=200)
+    total_days: int = Field(..., ge=1, le=21)
+    start_date: date
+    pace: Pace = Pace.MODERATE
 ```
 
 ### TypeScript
-- Functional components with hooks, inline props interfaces
-- Union types: `type Pace = 'relaxed' | 'moderate' | 'packed'`
+- Functional components with hooks
+- Zustand for state management (`tripStore`, `uiStore`)
+- shadcn/ui components with Tailwind CSS v4
+- Path alias: `@/*` maps to `src/*`
 
 ## Build and Test
 
 ```bash
 # Backend
-cd backend && pip install -r requirements.txt
+cd backend && source venv/bin/activate
+pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
-pytest                    # Run all tests
-pytest --cov             # With coverage
+pytest -v                # Run all tests
 
 # Frontend
 cd frontend && npm install
@@ -57,99 +57,72 @@ npm run dev              # Vite dev server (port 5173)
 npm run build && npm run lint
 ```
 
-### Testing Patterns ([tests/conftest.py](../backend/tests/conftest.py))
-```python
-@pytest.fixture
-def client():
-    return TestClient(app)
+## Key Patterns
 
-# Validation tests
-with pytest.raises(ValueError, match="end_date must be after"):
-    ItineraryRequest(...)
+### Dependency Injection (`app/dependencies.py`)
+```python
+from app.dependencies import get_journey_orchestrator
+
+@router.post("/plan/stream")
+async def plan(
+    request: TripRequest,
+    orchestrator: JourneyOrchestrator = Depends(get_journey_orchestrator),
+):
 ```
 
-## Project Conventions
-
-### Service Registry ([core/registry.py](../backend/app/core/registry.py))
-```python
-from app.core import services
-
-places = services.get_places()   # Lazy singleton
-routes = services.get_routes()
-await services.close_all()       # Cleanup
-```
-
-### Prompt Templates ([prompts/loader.py](../backend/app/prompts/loader.py))
+### Prompt Templates (`app/prompts/loader.py`)
 ```python
 from app.prompts.loader import journey_prompts, day_plan_prompts
-
 system = journey_prompts.load("scout_system")
 user = day_plan_prompts.load("planning_user")
 ```
 
-### LLM Calls ([services/external/azure_openai.py](../backend/app/services/external/azure_openai.py))
+### LLM Service (`app/services/llm/`)
 ```python
-from app.services.external import AzureOpenAIService
-
-service = AzureOpenAIService()
-data = await service.chat_completion_json(system, user)  # JSON response
+from app.services.llm.factory import create_llm_service
+llm = create_llm_service(settings)  # Azure OpenAI or Anthropic
+data = await llm.generate_structured(system, user, schema=MyModel)
 ```
 
-### Error Handling
+### SSE Streaming
+Events use `ProgressEvent` model: `scouting`, `enriching`, `reviewing`, `planning`, `complete`, `error`.
 ```python
-# Routers: HTTPException with logging
-try:
-    result = await generator.generate(request)
-except Exception as e:
-    logger.error(f"Failed: {e}", exc_info=True)
-    raise HTTPException(status_code=500, detail="Generation failed")
-
-# Services: Plain exceptions
-if response.status_code != 200:
-    raise Exception(f"API failed: {response.status_code}")
-```
-
-### SSE Streaming ([routers/itinerary.py](../backend/app/routers/itinerary.py))
-Events: `progress` (phase/message/progress), `complete` (result), `error` (message)
-```python
-yield f"data: {json.dumps({'type': 'progress', 'phase': 'planning', 'progress': 50})}\n\n"
-yield f"data: {json.dumps({'type': 'complete', 'result': result.model_dump(mode='json')})}\n\n"
+yield f"data: {event.model_dump_json()}\n\n"
 ```
 
 ### Configuration
 ```python
-from app.config import get_settings
-from app.config.tuning import FAST_MODE
-
-settings = get_settings()  # lru_cached singleton
-temperature = FAST_MODE.planning_temperature
+from app.config import get_settings  # lru_cached singleton
+settings = get_settings()
 ```
 
 ## Environment Variables
 
-Required in `.env`:
-```
-AZURE_OPENAI_ENDPOINT=https://...
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_DEPLOYMENT=gpt-4
-GOOGLE_PLACES_API_KEY=...
-GOOGLE_ROUTES_API_KEY=...
-```
+Backend (`.env`): `LLM_PROVIDER`, `AZURE_OPENAI_*`, `ANTHROPIC_*`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `APP_ENV`, `DEBUG`, `LOG_LEVEL`, `CORS_ORIGINS`, `DATABASE_URL`
 
-Frontend: `VITE_API_BASE_URL` (defaults to `http://localhost:8000`)
+Frontend (`.env.local`): `VITE_API_BASE_URL`, `VITE_GOOGLE_MAPS_API_KEY`
+
+## API Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/trips/plan/stream` | Stream journey planning (SSE) |
+| POST | `/api/trips/{id}/days/stream` | Stream day plan generation (SSE) |
+| POST | `/api/trips/{id}/chat` | Chat-based editing |
+| POST | `/api/trips/{id}/tips` | Generate activity tips |
+| GET | `/api/trips` | List saved trips |
+| GET | `/api/trips/{id}` | Get trip details |
+| DELETE | `/api/trips/{id}` | Delete trip |
+| GET | `/api/places/search` | Search places |
+| GET | `/health` | Health check |
 
 ## Integration Points
 
 | Service | Purpose | Client |
 |---------|---------|--------|
-| Azure OpenAI | LLM (GPT-4o) | [azure_openai.py](../backend/app/services/external/azure_openai.py) |
-| Google Places | Place discovery | [google_places.py](../backend/app/services/external/google_places.py) |
-| Google Routes | Driving/walking times | [google_routes.py](../backend/app/services/external/google_routes.py) |
-| Google Directions | Transit & ferry routes | [google_directions.py](../backend/app/services/external/google_directions.py) |
+| Azure OpenAI / Anthropic | LLM | `app/services/llm/` |
+| Google Places | Place discovery | `app/services/google/places.py` |
+| Google Routes | Driving/walking times | `app/services/google/routes.py` |
+| Google Directions | Transit & ferry routes | `app/services/google/directions.py` |
 
-**SSE Endpoints:**
-- `POST /api/itinerary/stream` - Single city
-- `POST /api/journey/v6/plan/stream` - Multi-city journey
-- `POST /api/journey/v6/days/stream` - Journey day plans
-
-Frontend SSE consumption: [api.ts](../frontend/src/services/api.ts) (AsyncGenerator pattern with AbortController)
+Frontend SSE consumption: `src/services/api.ts` (async generator pattern with AbortController)
