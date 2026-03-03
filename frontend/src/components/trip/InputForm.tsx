@@ -1,4 +1,4 @@
-import { useState, useCallback, type KeyboardEvent, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type KeyboardEvent, type FormEvent } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MapPin, Calendar, Clock, Sparkles, X, Plus, Loader2 } from 'lucide-react';
-import type { TripRequest, Pace, TravelMode } from '@/types';
+import { MapPin, Calendar, Clock, Sparkles, X, Plus, Loader2, Trash2, FolderOpen } from 'lucide-react';
+import { useTripStore } from '@/stores/tripStore';
+import { useUIStore } from '@/stores/uiStore';
+import type { TripRequest, Pace, TravelMode, TripSummary } from '@/types';
 
 interface InputFormProps {
   onSubmit: (request: TripRequest) => void;
@@ -44,6 +46,15 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
   const [interests, setInterests] = useState<string[]>([]);
   const [pace, setPace] = useState<Pace>('moderate');
   const [interestInput, setInterestInput] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [loadingTripId, setLoadingTripId] = useState<string | null>(null);
+
+  const { savedTrips, loadTrips, loadTrip, deleteTrip } = useTripStore();
+  const { setPhase } = useUIStore();
+
+  useEffect(() => {
+    loadTrips();
+  }, [loadTrips]);
 
   const addInterest = useCallback(
     (interest: string) => {
@@ -91,6 +102,44 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
     },
     [destination, origin, startDate, totalDays, interests, pace, onSubmit],
   );
+
+  const handleLoadTrip = useCallback(
+    async (trip: TripSummary) => {
+      setLoadingTripId(trip.id);
+      try {
+        await loadTrip(trip.id);
+        setPhase(trip.has_day_plans ? 'day-plans' : 'preview');
+      } finally {
+        setLoadingTripId(null);
+      }
+    },
+    [loadTrip, setPhase],
+  );
+
+  const handleDeleteTrip = useCallback(
+    async (e: React.MouseEvent, tripId: string) => {
+      e.stopPropagation();
+      if (deletingId === tripId) {
+        await deleteTrip(tripId);
+        setDeletingId(null);
+      } else {
+        setDeletingId(tripId);
+      }
+    },
+    [deletingId, deleteTrip],
+  );
+
+  const formatDate = (isoDate: string) => {
+    try {
+      return new Date(isoDate).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return isoDate;
+    }
+  };
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -323,6 +372,70 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
           </form>
         </CardContent>
       </Card>
+
+      {/* Recent Trips */}
+      {savedTrips.length > 0 && (
+        <div className="mt-8 space-y-3">
+          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider px-1 flex items-center gap-1.5">
+            <FolderOpen className="h-4 w-4" />
+            Recent Trips
+          </h3>
+
+          <div className="space-y-2">
+            {savedTrips.map((trip) => (
+              <Card
+                key={trip.id}
+                className="cursor-pointer transition-colors hover:border-primary-300 hover:bg-surface-muted/50"
+                onClick={() => handleLoadTrip(trip)}
+              >
+                <CardContent className="flex items-center justify-between gap-3 py-3 px-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm text-text-primary truncate">
+                        {trip.theme}
+                      </span>
+                      {trip.has_day_plans && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+                          Day Plans
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-text-muted">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {trip.destination}
+                      </span>
+                      <span>{trip.cities_count} {trip.cities_count === 1 ? 'city' : 'cities'}</span>
+                      <span>{trip.total_days} {trip.total_days === 1 ? 'day' : 'days'}</span>
+                      <span className="hidden sm:inline">{formatDate(trip.created_at)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    {loadingTripId === trip.id && (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary-500" />
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-8 w-8 p-0 ${
+                        deletingId === trip.id
+                          ? 'text-destructive hover:text-destructive hover:bg-red-100'
+                          : 'text-text-muted hover:text-destructive'
+                      }`}
+                      onClick={(e) => handleDeleteTrip(e, trip.id)}
+                      onBlur={() => setDeletingId(null)}
+                      title={deletingId === trip.id ? 'Click again to confirm delete' : 'Delete trip'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
