@@ -1,76 +1,209 @@
-// Minimal type stubs — will be replaced by full type definitions.
+// Types mirroring backend Pydantic models
+// Source: backend/app/models/
 
-/** High-level journey plan returned by the backend. */
-export interface JourneyPlan {
-  cities: CityOverview[];
-  transport_segments: TransportSegment[];
-  total_days: number;
-  title?: string;
-  [key: string]: unknown;
+// ── common.py ──────────────────────────────────────────────
+
+export interface Location {
+  lat: number;
+  lng: number;
 }
 
-export interface CityOverview {
-  city: string;
+export type Pace = 'relaxed' | 'moderate' | 'packed';
+
+export type TravelMode = 'WALK' | 'DRIVE' | 'TRANSIT';
+
+export type TransportMode = 'flight' | 'train' | 'bus' | 'drive' | 'ferry';
+
+export type Budget = 'budget' | 'moderate' | 'luxury';
+
+// ── journey.py ─────────────────────────────────────────────
+
+export interface Accommodation {
+  name: string;
+  address: string;
+  location: Location | null;
+  place_id: string | null;
+  rating: number | null;
+  photo_url: string | null;
+  price_level: number | null;
+}
+
+export interface CityHighlight {
+  name: string;
+  description: string;
+  category: string;
+  suggested_duration_hours: number | null;
+}
+
+export interface CityStop {
+  name: string;
   country: string;
   days: number;
-  highlights: string[];
-  [key: string]: unknown;
+  highlights: CityHighlight[];
+  why_visit: string;
+  best_time_to_visit: string;
+  location: Location | null;
+  place_id: string | null;
+  accommodation: Accommodation | null;
 }
 
-export interface TransportSegment {
+export interface TravelLeg {
   from_city: string;
   to_city: string;
-  mode: string;
-  duration_minutes: number;
-  [key: string]: unknown;
+  mode: TransportMode;
+  duration_hours: number;
+  distance_km: number | null;
+  notes: string;
+  fare: string | null;
+  operator: string | null;
+  booking_tip: string | null;
+  polyline: string | null;
+  num_transfers: number;
+  departure_time: string | null;
+  arrival_time: string | null;
 }
 
-/** Detailed day plan for a single day. */
-export interface DayPlan {
-  day_number: number;
-  city: string;
-  date?: string;
-  activities: Activity[];
-  [key: string]: unknown;
+export interface ReviewIssue {
+  severity: string;
+  category: string;
+  description: string;
+  affected_leg: number | null;
+  affected_city: number | null;
+  suggested_fix: string;
+}
+
+export interface ReviewResult {
+  is_acceptable: boolean;
+  score: number;
+  issues: ReviewIssue[];
+  summary: string;
+  iteration: number;
+}
+
+export interface JourneyPlan {
+  theme: string;
+  summary: string;
+  origin: string;
+  cities: CityStop[];
+  travel_legs: TravelLeg[];
+  total_days: number;
+  total_distance_km: number | null;
+  total_travel_hours: number | null;
+  review_score: number | null;
+  route: string | null;
+}
+
+// ── day_plan.py ────────────────────────────────────────────
+
+export interface Place {
+  place_id: string;
+  name: string;
+  address: string;
+  location: Location;
+  category: string;
+  rating: number | null;
+  photo_url: string | null;
+  opening_hours: string[];
+  website: string | null;
+}
+
+export interface Route {
+  distance_meters: number;
+  duration_seconds: number;
+  duration_text: string;
+  travel_mode: TravelMode;
+  polyline: string | null;
 }
 
 export interface Activity {
-  name: string;
-  type: string;
-  start_time: string;
-  end_time: string;
+  id: string;
+  time_start: string;
+  time_end: string;
   duration_minutes: number;
-  location?: {
-    lat: number;
-    lng: number;
-    address?: string;
-  };
-  [key: string]: unknown;
+  place: Place;
+  notes: string;
+  route_to_next: Route | null;
 }
 
-/** Summary of a saved trip (used in trip listing). */
+export interface DayPlan {
+  date: string;
+  day_number: number;
+  theme: string;
+  activities: Activity[];
+  city_name: string;
+}
+
+// ── trip.py ────────────────────────────────────────────────
+
+export interface TripRequest {
+  destination: string;
+  origin: string;
+  total_days: number;
+  start_date: string; // ISO date string (YYYY-MM-DD)
+  interests: string[];
+  pace: Pace;
+  travel_mode: TravelMode;
+  must_include: string[];
+  avoid: string[];
+}
+
 export interface TripSummary {
   id: string;
-  title: string;
-  cities: string[];
+  theme: string;
+  destination: string;
   total_days: number;
-  created_at: string;
-  [key: string]: unknown;
+  cities_count: number;
+  created_at: string; // ISO datetime string
+  has_day_plans: boolean;
 }
 
-/** Full trip response from the backend. */
 export interface TripResponse {
   id: string;
+  request: TripRequest;
   journey: JourneyPlan;
-  day_plans: DayPlan[];
-  [key: string]: unknown;
+  day_plans: DayPlan[] | null;
+  quality_score: number | null;
+  created_at: string; // ISO datetime string
+  updated_at: string; // ISO datetime string
 }
 
-/** SSE progress event emitted during planning. */
+// ── chat.py ────────────────────────────────────────────────
+
+export interface ChatEditRequest {
+  message: string;
+  context: string;
+}
+
+export interface ChatEditResponse {
+  reply: string;
+  updated_journey: JourneyPlan | null;
+  updated_day_plans: DayPlan[] | null;
+  changes_made: string[];
+}
+
+// ── progress.py ────────────────────────────────────────────
+
 export interface ProgressEvent {
-  type: 'progress' | 'complete' | 'error';
-  phase?: string;
-  message?: string;
-  progress?: number;
-  data?: unknown;
+  phase: string;
+  message: string;
+  progress: number;
+  data?: Record<string, unknown>;
+}
+
+// ── quality.py ─────────────────────────────────────────────
+
+export interface MetricResult {
+  name: string;
+  score: number;
+  grade: string;
+  issues: string[];
+  details: string;
+}
+
+export interface QualityReport {
+  overall_score: number;
+  overall_grade: string;
+  metrics: MetricResult[];
+  critical_issues: string[];
+  recommendations: string[];
 }
