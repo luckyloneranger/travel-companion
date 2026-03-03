@@ -272,6 +272,64 @@ class FastItineraryGenerator:
 
             total_activities += len(activities)
 
+            # Add hotel bookend activities if start_location is provided
+            if request.start_location and activities:
+                hotel_place = Place(
+                    place_id="hotel",
+                    name="Hotel",
+                    address="",
+                    location=request.start_location,
+                    category="accommodation",
+                )
+
+                # Route from hotel to first activity
+                try:
+                    hotel_to_first = await self.routes.compute_route(
+                        request.start_location,
+                        activities[0].place.location,
+                        mode=request.travel_mode,
+                    )
+                except Exception:
+                    hotel_to_first = None
+
+                # Route from last activity to hotel
+                try:
+                    last_to_hotel = await self.routes.compute_route(
+                        activities[-1].place.location,
+                        request.start_location,
+                        mode=request.travel_mode,
+                    )
+                except Exception:
+                    last_to_hotel = None
+
+                # Prepend departure activity
+                first_start = activities[0].time_start
+                depart_activity = Activity(
+                    id=str(uuid4()),
+                    time_start=first_start,
+                    time_end=first_start,
+                    duration_minutes=0,
+                    place=hotel_place,
+                    notes="Depart from hotel",
+                    route_to_next=hotel_to_first,
+                )
+                activities.insert(0, depart_activity)
+
+                # Append return activity
+                last_end = activities[-1].time_end
+                return_activity = Activity(
+                    id=str(uuid4()),
+                    time_start=last_end,
+                    time_end=last_end,
+                    duration_minutes=0,
+                    place=hotel_place,
+                    notes="Return to hotel",
+                    route_to_next=None,
+                )
+                # Set route from last real activity to hotel
+                activities[-1].route_to_next = last_to_hotel
+                activities.append(return_activity)
+
             days.append(
                 DayPlan(
                     date=current_date,

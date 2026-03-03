@@ -115,6 +115,15 @@ class V6DayPlanGenerator:
                     {"city": city.name, "days": city.days, "city_index": city_idx + 1}
                 )
             
+            # Get hotel location if available
+            hotel_location = None
+            if city.accommodation and city.accommodation.latitude and city.accommodation.longitude:
+                from app.models import Location
+                hotel_location = Location(
+                    lat=city.accommodation.latitude,
+                    lng=city.accommodation.longitude,
+                )
+
             # Create request for this city
             city_request = ItineraryRequest(
                 destination=f"{city.name}, {city.country}",
@@ -123,6 +132,7 @@ class V6DayPlanGenerator:
                 interests=interests,
                 pace=pace,
                 travel_mode=travel_mode,
+                start_location=hotel_location,
             )
             
             city_plans = CityDayPlans(
@@ -230,6 +240,15 @@ class V6DayPlanGenerator:
                 data={"country": city.country, "start_date": str(city_start_date)}
             )
             
+            # Get hotel location if available
+            hotel_location = None
+            if city.accommodation and city.accommodation.latitude and city.accommodation.longitude:
+                from app.models import Location
+                hotel_location = Location(
+                    lat=city.accommodation.latitude,
+                    lng=city.accommodation.longitude,
+                )
+
             # Create request
             city_request = ItineraryRequest(
                 destination=f"{city.name}, {city.country}",
@@ -238,6 +257,7 @@ class V6DayPlanGenerator:
                 interests=interests,
                 pace=pace,
                 travel_mode=travel_mode,
+                start_location=hotel_location,
             )
             
             city_plans = CityDayPlans(

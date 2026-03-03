@@ -60,6 +60,7 @@ class ItineraryRequest(BaseModel):
     interests: list[str] = Field(..., min_length=1, max_length=10)
     pace: Pace = Pace.MODERATE
     travel_mode: TravelMode = TravelMode.WALK
+    start_location: Optional[Location] = None
     preferences: Optional[Preferences] = None
     mode: GenerationMode = GenerationMode.FAST
 
