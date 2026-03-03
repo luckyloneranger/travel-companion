@@ -64,6 +64,18 @@ export interface V6CityHighlight {
   suggested_duration_hours?: number;
 }
 
+/** V6 Accommodation - hotel for a city stop */
+export interface V6Accommodation {
+  name: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  place_id?: string;
+  rating?: number;
+  photo_url?: string;
+  price_level?: number;
+}
+
 /** V6 City Stop - a destination in the journey */
 export interface V6CityStop {
   name: string;
@@ -74,6 +86,7 @@ export interface V6CityStop {
   highlights: V6CityHighlight[];
   latitude?: number;
   longitude?: number;
+  accommodation?: V6Accommodation;
 }
 
 /** V6 Travel Leg - transport between cities */
