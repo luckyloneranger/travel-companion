@@ -1,0 +1,76 @@
+import { create } from 'zustand';
+import type { ProgressEvent } from '@/types';
+
+type AppPhase = 'input' | 'planning' | 'preview' | 'day-plans';
+
+interface UIState {
+  // Phase
+  phase: AppPhase;
+  setPhase: (phase: AppPhase) => void;
+
+  // Planning progress
+  progress: ProgressEvent | null;
+  setProgress: (event: ProgressEvent | null) => void;
+
+  // Loading / error
+  isLoading: boolean;
+  error: string | null;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+
+  // Map toggles
+  showJourneyMap: boolean;
+  toggleJourneyMap: () => void;
+  dayMapVisible: Record<number, boolean>;
+  toggleDayMap: (dayNumber: number) => void;
+
+  // Chat
+  isChatOpen: boolean;
+  chatContext: 'journey' | 'day_plans';
+  openChat: (context?: 'journey' | 'day_plans') => void;
+  closeChat: () => void;
+
+  // Reset
+  resetUI: () => void;
+}
+
+export const useUIStore = create<UIState>((set) => ({
+  phase: 'input',
+  setPhase: (phase) => set({ phase }),
+
+  progress: null,
+  setProgress: (event) => set({ progress: event }),
+
+  isLoading: false,
+  error: null,
+  setLoading: (loading) => set({ isLoading: loading }),
+  setError: (error) => set({ error }),
+
+  showJourneyMap: false,
+  toggleJourneyMap: () => set((s) => ({ showJourneyMap: !s.showJourneyMap })),
+  dayMapVisible: {},
+  toggleDayMap: (dayNumber) =>
+    set((s) => ({
+      dayMapVisible: {
+        ...s.dayMapVisible,
+        [dayNumber]: !s.dayMapVisible[dayNumber],
+      },
+    })),
+
+  isChatOpen: false,
+  chatContext: 'journey',
+  openChat: (context = 'journey') =>
+    set({ isChatOpen: true, chatContext: context }),
+  closeChat: () => set({ isChatOpen: false }),
+
+  resetUI: () =>
+    set({
+      phase: 'input',
+      progress: null,
+      isLoading: false,
+      error: null,
+      showJourneyMap: false,
+      dayMapVisible: {},
+      isChatOpen: false,
+    }),
+}));
