@@ -55,6 +55,19 @@ class TravelLeg:
 
 
 @dataclass
+class Accommodation:
+    """Recommended accommodation for a city stop."""
+    name: str
+    address: str = ""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    place_id: Optional[str] = None
+    rating: Optional[float] = None
+    photo_url: Optional[str] = None
+    price_level: Optional[int] = None  # 0-4 from Google
+
+
+@dataclass
 class CityStop:
     """A city stop in the journey."""
     name: str
@@ -63,11 +76,12 @@ class CityStop:
     highlights: list[CityHighlight] = field(default_factory=list)
     why_visit: str = ""
     best_time_to_visit: str = ""
-    
+
     # Enriched data from Google
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     place_id: Optional[str] = None
+    accommodation: Optional[Accommodation] = None
 
 
 @dataclass
