@@ -1,5 +1,6 @@
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { ChatPanel } from '@/components/trip/ChatPanel';
 import { InputForm } from '@/components/trip/InputForm';
 import { PlanProgress } from '@/components/trip/PlanProgress';
 import { useStreamingPlan } from '@/hooks/useStreamingPlan';
@@ -43,6 +44,8 @@ function App() {
 
         {/* Other phases will be added in later tasks */}
       </PageContainer>
+
+      <ChatPanel />
     </div>
   );
 }
