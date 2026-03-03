@@ -47,7 +47,11 @@ Travel dates: {travel_dates}
           "category": "nature",
           "suggested_duration_hours": 2.0
         }}
-      ]
+      ],
+      "accommodation": {{
+        "name": "Hotel Granvia Kyoto",
+        "why": "Connected to Kyoto Station, perfect base for day trips with excellent access to all rail lines"
+      }}
     }}
   ],
   "travel_legs": [
@@ -84,7 +88,11 @@ Travel dates: {travel_dates}
           "category": "culture|food|nature|history|shopping|nightlife|adventure|wellness|architecture|art|religious|markets|beach|entertainment|photography|local_life",
           "suggested_duration_hours": 2.0
         }}
-      ]
+      ],
+      "accommodation": {{
+        "name": "Specific Hotel or Guesthouse Name",
+        "why": "Brief reason — location advantage, style match, or value"
+      }}
     }}
   ],
   "travel_legs": [
@@ -109,4 +117,5 @@ Travel dates: {travel_dates}
 - The origin city ({origin}) is the departure point — only include it in cities if it matches the destination type AND has tourist value for day activities
 - Travel legs connect city1 → city2 → city3 → ... (first leg is from first city to second city)
 - Choose transport modes that are ACTUALLY available and popular in {region}
+- Each city MUST have an accommodation suggestion with a specific, real hotel name
 - Return ONLY the JSON object — no markdown fences, no text before or after

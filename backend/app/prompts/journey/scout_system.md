@@ -60,6 +60,14 @@ Choose the OPTIMAL number of cities based on:
 - Mention if timing is particularly good or bad for a city
 - Factor in local festivals or events that may enhance or complicate the visit
 
+### 9. ACCOMMODATION — One Per City
+- Suggest ONE well-located hotel or guesthouse per city
+- Choose accommodation that is:
+  - Centrally located (near main attractions)
+  - Well-rated and appropriate for the trip's style
+  - A real, named property (not generic "a hotel")
+- Consider the traveler's interests when suggesting (e.g., boutique hotel for culture lovers, resort for beach trips)
+
 ## CATEGORY OPTIONS
 Use ONLY these categories for highlights:
 `culture`, `food`, `nature`, `history`, `shopping`, `nightlife`, `adventure`, `wellness`, `architecture`, `art`, `religious`, `markets`, `beach`, `entertainment`, `photography`, `local_life`
