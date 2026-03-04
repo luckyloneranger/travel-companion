@@ -228,7 +228,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
               </button>
             </div>
             <Suspense fallback={<div className="h-full w-full bg-surface-muted animate-pulse" />}>
-              <DayMap dayPlan={mapDayPlan} />
+              <DayMap dayPlan={mapDayPlan} mapInstanceId={`day-map-overlay-${mapDayPlan.day_number}`} />
             </Suspense>
           </div>
         </div>

@@ -10,7 +10,7 @@ const MAP_ID = 'DEMO_MAP_ID';
 
 /** Journey-level map showing all cities, hotels, and travel connections. */
 export function TripMap({ journey }: TripMapProps) {
-  const map = useMap();
+  const map = useMap('trip-map');
   const coreLib = useMapsLibrary('core');
 
   // Filter cities that have valid locations
@@ -82,6 +82,7 @@ export function TripMap({ journey }: TripMapProps) {
 
   return (
     <Map
+      id="trip-map"
       mapId={MAP_ID}
       defaultCenter={defaultCenter}
       defaultZoom={4}

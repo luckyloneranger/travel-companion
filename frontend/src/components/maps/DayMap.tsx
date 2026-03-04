@@ -5,13 +5,14 @@ import type { DayPlan, Activity, Location } from '@/types';
 
 interface DayMapProps {
   dayPlan: DayPlan;
+  mapInstanceId?: string;
 }
 
 const MAP_ID = 'DEMO_MAP_ID';
 
 /** Day-level map showing numbered activity markers and route polylines. */
-export function DayMap({ dayPlan }: DayMapProps) {
-  const map = useMap();
+export function DayMap({ dayPlan, mapInstanceId = 'day-map' }: DayMapProps) {
+  const map = useMap(mapInstanceId);
   const coreLib = useMapsLibrary('core');
 
   // Filter activities with valid place locations
@@ -52,6 +53,7 @@ export function DayMap({ dayPlan }: DayMapProps) {
 
   return (
     <Map
+      id={mapInstanceId}
       mapId={MAP_ID}
       defaultCenter={defaultCenter}
       defaultZoom={13}
