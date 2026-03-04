@@ -5,7 +5,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { ChatPanel } from '@/components/trip/ChatPanel';
 import { WizardForm } from '@/components/trip/WizardForm';
 import { PlanningDashboard } from '@/components/trip/PlanningDashboard';
-import { JourneyPreview } from '@/components/trip/JourneyPreview';
+import { JourneyDashboard } from '@/components/trip/JourneyDashboard';
 import { DayCard } from '@/components/trip/DayCard';
 import { BudgetSummary } from '@/components/trip/BudgetSummary';
 import { SharedTrip } from '@/pages/SharedTrip';
@@ -150,7 +150,7 @@ function App() {
 
               {phase === 'preview' && journey && (
                 <div key="preview" className="animate-fade-in-up">
-                  <JourneyPreview
+                  <JourneyDashboard
                     onGenerateDayPlans={handleGenerateDayPlans}
                     onOpenChat={handleOpenChat}
                     onNewTrip={handleNewTrip}
