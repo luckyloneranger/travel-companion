@@ -24,6 +24,20 @@ class Settings(BaseSettings):
     google_routes_api_key: str = ""
     google_weather_api_key: str = ""
 
+    # OAuth
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    github_oauth_client_id: str = ""
+    github_oauth_client_secret: str = ""
+
+    # JWT
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
+
+    # App
+    app_url: str = "http://localhost:5173"
+
     app_env: str = "development"
     debug: bool = True
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
