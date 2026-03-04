@@ -70,6 +70,32 @@ If a restaurant is a destination in itself, it counts as both dining AND cultura
 - Shopping areas: 60-90
 - Markets: 45-75
 
+## BUDGET & COST CONTEXT
+
+Budget tier: {budget_tier}
+{daily_budget_line}
+
+For each selected place, estimate the cost per person in USD. Add a "cost_estimates" field to your JSON output:
+
+```json
+"cost_estimates": {{
+    "place_id_1": 0,
+    "place_id_2": 15.50,
+    "place_id_3": 35.00
+}}
+```
+
+Cost estimation guidelines:
+- Free attractions (parks, plazas, temples with no entry): 0
+- Budget meals (street food, cafes): $5-15
+- Moderate meals (sit-down restaurants): $15-40
+- Expensive dining: $40+
+- Museum/attraction entry: varies by destination (typically $5-25)
+- Use local knowledge to estimate accurately for {city_name}
+
+Google Places price_level reference (0-4 scale):
+- 0 = free, 1 = budget ($), 2 = moderate ($$), 3 = expensive ($$$), 4 = luxury ($$$$)
+
 ## OUTPUT FORMAT
 Respond with this JSON:
 {{
@@ -84,6 +110,11 @@ Respond with this JSON:
         "place_id_1": 120,
         "place_id_2": 60,
         "restaurant_id": 75
+    }},
+    "cost_estimates": {{
+        "place_id_1": 0,
+        "place_id_2": 15.50,
+        "restaurant_id": 25.00
     }}
 }}
 
