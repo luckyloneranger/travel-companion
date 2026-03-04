@@ -1,5 +1,5 @@
 import { useState, Suspense } from 'react';
-import { MapPin, Star, Sparkles, ChevronDown, Clock, Navigation, ArrowRight, Car, Train, Bus, Plane, Ship, Map, X } from 'lucide-react';
+import { Star, Sparkles, ChevronDown, Clock, Navigation, Car, Train, Bus, Plane, Ship, Map, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';

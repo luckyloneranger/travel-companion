@@ -91,11 +91,11 @@ system = journey_prompts.load("scout_system")
 user = day_plan_prompts.load("planning_user")
 ```
 
-**SSE Streaming** -- endpoints yield `data: {json}\n\n` events via `ProgressEvent` model with phases: `scouting`, `enriching`, `reviewing`, `planning`, `complete`, `error`. Frontend consumes via async generator in `api.ts` with AbortController. Stall timeout (90s) warns users on slow connections.
+**SSE Streaming** -- endpoints yield `data: {json}\n\n` events via `ProgressEvent` model with phases: `scouting`, `enriching`, `reviewing`, `planning`, `complete`, `error`. Day plan generation runs in background (no phase switch). Frontend consumes via async generator in `api.ts` with AbortController. Stall timeout (180s) warns users on slow connections.
 
 **Zustand Stores** -- frontend state management via three stores:
-- `tripStore.ts` -- journey plan, day plans, saved trips CRUD, cost breakdown
-- `uiStore.ts` -- phase management (input -> planning -> preview -> day-plans), wizard step tracking, progress tracking, map/chat toggles, browser history integration
+- `tripStore.ts` -- journey plan, day plans, saved trips CRUD, cost breakdown (includes accommodation + transport + dining + activities)
+- `uiStore.ts` -- phase management (input -> planning -> preview), wizard step tracking, day plans generating state, progress tracking, chat toggles, browser history integration
 - `authStore.ts` -- user authentication state, periodic token refresh
 
 **Request Tracing** -- `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs. `RequestLoggingFilter` injects `request_id` into log records.

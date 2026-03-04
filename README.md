@@ -8,7 +8,7 @@ AI-powered multi-city travel planner. Uses LLMs for creative planning decisions 
 
 | Layer | Responsibility | Tools |
 |-------|---------------|-------|
-| **AI (LLM)** | City selection, place curation, day theming, cost estimation, descriptions | Azure OpenAI / Anthropic |
+| **AI (LLM)** | City selection, place curation, day theming, cost estimation, descriptions | Azure OpenAI / Anthropic / Gemini |
 | **Deterministic** | Route optimization, scheduling, time calculations, validation | TSP solver, Google APIs |
 
 **Journey planning pipeline:**
@@ -28,21 +28,22 @@ Discover places → AI plans days (with time constraints) → TSP optimizes rout
 
 ## Features
 
-- **Multi-city journey planning** with quality-scored iterative refinement
-- **Guided wizard input** — 5-step form with quick-start templates, visual interest/pace/budget cards
-- **Per-day itineraries** with timeline view, themed days, meal timing, and pace control
+- **Multi-city journey planning** with quality-scored iterative refinement (returns best attempt across iterations)
+- **Guided wizard input** — 5-step form (Where → When → Style → Budget → Review) with quick-start templates
+- **Unified trip view** — journey overview and day plans on a single page, no context switching
+- **Inline day plans** — generated in background, rendered per-city inside each city card
+- **Per-day timeline** — activities with time, cost, rating, photos, address, weather, and tips shown inline (no clicks needed)
 - **Smart transport selection** — walks short distances, drives or takes transit for longer legs (based on real Google travel times)
-- **Weather integration** — daily forecasts on day plans, warnings for outdoor activities in bad weather
-- **Budget tracking** — LLM-estimated costs per activity, daily aggregation, accommodation and transport costs from journey plan
-- **Interactive maps** — journey-level city map + per-day activity maps with route polylines
-- **Chat editing** — modify journeys and day plans via natural language with suggestion chips (asks clarifying questions for vague requests)
+- **Weather integration** — daily forecasts on day plans, inline warnings for outdoor activities in bad weather
+- **Budget tracking** — complete cost breakdown across all categories (accommodation, transport, dining, activities), per-city totals, journey total
+- **Interactive maps** — journey-level city map + per-day route maps in fullscreen overlay
+- **Chat editing** — modify journeys and day plans via natural language with suggestion chips
 - **User accounts** — OAuth login via Google or GitHub, trip ownership
-- **Trip sharing** — shareable links for read-only access
+- **Trip sharing** — shareable links for read-only access with inline day plans
 - **Export** — PDF itinerary and .ics calendar export
-- **Activity tips** — LLM-generated insider tips for each place
+- **Activity tips** — LLM-generated insider tips for each place, shown inline
 - **Dark mode** — full component coverage with system preference detection
-- **Session persistence** — refreshing the page restores your current trip and phase
-- **Browser navigation** — back/forward buttons navigate between app phases
+- **Session persistence** — refreshing the page restores your current trip
 - **Quality filtering** — filters out closed/low-rated places, prefers current opening hours over regular
 
 ## Tech Stack
@@ -85,7 +86,7 @@ npm run dev                    # Opens at http://localhost:5173
 - Python 3.11+
 - Node.js 18+
 - Google Cloud account (Places, Routes, Directions, and Weather APIs enabled)
-- Azure OpenAI or Anthropic API access
+- Azure OpenAI, Anthropic, or Google Gemini API access
 - OAuth credentials (Google and/or GitHub) for user accounts
 
 ### System Dependencies (PDF export)
@@ -197,7 +198,7 @@ travel-companion/
 │   ├── orchestrators/              # journey.py, day_plan.py (pipeline coordination)
 │   ├── agents/                     # scout, enricher, reviewer, planner, day_planner
 │   ├── services/
-│   │   ├── llm/                    # Abstract base + Azure OpenAI / Anthropic
+│   │   ├── llm/                    # Abstract base + Azure OpenAI / Anthropic / Gemini
 │   │   ├── google/                 # Places, Routes, Directions, Weather
 │   │   ├── chat.py                 # Chat-based plan editing
 │   │   ├── tips.py                 # Activity tips generation
@@ -206,11 +207,10 @@ travel-companion/
 │   └── prompts/                    # Markdown templates (journey, day_plan, chat, tips)
 ├── backend/tests/                  # 163 tests (API, agents, algorithms, services, weather)
 ├── frontend/src/
-│   ├── App.tsx                     # Main app with phase routing, wizard → dashboard → timeline
+│   ├── App.tsx                     # Main app — wizard input → planning → unified trip view
 │   ├── components/
 │   │   ├── trip/                   # WizardForm, WizardStepper, TemplateGallery, PlanningDashboard,
-│   │   │                          # JourneyDashboard, CompactCityCard, DayPlansView, DayNav,
-│   │   │                          # DayTimeline, BudgetSummary, ChatPanel
+│   │   │                          # JourneyDashboard, CompactCityCard, DayTimeline, BudgetSummary, ChatPanel
 │   │   │   └── wizard/            # WizardStepWhere/When/Style/Budget/Review
 │   │   ├── maps/                   # TripMap, DayMap (Google Maps)
 │   │   ├── layout/                 # Header, PageContainer
