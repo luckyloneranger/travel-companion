@@ -24,11 +24,13 @@ class TripRepository:
         request: TripRequest,
         journey: JourneyPlan,
         trip_id: str | None = None,
+        user_id: str | None = None,
     ) -> str:
         """Save a new trip. Returns trip ID."""
         tid = trip_id or str(uuid.uuid4())
         trip = Trip(
             id=tid,
+            user_id=user_id,
             destination=request.destination,
             theme=journey.theme,
             total_days=journey.total_days,
@@ -76,11 +78,12 @@ class TripRepository:
             return None
         return self._to_response(trip)
 
-    async def list_trips(self) -> list[TripSummary]:
-        """List all trips (summaries only)."""
-        result = await self.session.execute(
-            select(Trip).order_by(Trip.created_at.desc())
-        )
+    async def list_trips(self, user_id: str | None = None) -> list[TripSummary]:
+        """List trips (summaries only). When user_id is provided, filter by owner."""
+        query = select(Trip).order_by(Trip.created_at.desc())
+        if user_id is not None:
+            query = query.where(Trip.user_id == user_id)
+        result = await self.session.execute(query)
         trips = result.scalars().all()
         return [self._to_summary(t) for t in trips]
 

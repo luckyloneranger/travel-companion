@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from app.db.repository import TripRepository
 from app.dependencies import (
     get_chat_service,
+    get_current_user,
     get_day_plan_orchestrator,
     get_journey_orchestrator,
     get_tips_service,
@@ -29,6 +30,7 @@ async def plan_trip_stream(
     request: TripRequest,
     orchestrator: JourneyOrchestrator = Depends(get_journey_orchestrator),
     repo: TripRepository = Depends(get_trip_repository),
+    user: dict | None = Depends(get_current_user),
 ):
     """Stream journey planning via SSE."""
 
@@ -40,7 +42,8 @@ async def plan_trip_stream(
                     from app.models.journey import JourneyPlan
 
                     journey = JourneyPlan.model_validate(event.data)
-                    trip_id = await repo.save_trip(request, journey)
+                    user_id = user["sub"] if user else None
+                    trip_id = await repo.save_trip(request, journey, user_id=user_id)
                     event.data["trip_id"] = trip_id
                 yield f"data: {event.model_dump_json()}\n\n"
         except Exception as e:
@@ -103,8 +106,12 @@ async def chat_edit(
 
 
 @router.get("")
-async def list_trips(repo: TripRepository = Depends(get_trip_repository)) -> list[TripSummary]:
-    return await repo.list_trips()
+async def list_trips(
+    repo: TripRepository = Depends(get_trip_repository),
+    user: dict | None = Depends(get_current_user),
+) -> list[TripSummary]:
+    user_id = user["sub"] if user else None
+    return await repo.list_trips(user_id=user_id)
 
 
 @router.get("/{trip_id}")
