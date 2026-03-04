@@ -246,12 +246,20 @@ class EnricherAgent:
                     city.accommodation.name,
                     city.name,
                 )
+                # Still estimate nightly cost from default moderate tier
+                if city.accommodation and city.accommodation.estimated_nightly_usd is None:
+                    city.accommodation.estimated_nightly_usd = _PRICE_LEVEL_TO_NIGHTLY_USD.get(
+                        city.accommodation.price_level or 2, 80
+                    )
         except Exception as e:
             logger.warning(
                 "[Enricher] Accommodation enrichment failed for %s: %s",
                 city.name,
                 e,
             )
+            # Ensure fallback cost even on error
+            if city.accommodation and city.accommodation.estimated_nightly_usd is None:
+                city.accommodation.estimated_nightly_usd = 80  # moderate default
 
     # ── Travel leg enrichment ────────────────────────────────────────────
 
@@ -290,8 +298,13 @@ class EnricherAgent:
             self._update_leg_with_real_data(leg, options)
             # Estimate fare in USD if not already set
             if leg.fare_usd is None:
+                # Use haversine distance as fallback for flights/missing distance
+                distance = leg.distance_km
+                if distance is None and origin_loc and dest_loc:
+                    from app.algorithms.tsp import haversine_distance
+                    distance = haversine_distance(origin_loc, dest_loc) / 1000
                 leg.fare_usd = _estimate_fare_usd(
-                    leg.mode.value, leg.distance_km
+                    leg.mode.value, distance
                 )
         except Exception as e:
             logger.warning(
