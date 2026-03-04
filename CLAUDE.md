@@ -12,9 +12,11 @@ Unified pipeline: multi-city journey planning with Scout -> Enrich -> Review -> 
 
 ### Backend (FastAPI + Python)
 ```bash
+docker compose up -d db            # Start PostgreSQL (first time)
 cd backend
 source venv/bin/activate          # Python virtual env
 pip install -r requirements.txt   # Install deps
+alembic upgrade head              # Run database migrations
 uvicorn app.main:app --reload --port 8000  # Dev server
 ```
 
@@ -37,7 +39,7 @@ pytest -k "test_health"   # Run specific tests
 pytest --cov              # With coverage
 ```
 
-Test files: `backend/tests/test_api.py` (API endpoint tests), `test_tsp.py` (TSP optimizer), `test_scheduler.py` (schedule builder), `test_quality.py` (quality evaluators), `test_agents.py` (Scout/Reviewer agents), `test_services.py` (TipsService/ChatService/Routes helpers), `test_validation.py` (request validation edge cases), `test_integration.py` (API lifecycle), `test_weather.py` (weather service/parsing/warnings). Fixtures in `conftest.py` provide `app` (FastAPI with overrides), `client` (httpx AsyncClient), in-memory SQLite, and MockLLMService.
+Test files: `backend/tests/test_api.py` (API endpoint tests), `test_tsp.py` (TSP optimizer), `test_scheduler.py` (schedule builder), `test_quality.py` (quality evaluators), `test_agents.py` (Scout/Reviewer agents), `test_services.py` (TipsService/ChatService/Routes helpers), `test_validation.py` (request validation edge cases), `test_integration.py` (API lifecycle), `test_weather.py` (weather service/parsing/warnings). Fixtures in `conftest.py` provide `app` (FastAPI with overrides), `client` (httpx AsyncClient), testcontainers PostgreSQL, and MockLLMService. Tests require Docker running.
 
 ## Architecture
 
@@ -57,7 +59,7 @@ Test files: `backend/tests/test_api.py` (API endpoint tests), `test_tsp.py` (TSP
   - `export.py` -- PDF (weasyprint) and calendar (.ics) export
 - **Algorithms** (`app/algorithms/`): Deterministic computation -- `tsp.py` (route optimizer), `scheduler.py` (time-slot builder), `quality/` (7-metric evaluator)
 - **Models** (`app/models/`): Pydantic v2 models -- `common.py`, `journey.py`, `day_plan.py`, `trip.py` (TripRequest with Travelers model), `chat.py`, `progress.py`, `quality.py`, `internal.py`
-- **Database** (`app/db/`): SQLAlchemy async + aiosqlite -- `engine.py`, `models.py` (SQLAlchemy models), `repository.py` (TripRepository)
+- **Database** (`app/db/`): SQLAlchemy async + asyncpg (PostgreSQL) -- `engine.py`, `models.py` (SQLAlchemy models), `repository.py` (TripRepository). Alembic for schema migrations (`backend/alembic/`)
 - **Prompts** (`app/prompts/`): Markdown templates loaded via `PromptLoader` in `loader.py` (14 templates across journey, day_plan, chat, tips categories)
 - **Config** (`app/config/`): Settings (Pydantic BaseSettings), planning configs (`planning.py`), regional transport guidance (`regional_transport.py`)
 - **Core** (`app/core/`): Shared HTTP client with retry logic (`http.py`), request tracing middleware (`middleware.py`)

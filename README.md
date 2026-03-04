@@ -51,7 +51,7 @@ Discover places → AI plans days (with time constraints) → TSP optimizes rout
 
 | Component | Technology |
 |-----------|-----------|
-| Backend | FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy + aiosqlite |
+| Backend | FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy + asyncpg (PostgreSQL) |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, Zustand |
 | LLM | Azure OpenAI GPT-4o, Anthropic Claude, or Google Gemini (switchable via config) |
 | APIs | Google Places, Routes, Directions, Weather |
@@ -61,17 +61,24 @@ Discover places → AI plans days (with time constraints) → TSP optimizes rout
 
 ## Quick Start
 
-### 1. Backend
+### 1. Database
+
+```bash
+docker compose up -d db    # Start PostgreSQL
+```
+
+### 2. Backend
 
 ```bash
 cd backend
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env    # Edit with your API keys
+alembic upgrade head    # Run database migrations
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 2. Frontend
+### 3. Frontend
 
 ```bash
 cd frontend
@@ -85,7 +92,8 @@ npm run dev                    # Opens at http://localhost:5173
 ### Prerequisites
 
 - Python 3.11+
-- Node.js 18+
+- Node.js 20+
+- Docker (for PostgreSQL and tests)
 - Google Cloud account (Places, Routes, Directions, and Weather APIs enabled)
 - Azure OpenAI, Anthropic, or Google Gemini API access
 - OAuth credentials (Google and/or GitHub) for user accounts
@@ -124,6 +132,7 @@ apt-get install libpango-1.0-0 libglib2.0-0
 | `JWT_SECRET_KEY` | Secret key for JWT token signing |
 | `CORS_ORIGINS` | Allowed origins (default: `http://localhost:5173`) |
 | `COOKIE_DOMAIN` | Cookie domain for cross-subdomain auth (e.g., `.example.com`) |
+| `DATABASE_URL` | PostgreSQL connection string (default: `postgresql+asyncpg://postgres:postgres@localhost:5432/travelcompanion`) |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -247,7 +256,7 @@ docker build -t travel-companion .
 docker run -p 8000:8000 --env-file backend/.env travel-companion
 ```
 
-The multi-stage Dockerfile builds the frontend (Node 18) and serves it alongside the backend (Python 3.11). The backend auto-serves the built frontend from `static/` when present.
+The multi-stage Dockerfile builds the frontend (Node 20) and serves it alongside the backend (Python 3.11). The backend auto-serves the built frontend from `static/` when present. Requires `DATABASE_URL` pointing to a PostgreSQL instance.
 
 ### Split Deployment
 
@@ -258,6 +267,8 @@ For separate frontend (e.g., Vercel, Azure Static Web Apps) and backend (e.g., A
 3. Auth works via Bearer tokens — the OAuth callback redirects with `?token=` in the URL, which the frontend captures and stores in localStorage
 
 ## Testing
+
+> **Note:** Tests require Docker running — they spin up a PostgreSQL container via testcontainers.
 
 ```bash
 # Run all backend tests (164 tests)
