@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 from logging.config import fileConfig
 
 from alembic import context
@@ -24,6 +25,16 @@ def get_url() -> str:
         return config.get_main_option("sqlalchemy.url", "")
 
 
+def _build_connect_args(url: str) -> dict:
+    """Enable SSL for remote PostgreSQL hosts."""
+    if "localhost" in url or "127.0.0.1" in url:
+        return {}
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+    return {"ssl": ssl_ctx}
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = get_url()
@@ -45,7 +56,8 @@ def do_run_migrations(connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine."""
-    engine = create_async_engine(get_url())
+    url = get_url().split("?")[0]
+    engine = create_async_engine(url, connect_args=_build_connect_args(url))
     async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await engine.dispose()
