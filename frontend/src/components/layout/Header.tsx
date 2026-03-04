@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Compass, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AuthButton } from '@/components/auth/AuthButton';
 
 export function Header() {
   const [dark, setDark] = useState(() => {
@@ -30,9 +31,12 @@ export function Header() {
             Travel Companion
           </h1>
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={toggleDark} aria-label="Toggle dark mode">
-          {dark ? <Sun className="h-4 w-4 text-text-muted" /> : <Moon className="h-4 w-4 text-text-muted" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          <AuthButton />
+          <Button variant="ghost" size="icon-sm" onClick={toggleDark} aria-label="Toggle dark mode">
+            {dark ? <Sun className="h-4 w-4 text-text-muted" /> : <Moon className="h-4 w-4 text-text-muted" />}
+          </Button>
+        </div>
       </div>
     </header>
   );
