@@ -78,11 +78,11 @@ export function SharedTrip() {
 
           {/* Journey info */}
           <div className="space-y-2">
-            <h1 className="text-2xl font-display font-bold text-text-primary flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-primary-500" />
-              {j.theme}
+            <h1 className="text-2xl font-display font-bold text-text-primary flex items-center gap-2 min-w-0">
+              <Sparkles className="h-6 w-6 text-primary-500 shrink-0" />
+              <span className="break-words">{j.theme}</span>
             </h1>
-            <p className="text-sm text-text-secondary leading-relaxed">{j.summary}</p>
+            <p className="text-sm text-text-secondary leading-relaxed break-words">{j.summary}</p>
             <div className="flex flex-wrap gap-4 text-sm text-text-muted">
               <span className="flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" /> {j.cities.length} {j.cities.length === 1 ? 'city' : 'cities'}

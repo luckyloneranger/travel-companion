@@ -16,6 +16,9 @@ openai>=1.12.0
 # Anthropic
 anthropic>=0.47.0
 
+# Google Gemini
+google-genai>=1.0.0
+
 # Database
 aiosqlite>=0.20.0
 sqlalchemy[asyncio]>=2.0.25

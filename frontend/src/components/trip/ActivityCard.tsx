@@ -88,13 +88,13 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
           </div>
 
           {/* Place name + category */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h4 className="text-sm font-semibold text-text-primary truncate">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h4 className="text-sm font-semibold text-text-primary break-words">
                 {activity.place.name}
               </h4>
               {activity.place.address && (
-                <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5 truncate">
+                <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5 break-words">
                   <MapPin className="h-3 w-3 shrink-0" />
                   {activity.place.address}
                 </p>
@@ -151,7 +151,7 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
 
           {/* Notes */}
           {activity.notes && (
-            <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">
+            <p className="text-xs text-text-secondary mt-1.5 leading-relaxed break-words">
               {activity.notes}
             </p>
           )}
@@ -171,7 +171,7 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
           {tip && (
             <div className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2.5 py-1.5">
               <Lightbulb className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">{tip}</p>
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed break-words">{tip}</p>
             </div>
           )}
 
@@ -179,7 +179,7 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
           {activity.weather_warning && (
             <div className="mt-2 flex items-start gap-1.5 rounded-md bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 px-2.5 py-1.5">
               <CloudRain className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed">{activity.weather_warning}</p>
+              <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed break-words">{activity.weather_warning}</p>
             </div>
           )}
         </div>

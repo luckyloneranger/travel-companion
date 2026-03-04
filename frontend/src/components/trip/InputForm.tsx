@@ -613,9 +613,9 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-text-muted">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
                       <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
+                        <MapPin className="h-3 w-3 shrink-0" />
                         {trip.destination}
                       </span>
                       <span>{trip.cities_count} {trip.cities_count === 1 ? 'city' : 'cities'}</span>

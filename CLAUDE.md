@@ -50,7 +50,7 @@ Test files: `backend/tests/test_api.py` (API endpoint tests), `test_tsp.py` (TSP
   - `day_plan.py` -- DayPlanOrchestrator: discover -> AI plan (with time constraints for arrival/departure days) -> TSP optimize -> schedule -> auto-select transport mode -> weather integration per city
 - **Agents** (`app/agents/`): LLM-powered components -- `scout.py`, `enricher.py`, `reviewer.py`, `planner.py`, `day_planner.py`
 - **Services** (`app/services/`):
-  - `llm/` -- Abstract `LLMService` base, `AzureOpenAILLMService`, `AnthropicLLMService`, `factory.py` for provider switching
+  - `llm/` -- Abstract `LLMService` base, `AzureOpenAILLMService`, `AnthropicLLMService`, `GeminiLLMService`, `factory.py` for provider switching
   - `google/` -- `GooglePlacesService`, `GoogleRoutesService`, `GoogleDirectionsService` (transit/ferry), `GoogleWeatherService` (daily forecasts)
   - `chat.py` -- ChatService for journey/day-plan editing via natural language
   - `tips.py` -- TipsService for activity tips generation
@@ -80,7 +80,7 @@ async def plan_trip_stream(
 **LLM Abstraction** -- provider-agnostic via abstract base class + factory:
 ```python
 from app.services.llm.factory import create_llm_service
-llm = create_llm_service(settings)  # returns AzureOpenAI or Anthropic based on LLM_PROVIDER
+llm = create_llm_service(settings)  # returns AzureOpenAI, Anthropic, or Gemini based on LLM_PROVIDER
 data = await llm.generate_structured(system, user, schema=MyModel)
 ```
 
@@ -148,7 +148,7 @@ user = day_plan_prompts.load("planning_user")
 
 ## Environment Variables
 
-**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
+**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
 
 **Frontend** (`frontend/.env.local`): `VITE_GOOGLE_MAPS_API_KEY`
 

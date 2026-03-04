@@ -132,11 +132,11 @@ export function JourneyPreview({
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <CardTitle className="text-xl font-display flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary-500" />
-                {journey.theme}
+              <CardTitle className="text-xl font-display flex items-center gap-2 min-w-0">
+                <Sparkles className="h-5 w-5 text-primary-500 shrink-0" />
+                <span className="break-words">{journey.theme}</span>
               </CardTitle>
-              <CardDescription className="mt-1 leading-relaxed">
+              <CardDescription className="mt-1 leading-relaxed break-words">
                 {journey.summary}
               </CardDescription>
             </div>
@@ -181,7 +181,7 @@ export function JourneyPreview({
               </span>
             )}
             {journey.route && (
-              <span className="flex items-center gap-1.5 text-text-muted">
+              <span className="flex items-center gap-1.5 text-text-muted break-words">
                 Route: {journey.route}
               </span>
             )}
@@ -255,7 +255,7 @@ export function JourneyPreview({
                 type="text"
                 readOnly
                 value={shareUrl}
-                className="flex-1 bg-transparent text-xs text-text-secondary outline-none"
+                className="flex-1 bg-transparent text-xs text-text-secondary outline-none min-w-0"
                 onFocus={(e) => e.target.select()}
               />
               <Button

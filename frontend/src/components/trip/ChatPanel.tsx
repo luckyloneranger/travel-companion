@@ -74,7 +74,7 @@ export function ChatPanel() {
 
   return (
     <Sheet open={isChatOpen} onOpenChange={(open) => !open && closeChat()}>
-      <SheetContent className="w-[400px] sm:w-[540px] flex flex-col">
+      <SheetContent className="w-[min(400px,calc(100vw-2rem))] sm:w-[540px] flex flex-col">
         <SheetHeader>
           <SheetTitle>
             {chatContext === 'journey' ? 'Edit Journey' : 'Edit Day Plans'}
@@ -98,9 +98,9 @@ export function ChatPanel() {
                   ? 'bg-primary-500 text-white'
                   : 'bg-surface-muted text-text-primary'
               }`}>
-                <p className="text-sm">{msg.content}</p>
+                <p className="text-sm break-words">{msg.content}</p>
                 {msg.changes && msg.changes.length > 0 && (
-                  <ul className="mt-2 text-xs opacity-80 list-disc list-inside">
+                  <ul className="mt-2 text-xs opacity-80 list-disc list-inside break-words">
                     {msg.changes.map((c, j) => <li key={j}>{c}</li>)}
                   </ul>
                 )}

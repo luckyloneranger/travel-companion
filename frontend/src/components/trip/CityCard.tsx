@@ -72,7 +72,7 @@ export function CityCard({ city, index, departureLeg }: CityCardProps) {
               {index + 1}
             </div>
             <div>
-              <CardTitle className="text-base font-display">
+              <CardTitle className="text-base font-display break-words">
                 {city.name}, {city.country}
               </CardTitle>
               <CardDescription className="text-xs">
@@ -91,7 +91,7 @@ export function CityCard({ city, index, departureLeg }: CityCardProps) {
       <CardContent className="space-y-4 pt-0">
         {/* Why visit */}
         {city.why_visit && (
-          <p className="text-sm text-text-secondary leading-relaxed">
+          <p className="text-sm text-text-secondary leading-relaxed break-words">
             {city.why_visit}
           </p>
         )}
@@ -107,14 +107,14 @@ export function CityCard({ city, index, departureLeg }: CityCardProps) {
               {city.highlights.map((highlight) => (
                 <div
                   key={highlight.name}
-                  className="flex items-center justify-between gap-2 rounded-md border border-border-default bg-surface-dim px-3 py-2"
+                  className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1 rounded-md border border-border-default bg-surface-dim px-3 py-2"
                 >
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-text-primary block truncate">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-medium text-text-primary break-words">
                       {highlight.name}
                     </span>
                     {highlight.description && (
-                      <span className="text-xs text-text-muted block truncate">
+                      <span className="text-xs text-text-muted block break-words">
                         {highlight.description}
                       </span>
                     )}
@@ -220,10 +220,10 @@ export function CityCard({ city, index, departureLeg }: CityCardProps) {
                     )}
                   </div>
                   {departureLeg.notes && (
-                    <p className="text-xs text-text-muted mt-1 leading-relaxed">{departureLeg.notes}</p>
+                    <p className="text-xs text-text-muted mt-1 leading-relaxed break-words">{departureLeg.notes}</p>
                   )}
                   {departureLeg.booking_tip && (
-                    <p className="text-xs text-primary-600 dark:text-primary-400 mt-0.5 leading-relaxed">
+                    <p className="text-xs text-primary-600 dark:text-primary-400 mt-0.5 leading-relaxed break-words">
                       Tip: {departureLeg.booking_tip}
                     </p>
                   )}

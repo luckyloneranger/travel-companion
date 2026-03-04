@@ -50,7 +50,7 @@ Discover places → AI plans days (with time constraints) → TSP optimizes rout
 |-----------|-----------|
 | Backend | FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy + aiosqlite |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, Zustand |
-| LLM | Azure OpenAI GPT-4o or Anthropic Claude (switchable via config) |
+| LLM | Azure OpenAI GPT-4o, Anthropic Claude, or Google Gemini (switchable via config) |
 | APIs | Google Places, Routes, Directions, Weather |
 | Auth | OAuth (Google/GitHub) via authlib, JWT httpOnly cookies |
 | Streaming | Server-Sent Events (SSE) for real-time progress |
@@ -103,12 +103,14 @@ apt-get install libpango-1.0-0 libglib2.0-0
 
 | Variable | Description |
 |----------|-------------|
-| `LLM_PROVIDER` | `azure_openai` or `anthropic` |
+| `LLM_PROVIDER` | `azure_openai`, `anthropic`, or `gemini` |
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI resource endpoint |
 | `AZURE_OPENAI_API_KEY` | Azure OpenAI API key |
 | `AZURE_OPENAI_DEPLOYMENT` | Deployment name (e.g., `gpt-4o`) |
 | `ANTHROPIC_API_KEY` | Anthropic API key (if using Claude) |
 | `ANTHROPIC_MODEL` | Anthropic model name |
+| `GEMINI_API_KEY` | Google Gemini API key (if using Gemini) |
+| `GEMINI_MODEL` | Gemini model name (default: `gemini-2.5-flash`) |
 | `GOOGLE_PLACES_API_KEY` | Google Places API key |
 | `GOOGLE_ROUTES_API_KEY` | Google Routes API key |
 | `GOOGLE_WEATHER_API_KEY` | Google Weather API key |
