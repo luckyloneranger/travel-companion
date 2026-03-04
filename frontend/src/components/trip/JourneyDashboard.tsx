@@ -41,7 +41,11 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
 
+  // Use complete cost breakdown when day plans exist, otherwise estimate from journey data
   const estimatedTotal = (() => {
+    if (costBreakdown && costBreakdown.total_usd > 0) {
+      return Math.round(costBreakdown.total_usd);
+    }
     if (!journey) return 0;
     let total = 0;
     for (const city of journey.cities) {
@@ -53,7 +57,6 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
       if (leg.fare_usd) {
         total += leg.fare_usd;
       } else if (leg.fare) {
-        // Parse numeric value from fare string like "$30", "~$45", "€25"
         const match = leg.fare.match(/[\d.]+/);
         if (match) total += parseFloat(match[0]);
       }
@@ -147,7 +150,10 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
               <span className="flex items-center gap-1.5"><Navigation className="h-4 w-4 text-text-muted" />{journey.total_distance_km.toFixed(0)} km</span>
             )}
             {estimatedTotal > 0 && (
-              <span className="flex items-center gap-1.5 font-medium">~${estimatedTotal.toLocaleString()} estimated</span>
+              <span className="flex items-center gap-1.5 font-medium">
+                ~${estimatedTotal.toLocaleString()} estimated
+                {!costBreakdown && <span className="text-xs font-normal text-text-muted">(accom + transport)</span>}
+              </span>
             )}
           </div>
 
