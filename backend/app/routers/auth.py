@@ -50,7 +50,8 @@ async def login(provider: str, request: Request):
     if not client_id:
         raise HTTPException(400, f"{provider} OAuth not configured")
 
-    redirect_uri = f"{settings.app_url}/auth/callback?provider={provider}"
+    # Redirect URI points to our own backend callback endpoint
+    redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
 
     client = AsyncOAuth2Client(
         client_id=client_id,
@@ -80,7 +81,7 @@ async def callback(provider: str, request: Request, response: Response):
 
     client_id = getattr(settings, f"{provider}_oauth_client_id")
     client_secret = getattr(settings, f"{provider}_oauth_client_secret")
-    redirect_uri = f"{settings.app_url}/auth/callback?provider={provider}"
+    redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
 
     client = AsyncOAuth2Client(
         client_id=client_id,
