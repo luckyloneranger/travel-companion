@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     debug: bool = True
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     log_level: str = "INFO"
-    database_url: str = "sqlite+aiosqlite:///./trips.db"
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/travelcompanion"
 
     @property
     def cors_origins_list(self) -> list[str]:
