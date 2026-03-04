@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Travel Companion AI (V2) -- a hybrid AI + deterministic travel planning app. LLMs handle creative decisions (place selection, theming, descriptions); deterministic layers handle calculations (distance, time, validation, scheduling).
+Travel Companion AI (V2) -- a hybrid AI + deterministic travel planning app. LLMs handle creative decisions (place selection, theming, descriptions, cost estimation); deterministic layers handle calculations (distance, time, validation, scheduling).
 
-Unified pipeline: multi-city journey planning with Scout -> Enrich -> Review -> Planner loop (~2-5min), iterating until quality threshold (min 70 score, max 3 iterations). Day plans are generated per-city with discover -> AI plan -> TSP optimize -> schedule -> route computation.
+Unified pipeline: multi-city journey planning with Scout -> Enrich -> Review -> Planner loop (~2-5min), iterating until quality threshold (min 70 score, max 3 iterations, returns best attempt). Day plans are generated per-city with discover -> AI plan -> TSP optimize -> schedule -> route computation.
 
 ## Build & Run Commands
 
@@ -44,22 +44,23 @@ Test files: `backend/tests/test_api.py` (API endpoint tests), `test_tsp.py` (TSP
 ### Code Flow
 `routers/` -> `orchestrators/` -> `agents/` + `services/` + `algorithms/`
 
-- **Routers** (`app/routers/`): FastAPI endpoints -- `trips.py` (journey plan, day plans, chat, CRUD), `places.py` (place search)
+- **Routers** (`app/routers/`): FastAPI endpoints -- `trips.py` (journey plan, day plans, chat, sharing, CRUD), `places.py` (place search), `auth.py` (OAuth login/callback/logout), `export.py` (PDF/calendar export)
 - **Orchestrators** (`app/orchestrators/`): Pipeline coordination
-  - `journey.py` -- JourneyOrchestrator: Scout(LLM) -> Enrich(Google APIs) -> Review(LLM, score>=70?) -> Planner(LLM, fix issues) -> loop
-  - `day_plan.py` -- DayPlanOrchestrator: discover -> AI plan -> TSP optimize -> schedule -> auto-select transport mode -> weather integration per city
+  - `journey.py` -- JourneyOrchestrator: Scout(LLM) -> Enrich(Google APIs) -> Review(LLM, score>=70?) -> Planner(LLM, fix issues) -> loop (tracks best plan across iterations)
+  - `day_plan.py` -- DayPlanOrchestrator: discover -> AI plan (with time constraints for arrival/departure days) -> TSP optimize -> schedule -> auto-select transport mode -> weather integration per city
 - **Agents** (`app/agents/`): LLM-powered components -- `scout.py`, `enricher.py`, `reviewer.py`, `planner.py`, `day_planner.py`
 - **Services** (`app/services/`):
   - `llm/` -- Abstract `LLMService` base, `AzureOpenAILLMService`, `AnthropicLLMService`, `factory.py` for provider switching
   - `google/` -- `GooglePlacesService`, `GoogleRoutesService`, `GoogleDirectionsService` (transit/ferry), `GoogleWeatherService` (daily forecasts)
   - `chat.py` -- ChatService for journey/day-plan editing via natural language
   - `tips.py` -- TipsService for activity tips generation
+  - `export.py` -- PDF (weasyprint) and calendar (.ics) export
 - **Algorithms** (`app/algorithms/`): Deterministic computation -- `tsp.py` (route optimizer), `scheduler.py` (time-slot builder), `quality/` (7-metric evaluator)
 - **Models** (`app/models/`): Pydantic v2 models -- `common.py`, `journey.py`, `day_plan.py`, `trip.py`, `chat.py`, `progress.py`, `quality.py`, `internal.py`
 - **Database** (`app/db/`): SQLAlchemy async + aiosqlite -- `engine.py`, `models.py` (SQLAlchemy models), `repository.py` (TripRepository)
 - **Prompts** (`app/prompts/`): Markdown templates loaded via `PromptLoader` in `loader.py` (14 templates across journey, day_plan, chat, tips categories)
 - **Config** (`app/config/`): Settings (Pydantic BaseSettings), planning configs (`planning.py`), regional transport guidance (`regional_transport.py`)
-- **Core** (`app/core/`): Shared HTTP client (`http.py`), request tracing middleware (`middleware.py`)
+- **Core** (`app/core/`): Shared HTTP client with retry logic (`http.py`), request tracing middleware (`middleware.py`)
 - **Dependencies** (`app/dependencies.py`): FastAPI `Depends()` wiring for all services and orchestrators
 
 ### Key Patterns
@@ -90,13 +91,18 @@ system = journey_prompts.load("scout_system")
 user = day_plan_prompts.load("planning_user")
 ```
 
-**SSE Streaming** -- endpoints yield `data: {json}\n\n` events via `ProgressEvent` model with phases: `scouting`, `enriching`, `reviewing`, `planning`, `complete`, `error`. Frontend consumes via async generator in `api.ts` with AbortController.
+**SSE Streaming** -- endpoints yield `data: {json}\n\n` events via `ProgressEvent` model with phases: `scouting`, `enriching`, `reviewing`, `planning`, `complete`, `error`. Frontend consumes via async generator in `api.ts` with AbortController. Stall timeout (90s) warns users on slow connections.
 
-**Zustand Stores** -- frontend state management via two stores:
-- `tripStore.ts` -- journey plan, day plans, saved trips CRUD
-- `uiStore.ts` -- phase management (input -> planning -> preview -> day-plans), progress tracking, map/chat toggles
+**Zustand Stores** -- frontend state management via three stores:
+- `tripStore.ts` -- journey plan, day plans, saved trips CRUD, cost breakdown
+- `uiStore.ts` -- phase management (input -> planning -> preview -> day-plans), progress tracking, map/chat toggles, browser history integration
+- `authStore.ts` -- user authentication state, periodic token refresh
 
 **Request Tracing** -- `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs. `RequestLoggingFilter` injects `request_id` into log records.
+
+**Authentication** -- OAuth (Google/GitHub) via authlib, JWT tokens stored as httpOnly cookies, 401 auto-logout on frontend.
+
+**Design Principles** -- Prefer LLM prompt updates and Google API grounding over hardcoded heuristics. Cost estimates, geographic diversity, destination validity, and activity planning are all LLM-driven via prompt guidance rather than deterministic rules.
 
 ## Code Style
 
@@ -116,8 +122,7 @@ user = day_plan_prompts.load("planning_user")
 
 ## API Endpoints
 
-All trip-related endpoints are under `/api/trips`:
-
+### Trips (`/api/trips`)
 - `POST /api/trips/plan/stream` -- stream journey planning (SSE)
 - `POST /api/trips/{trip_id}/days/stream` -- stream day plan generation (SSE)
 - `POST /api/trips/{trip_id}/chat` -- edit journey or day plans via chat
@@ -125,13 +130,28 @@ All trip-related endpoints are under `/api/trips`:
 - `GET /api/trips` -- list saved trips
 - `GET /api/trips/{trip_id}` -- get full trip details
 - `DELETE /api/trips/{trip_id}` -- delete a trip
+- `POST /api/trips/{trip_id}/share` -- create shareable link
+- `DELETE /api/trips/{trip_id}/share` -- revoke sharing
+- `GET /api/trips/{trip_id}/export/pdf` -- download PDF
+- `GET /api/trips/{trip_id}/export/calendar` -- download .ics
+
+### Auth (`/api/auth`)
+- `GET /api/auth/login/{provider}` -- initiate OAuth (google/github)
+- `GET /api/auth/callback/{provider}` -- OAuth callback
+- `POST /api/auth/logout` -- logout (clear cookie)
+- `GET /api/auth/me` -- get current user
+
+### Other
 - `GET /api/places/search` -- search places (Google Places)
+- `GET /api/shared/{token}` -- get shared trip (no auth)
 - `GET /health` -- health check (status, version, LLM provider)
 
 ## Environment Variables
 
-**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
+**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
 
-**Frontend** (`frontend/.env.local`): `VITE_API_BASE_URL` (defaults to `http://localhost:8000`), `VITE_GOOGLE_MAPS_API_KEY`
+**Frontend** (`frontend/.env.local`): `VITE_GOOGLE_MAPS_API_KEY`
 
 See `backend/.env.example` and `frontend/.env.example` for templates.
+
+Note: `VITE_API_BASE_URL` should NOT be set in development — the Vite dev server proxies `/api` to `:8000` automatically, which is required for httpOnly cookie same-origin to work with OAuth.

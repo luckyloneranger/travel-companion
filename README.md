@@ -8,20 +8,20 @@ AI-powered multi-city travel planner. Uses LLMs for creative planning decisions 
 
 | Layer | Responsibility | Tools |
 |-------|---------------|-------|
-| **AI (LLM)** | City selection, place curation, day theming, descriptions | Azure OpenAI / Anthropic |
+| **AI (LLM)** | City selection, place curation, day theming, cost estimation, descriptions | Azure OpenAI / Anthropic |
 | **Deterministic** | Route optimization, scheduling, time calculations, validation | TSP solver, Google APIs |
 
 **Journey planning pipeline:**
 
 ```
-Scout (LLM picks cities) → Enrich (Google APIs ground with real data)
-  → Review (LLM scores quality ≥70) → Planner (LLM fixes issues) → loop
+Scout (LLM picks cities + estimates costs) → Enrich (Google APIs ground with real data)
+  → Review (LLM scores quality ≥70) → Planner (LLM fixes issues) → loop (best attempt returned)
 ```
 
 **Day plan pipeline (per city):**
 
 ```
-Discover places → AI plans days → TSP optimizes routes
+Discover places → AI plans days (with time constraints) → TSP optimizes routes
   → Schedule builder assigns time slots → Auto-select best transport mode
   → Attach weather forecasts → Add weather warnings for outdoor activities
 ```
@@ -30,13 +30,18 @@ Discover places → AI plans days → TSP optimizes routes
 
 - **Multi-city journey planning** with quality-scored iterative refinement
 - **Per-day itineraries** with themed days, meal timing, and pace control
-- **Smart transport selection** — walks short distances, drives or takes transit for longer legs (based on real Google travel times, not hardcoded thresholds)
+- **Smart transport selection** — walks short distances, drives or takes transit for longer legs (based on real Google travel times)
 - **Weather integration** — daily forecasts on day plans, warnings for outdoor activities in bad weather
+- **Budget tracking** — LLM-estimated costs per activity, daily aggregation, accommodation and transport costs from journey plan
 - **Interactive maps** — journey-level city map + per-day activity maps with route polylines
-- **Chat editing** — modify journeys and day plans via natural language
+- **Chat editing** — modify journeys and day plans via natural language (asks clarifying questions for vague requests)
+- **User accounts** — OAuth login via Google or GitHub, trip ownership
+- **Trip sharing** — shareable links for read-only access
+- **Export** — PDF itinerary and .ics calendar export
 - **Activity tips** — LLM-generated insider tips for each place
 - **Dark mode** — full component coverage with system preference detection
-- **Copy itinerary** — one-click clipboard export
+- **Session persistence** — refreshing the page restores your current trip and phase
+- **Browser navigation** — back/forward buttons navigate between app phases
 - **Quality filtering** — filters out closed/low-rated places, prefers current opening hours over regular
 
 ## Tech Stack
@@ -47,7 +52,9 @@ Discover places → AI plans days → TSP optimizes routes
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, Zustand |
 | LLM | Azure OpenAI GPT-4o or Anthropic Claude (switchable via config) |
 | APIs | Google Places, Routes, Directions, Weather |
+| Auth | OAuth (Google/GitHub) via authlib, JWT httpOnly cookies |
 | Streaming | Server-Sent Events (SSE) for real-time progress |
+| Export | weasyprint (PDF), icalendar (.ics) |
 
 ## Quick Start
 
@@ -66,9 +73,11 @@ uvicorn app.main:app --reload --port 8000
 ```bash
 cd frontend
 npm install
-cp .env.example .env.local    # Edit with your API keys
+cp .env.example .env.local    # Edit with your Google Maps API key
 npm run dev                    # Opens at http://localhost:5173
 ```
+
+> **Note:** Do not set `VITE_API_BASE_URL` in development. The Vite dev server proxies `/api` to `:8000`, which is required for OAuth cookies to work.
 
 ### Prerequisites
 
@@ -76,6 +85,17 @@ npm run dev                    # Opens at http://localhost:5173
 - Node.js 18+
 - Google Cloud account (Places, Routes, Directions, and Weather APIs enabled)
 - Azure OpenAI or Anthropic API access
+- OAuth credentials (Google and/or GitHub) for user accounts
+
+### System Dependencies (PDF export)
+
+```bash
+# macOS
+brew install pango glib
+
+# Ubuntu/Debian
+apt-get install libpango-1.0-0 libglib2.0-0
+```
 
 ## Configuration
 
@@ -92,20 +112,24 @@ npm run dev                    # Opens at http://localhost:5173
 | `GOOGLE_PLACES_API_KEY` | Google Places API key |
 | `GOOGLE_ROUTES_API_KEY` | Google Routes API key |
 | `GOOGLE_WEATHER_API_KEY` | Google Weather API key |
+| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth 2.0 client ID |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth 2.0 client secret |
+| `GITHUB_OAUTH_CLIENT_ID` | GitHub OAuth app client ID |
+| `GITHUB_OAUTH_CLIENT_SECRET` | GitHub OAuth app client secret |
+| `JWT_SECRET_KEY` | Secret key for JWT token signing |
 | `CORS_ORIGINS` | Allowed origins (default: `http://localhost:5173`) |
 
 ### Frontend (`frontend/.env.local`)
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_API_BASE_URL` | Backend URL (default: `http://localhost:8000`) |
 | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JavaScript API key |
 
 See `backend/.env.example` and `frontend/.env.example` for templates.
 
 ## API Endpoints
 
-All trip endpoints are under `/api/trips`:
+### Trips (`/api/trips`)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -116,8 +140,27 @@ All trip endpoints are under `/api/trips`:
 | GET | `/api/trips` | List saved trips |
 | GET | `/api/trips/{id}` | Get full trip details |
 | DELETE | `/api/trips/{id}` | Delete a trip |
-| GET | `/api/places/search` | Search places |
-| GET | `/health` | Health check (status, version, LLM provider) |
+| POST | `/api/trips/{id}/share` | Create shareable link |
+| DELETE | `/api/trips/{id}/share` | Revoke sharing |
+| GET | `/api/trips/{id}/export/pdf` | Download PDF itinerary |
+| GET | `/api/trips/{id}/export/calendar` | Download .ics calendar |
+
+### Auth (`/api/auth`)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/auth/login/{provider}` | Initiate OAuth (google/github) |
+| GET | `/api/auth/callback/{provider}` | OAuth callback |
+| POST | `/api/auth/logout` | Logout (clear cookie) |
+| GET | `/api/auth/me` | Get current user |
+
+### Other
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/places/search` | Search places (Google Places) |
+| GET | `/api/shared/{token}` | Get shared trip (no auth required) |
+| GET | `/health` | Health check (status, version, provider) |
 
 ### Example Request
 
@@ -129,6 +172,8 @@ All trip endpoints are under `/api/trips`:
   "start_date": "2026-07-01",
   "interests": ["food", "culture", "nature"],
   "pace": "moderate",
+  "budget": "moderate",
+  "budget_usd": 3000,
   "must_include": ["Mount Fuji", "Fushimi Inari"],
   "avoid": ["crowded malls"]
 }
@@ -142,30 +187,32 @@ travel-companion/
 │   ├── main.py                     # FastAPI application
 │   ├── dependencies.py             # Depends() wiring for all services
 │   ├── config/                     # Settings, planning configs, regional transport
-│   ├── core/                       # HTTP client, request tracing middleware
+│   ├── core/                       # HTTP client (with retry), request tracing middleware
 │   ├── db/                         # SQLAlchemy models, engine, repository
 │   ├── models/                     # Pydantic v2 models (common, journey, day_plan, trip, chat)
-│   ├── routers/                    # trips.py (all trip endpoints), places.py
+│   ├── routers/                    # trips.py, places.py, auth.py, export.py
 │   ├── orchestrators/              # journey.py, day_plan.py (pipeline coordination)
 │   ├── agents/                     # scout, enricher, reviewer, planner, day_planner
 │   ├── services/
 │   │   ├── llm/                    # Abstract base + Azure OpenAI / Anthropic
 │   │   ├── google/                 # Places, Routes, Directions, Weather
 │   │   ├── chat.py                 # Chat-based plan editing
-│   │   └── tips.py                 # Activity tips generation
+│   │   ├── tips.py                 # Activity tips generation
+│   │   └── export.py               # PDF and calendar export
 │   ├── algorithms/                 # TSP solver, scheduler, quality scoring (7 evaluators)
 │   └── prompts/                    # Markdown templates (journey, day_plan, chat, tips)
-├── backend/tests/                  # 135 tests (API, agents, algorithms, services, weather)
+├── backend/tests/                  # 163 tests (API, agents, algorithms, services, weather)
 ├── frontend/src/
-│   ├── App.tsx                     # Main app with phase-based routing
+│   ├── App.tsx                     # Main app with phase-based routing + browser history
 │   ├── components/
-│   │   ├── trip/                   # InputForm, JourneyPreview, CityCard, DayCard, etc.
+│   │   ├── trip/                   # InputForm, JourneyPreview, CityCard, DayCard, BudgetSummary, ChatPanel, etc.
 │   │   ├── maps/                   # TripMap, DayMap (Google Maps)
 │   │   ├── layout/                 # Header, PageContainer
 │   │   └── ui/                     # shadcn/ui primitives
-│   ├── stores/                     # Zustand (tripStore, uiStore)
+│   ├── stores/                     # Zustand (tripStore, uiStore, authStore)
 │   ├── hooks/                      # useStreamingPlan, useStreamingDayPlans
-│   ├── services/api.ts             # API client with SSE streaming
+│   ├── pages/                      # SharedTrip (public shared trip view)
+│   ├── services/api.ts             # API client with SSE streaming + 401 handling
 │   └── types/                      # TypeScript interfaces
 └── CLAUDE.md                       # Claude Code project context
 ```
@@ -173,7 +220,7 @@ travel-companion/
 ## Testing
 
 ```bash
-# Run all backend tests (135 tests)
+# Run all backend tests (163 tests)
 cd backend && source venv/bin/activate
 pytest -v
 
