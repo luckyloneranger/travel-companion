@@ -44,22 +44,51 @@ export const useTripStore = create<TripState>((set, get) => ({
       set({ dayPlans: plans, costBreakdown: null });
       return;
     }
-    // Compute cost breakdown from plans
-    let total = 0, dining = 0, activities = 0;
+    const { journey } = get();
+
+    // Activity costs from day plans
+    let dining = 0, activitiesCost = 0;
     for (const dp of plans) {
       for (const a of dp.activities) {
         if (a.estimated_cost_usd) {
-          total += a.estimated_cost_usd;
           const cat = (a.place.category || '').toLowerCase();
           if (cat.includes('restaurant') || cat.includes('cafe') || cat.includes('bakery') || cat.includes('food') || cat.includes('bistro')) {
             dining += a.estimated_cost_usd;
           } else {
-            activities += a.estimated_cost_usd;
+            activitiesCost += a.estimated_cost_usd;
           }
         }
       }
     }
-    const breakdown = total > 0 ? { accommodation_usd: 0, transport_usd: 0, activities_usd: activities, dining_usd: dining, total_usd: total } : null;
+
+    // Accommodation costs from journey
+    let accommodation = 0;
+    if (journey) {
+      for (const city of journey.cities) {
+        if (city.accommodation?.estimated_nightly_usd) {
+          accommodation += city.accommodation.estimated_nightly_usd * city.days;
+        }
+      }
+    }
+
+    // Transport costs from journey
+    let transport = 0;
+    if (journey) {
+      for (const leg of journey.travel_legs) {
+        if (leg.fare_usd) {
+          transport += leg.fare_usd;
+        }
+      }
+    }
+
+    const total = dining + activitiesCost + accommodation + transport;
+    const breakdown: CostBreakdown | null = total > 0 ? {
+      accommodation_usd: Math.round(accommodation * 100) / 100,
+      transport_usd: Math.round(transport * 100) / 100,
+      activities_usd: Math.round(activitiesCost * 100) / 100,
+      dining_usd: Math.round(dining * 100) / 100,
+      total_usd: Math.round(total * 100) / 100,
+    } : null;
     set({ dayPlans: plans, costBreakdown: breakdown });
   },
   updateJourney: (journey) => set({ journey }),
