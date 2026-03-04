@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import {
   Clock, Star, MapPin, Navigation, ExternalLink, DollarSign,
-  CloudRain, Lightbulb, ChevronDown,
+  CloudRain, Lightbulb,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { DayPlan, Activity } from '@/types';
@@ -29,10 +28,7 @@ function formatDuration(seconds: number): string {
 }
 
 function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?: string; isLast: boolean }) {
-  const [expanded, setExpanded] = useState(false);
-  const isHotel = activity.duration_minutes === 0;
-
-  if (isHotel) return null;
+  if (activity.duration_minutes === 0) return null;
 
   return (
     <div className="flex gap-3">
@@ -46,19 +42,18 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
 
       {/* Content */}
       <div className="flex-1 pb-4 min-w-0">
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="w-full text-left rounded-lg border border-border-default bg-surface p-3 hover:border-primary-200 dark:hover:border-primary-800 transition-colors"
-        >
-          {/* Main row */}
+        <div className="rounded-lg border border-border-default bg-surface p-3 space-y-2">
+          {/* Name + meta */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <h4 className="text-sm font-semibold text-text-primary break-words">
                 {activity.place.name}
               </h4>
               <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-text-muted">
-                <span>{activity.duration_minutes} min</span>
+                <span className="flex items-center gap-0.5">
+                  <Clock className="h-3 w-3" />
+                  {activity.time_start} – {activity.time_end} · {activity.duration_minutes} min
+                </span>
                 <Badge variant="outline" className="text-xs capitalize">{activity.place.category}</Badge>
                 {activity.estimated_cost_usd != null && activity.estimated_cost_usd > 0 && (
                   <span className="flex items-center gap-0.5">
@@ -72,62 +67,58 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
                 )}
               </div>
             </div>
-            <ChevronDown className={`h-4 w-4 text-text-muted shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
-          </div>
-
-          {/* Weather warning — always visible */}
-          {activity.weather_warning && (
-            <div className="mt-2 flex items-start gap-1.5 rounded-md bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 px-2.5 py-1.5">
-              <CloudRain className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-orange-800 dark:text-orange-300 break-words">{activity.weather_warning}</p>
-            </div>
-          )}
-
-          {/* Tip — auto-visible */}
-          {tip && (
-            <div className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2.5 py-1.5">
-              <Lightbulb className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-800 dark:text-amber-300 break-words">{tip}</p>
-            </div>
-          )}
-        </button>
-
-        {/* Expanded details */}
-        {expanded && (
-          <div className="mt-2 rounded-lg border border-border-default bg-surface-dim p-3 space-y-2 text-xs animate-fade-in-up">
-            {activity.place.address && (
-              <p className="flex items-center gap-1.5 text-text-muted">
-                <MapPin className="h-3 w-3 shrink-0" />
-                <span className="break-words">{activity.place.address}</span>
-              </p>
-            )}
-            <p className="text-text-muted">
-              <Clock className="h-3 w-3 inline mr-1" />
-              {activity.time_start} – {activity.time_end}
-            </p>
-            {activity.notes && (
-              <p className="text-text-secondary break-words">{activity.notes}</p>
-            )}
             {activity.place.website && (
               <a
                 href={activity.place.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                className="text-text-muted hover:text-primary-600 transition-colors shrink-0"
+                aria-label={`Visit ${activity.place.name} website`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <ExternalLink className="h-3 w-3" /> Website
+                <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}
-            {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
-              <div className="flex gap-1.5 overflow-x-auto pt-1">
-                {activity.place.photo_urls.map((url, i) => (
-                  <img key={i} src={url} alt={`${activity.place.name} photo ${i + 1}`} loading="lazy" className="h-16 w-20 rounded-md object-cover shrink-0" />
-                ))}
-              </div>
-            )}
           </div>
-        )}
+
+          {/* Address */}
+          {activity.place.address && (
+            <p className="flex items-center gap-1.5 text-xs text-text-muted">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="break-words">{activity.place.address}</span>
+            </p>
+          )}
+
+          {/* Notes */}
+          {activity.notes && (
+            <p className="text-xs text-text-secondary break-words">{activity.notes}</p>
+          )}
+
+          {/* Photos */}
+          {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto">
+              {activity.place.photo_urls.map((url, i) => (
+                <img key={i} src={url} alt={`${activity.place.name} photo ${i + 1}`} loading="lazy" className="h-16 w-20 rounded-md object-cover shrink-0" />
+              ))}
+            </div>
+          )}
+
+          {/* Weather warning */}
+          {activity.weather_warning && (
+            <div className="flex items-start gap-1.5 rounded-md bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 px-2.5 py-1.5">
+              <CloudRain className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-orange-800 dark:text-orange-300 break-words">{activity.weather_warning}</p>
+            </div>
+          )}
+
+          {/* Tip */}
+          {tip && (
+            <div className="flex items-start gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2.5 py-1.5">
+              <Lightbulb className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-800 dark:text-amber-300 break-words">{tip}</p>
+            </div>
+          )}
+        </div>
 
         {/* Transport to next */}
         {activity.route_to_next && (
