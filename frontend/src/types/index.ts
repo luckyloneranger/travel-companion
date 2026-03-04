@@ -125,6 +125,9 @@ export interface Activity {
   notes: string;
   route_to_next: Route | null;
   weather_warning: string | null;
+  estimated_cost_local: string | null;
+  estimated_cost_usd: number | null;
+  price_tier: string | null;
 }
 
 export interface Weather {
@@ -144,6 +147,7 @@ export interface DayPlan {
   activities: Activity[];
   city_name: string;
   weather: Weather | null;
+  daily_cost_usd: number | null;
 }
 
 // ── trip.py ────────────────────────────────────────────────
@@ -158,6 +162,9 @@ export interface TripRequest {
   travel_mode?: TravelMode;
   must_include: string[];
   avoid: string[];
+  budget?: Budget;
+  budget_usd?: number | null;
+  home_currency?: string;
 }
 
 export interface TripSummary {
@@ -170,12 +177,21 @@ export interface TripSummary {
   has_day_plans: boolean;
 }
 
+export interface CostBreakdown {
+  activities_usd: number;
+  dining_usd: number;
+  total_usd: number;
+  budget_usd?: number;
+  budget_remaining_usd?: number;
+}
+
 export interface TripResponse {
   id: string;
   request: TripRequest;
   journey: JourneyPlan;
   day_plans: DayPlan[] | null;
   quality_score: number | null;
+  cost_breakdown: CostBreakdown | null;
   created_at: string; // ISO datetime string
   updated_at: string; // ISO datetime string
 }
