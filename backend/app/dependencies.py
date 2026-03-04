@@ -102,8 +102,20 @@ async def get_trip_repository(session=Depends(get_db_session)):
 
 
 async def get_current_user(request: Request) -> dict | None:
-    """Extract current user from JWT cookie. Returns None if not authenticated."""
+    """Extract current user from Bearer header or JWT cookie.
+
+    Checks Authorization header first (for cross-origin / mobile clients),
+    then falls back to httpOnly cookie (for same-origin web).
+    """
     from app.core.auth import decode_access_token
+
+    # Check Bearer header first (mobile / cross-origin)
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        return decode_access_token(token)
+
+    # Fall back to cookie (web / same-origin)
     token = request.cookies.get("access_token")
     if not token:
         return None

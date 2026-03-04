@@ -1,9 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.core.http import get_http_client, close_http_client
@@ -76,6 +78,11 @@ def create_app() -> FastAPI:
             "version": "2.0.0",
             "llm_provider": settings.llm_provider,
         }
+
+    # Serve built frontend in production (single-container deployment)
+    static_dir = Path(__file__).resolve().parent.parent / "static"
+    if (static_dir / "index.html").exists():
+        application.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
 
     return application
 

@@ -14,6 +14,12 @@ export interface TipsResponse {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
+/** Return Bearer header if a token is stored (cross-origin / mobile). */
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('tc_auth_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 /**
  * Parse and yield Server-Sent Events from a streaming POST endpoint.
  */
@@ -24,7 +30,7 @@ async function* streamSSE(
 ): AsyncGenerator<ProgressEvent> {
   const response = await fetch(`${API_BASE}${url}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify(body),
     signal,
     credentials: 'include',
@@ -83,7 +89,7 @@ export const api = {
   ): Promise<ChatEditResponse> => {
     const res = await fetch(`${API_BASE}/api/trips/${tripId}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ message, context }),
       credentials: 'include',
     });
@@ -99,7 +105,10 @@ export const api = {
   // ── CRUD ───────────────────────────────────────────────
 
   listTrips: async (): Promise<TripSummary[]> => {
-    const res = await fetch(`${API_BASE}/api/trips`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/api/trips`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
     if (res.status === 401) {
       const { useAuthStore } = await import('@/stores/authStore');
       useAuthStore.getState().logout();
@@ -110,7 +119,10 @@ export const api = {
   },
 
   getTrip: async (id: string): Promise<TripResponse> => {
-    const res = await fetch(`${API_BASE}/api/trips/${id}`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/api/trips/${id}`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TripResponse>;
   },
@@ -118,6 +130,7 @@ export const api = {
   deleteTrip: async (id: string): Promise<void> => {
     const res = await fetch(`${API_BASE}/api/trips/${id}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
       credentials: 'include',
     });
     if (res.status === 401) {
@@ -138,7 +151,10 @@ export const api = {
     const params = new URLSearchParams({ query });
     if (lat !== undefined) params.set('lat', String(lat));
     if (lng !== undefined) params.set('lng', String(lng));
-    const res = await fetch(`${API_BASE}/api/places/search?${params}`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/api/places/search?${params}`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<Place[]>;
   },
@@ -151,7 +167,7 @@ export const api = {
   ): Promise<TipsResponse> => {
     const res = await fetch(`${API_BASE}/api/trips/${tripId}/tips`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(activities),
       credentials: 'include',
     });
@@ -162,7 +178,10 @@ export const api = {
   // ── Auth ─────────────────────────────────────────────────
 
   getMe: async (): Promise<{ user: User | null }> => {
-    const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/api/auth/me`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
     if (!res.ok) return { user: null };
     return res.json() as Promise<{ user: User | null }>;
   },
@@ -170,6 +189,7 @@ export const api = {
   logout: async (): Promise<void> => {
     await fetch(`${API_BASE}/api/auth/logout`, {
       method: 'POST',
+      headers: getAuthHeaders(),
       credentials: 'include',
     });
   },
@@ -179,6 +199,7 @@ export const api = {
   shareTrip: async (tripId: string): Promise<{ token: string; url: string }> => {
     const res = await fetch(`${API_BASE}/api/trips/${tripId}/share`, {
       method: 'POST',
+      headers: getAuthHeaders(),
       credentials: 'include',
     });
     if (res.status === 401) {
@@ -200,6 +221,7 @@ export const api = {
 
   exportPdf: async (tripId: string): Promise<void> => {
     const res = await fetch(`${API_BASE}/api/trips/${tripId}/export/pdf`, {
+      headers: getAuthHeaders(),
       credentials: 'include',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -214,6 +236,7 @@ export const api = {
 
   exportCalendar: async (tripId: string): Promise<void> => {
     const res = await fetch(`${API_BASE}/api/trips/${tripId}/export/calendar`, {
+      headers: getAuthHeaders(),
       credentials: 'include',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

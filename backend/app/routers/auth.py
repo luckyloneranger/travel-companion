@@ -175,19 +175,22 @@ async def callback(provider: str, request: Request, response: Response):
             "name": user.name,
         })
 
-        # Redirect to frontend with JWT cookie
+        # Redirect to frontend with JWT cookie + token in URL for cross-origin
+        separator = "&" if "?" in settings.app_url else "?"
+        redirect_url = f"{settings.app_url}{separator}token={jwt_token}"
         redirect_response = Response(
             status_code=307,
-            headers={"Location": settings.app_url},
+            headers={"Location": redirect_url},
         )
-        redirect_response.set_cookie(
-            "access_token",
-            jwt_token,
-            httponly=True,
-            max_age=settings.jwt_expire_minutes * 60,
-            samesite="lax",
-            secure=not settings.is_development,
-        )
+        cookie_kwargs: dict[str, object] = {
+            "httponly": True,
+            "max_age": settings.jwt_expire_minutes * 60,
+            "samesite": "lax",
+            "secure": not settings.is_development,
+        }
+        if settings.cookie_domain:
+            cookie_kwargs["domain"] = settings.cookie_domain
+        redirect_response.set_cookie("access_token", jwt_token, **cookie_kwargs)
         redirect_response.delete_cookie("oauth_state")
         return redirect_response
 
@@ -195,7 +198,11 @@ async def callback(provider: str, request: Request, response: Response):
 @router.post("/logout")
 async def logout(response: Response):
     """Clear the JWT cookie."""
-    response.delete_cookie("access_token")
+    settings = get_settings()
+    if settings.cookie_domain:
+        response.delete_cookie("access_token", domain=settings.cookie_domain)
+    else:
+        response.delete_cookie("access_token")
     return {"status": "logged_out"}
 
 
