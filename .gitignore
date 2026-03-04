@@ -72,7 +72,13 @@ Thumbs.db
 
 # Screenshots
 screenshots/
-mobile-full-page.png
+*.png
+
+# Playwright MCP
+.playwright-mcp/
 
 # SQLite databases
 *.db
+
+# Debug logs
+*-debug.log
