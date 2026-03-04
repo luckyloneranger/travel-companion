@@ -3,12 +3,14 @@ import {
   MapPin, Calendar, Navigation, ArrowRight, Sparkles,
   MessageSquare, PlusCircle, Copy, Check, Share2,
   FileDown, CalendarPlus, ChevronDown, Car, Train, Bus, Plane, Ship,
+  Loader2, RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CompactCityCard } from '@/components/trip/CompactCityCard';
+import { BudgetSummary } from '@/components/trip/BudgetSummary';
 import { TripMap } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -16,6 +18,7 @@ import { api } from '@/services/api';
 
 interface JourneyDashboardProps {
   onGenerateDayPlans: () => void;
+  onCancelDayPlans: () => void;
   onOpenChat: () => void;
   onNewTrip: () => void;
 }
@@ -31,8 +34,9 @@ function formatDuration(hours: number): string {
   return m > 0 ? `${h}h${m}m` : `${h}h`;
 }
 
-export function JourneyDashboard({ onGenerateDayPlans, onOpenChat, onNewTrip }: JourneyDashboardProps) {
-  const { journey, tripId } = useTripStore();
+export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenChat, onNewTrip }: JourneyDashboardProps) {
+  const { journey, tripId, dayPlans, costBreakdown, tips } = useTripStore();
+  const dayPlansGenerating = useUIStore((s) => s.dayPlansGenerating);
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
@@ -174,14 +178,36 @@ export function JourneyDashboard({ onGenerateDayPlans, onOpenChat, onNewTrip }: 
 
           <Separator />
 
-          {/* Primary CTA */}
-          <Button
-            onClick={onGenerateDayPlans}
-            className="w-full h-12 bg-primary-600 hover:bg-primary-700 text-white text-base font-semibold"
-          >
-            <Calendar className="h-5 w-5" />
-            Generate Day-by-Day Itinerary
-          </Button>
+          {/* Day plans action button */}
+          {dayPlansGenerating ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCancelDayPlans}
+              className="border-primary-300 text-primary-600"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Generating Day Plans...
+            </Button>
+          ) : dayPlans && dayPlans.length > 0 ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onGenerateDayPlans}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Regenerate Day Plans
+            </Button>
+          ) : (
+            <Button
+              onClick={onGenerateDayPlans}
+              size="sm"
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
+              <Calendar className="h-4 w-4" />
+              Generate Day Plans
+            </Button>
+          )}
 
           {/* Secondary actions */}
           <div className="flex flex-wrap gap-2">
@@ -243,16 +269,26 @@ export function JourneyDashboard({ onGenerateDayPlans, onOpenChat, onNewTrip }: 
       <div className="space-y-3">
         {journey.cities.map((city, i) => {
           const departureLeg = journey.travel_legs.find(l => l.from_city === city.name);
+          const cityDayPlans = dayPlans?.filter(
+            (dp) => dp.city_name.toLowerCase() === city.name.toLowerCase(),
+          );
           return (
             <CompactCityCard
               key={`city-${i}`}
               city={city}
               index={i}
               departureLeg={departureLeg}
+              dayPlans={cityDayPlans}
+              tips={tips}
             />
           );
         })}
       </div>
+
+      {/* Budget summary (after day plans exist) */}
+      {costBreakdown && dayPlans && dayPlans.length > 0 && (
+        <BudgetSummary costBreakdown={costBreakdown} totalDays={dayPlans.length} />
+      )}
     </div>
   );
 }

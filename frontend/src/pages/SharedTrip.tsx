@@ -3,8 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { CompactCityCard } from '@/components/trip/CompactCityCard';
-import { DayNav } from '@/components/trip/DayNav';
-import { DayTimeline } from '@/components/trip/DayTimeline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sparkles, MapPin, Calendar, Navigation, Loader2, Rocket } from 'lucide-react';
@@ -16,7 +14,6 @@ export function SharedTrip() {
   const [trip, setTrip] = useState<TripResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeDay, setActiveDay] = useState(1);
 
   useEffect(() => {
     if (!token) return;
@@ -57,7 +54,6 @@ export function SharedTrip() {
   }
 
   const j = trip.journey;
-  const activePlan = trip.day_plans?.find((dp) => dp.day_number === activeDay);
 
   return (
     <>
@@ -98,22 +94,24 @@ export function SharedTrip() {
             </div>
           </div>
 
-          {/* Cities */}
+          {/* Cities with inline day plans */}
           <div className="space-y-3">
             {j.cities.map((city, i) => {
               const departureLeg = j.travel_legs.find((leg) => leg.from_city === city.name);
-              return <CompactCityCard key={`city-${i}`} city={city} index={i} departureLeg={departureLeg} />;
+              const cityDayPlans = trip.day_plans?.filter(
+                (dp) => dp.city_name.toLowerCase() === city.name.toLowerCase(),
+              );
+              return (
+                <CompactCityCard
+                  key={`city-${i}`}
+                  city={city}
+                  index={i}
+                  departureLeg={departureLeg}
+                  dayPlans={cityDayPlans}
+                />
+              );
             })}
           </div>
-
-          {/* Day plans */}
-          {trip.day_plans && trip.day_plans.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-display font-bold text-text-primary">Day Plans</h2>
-              <DayNav dayPlans={trip.day_plans} activeDay={activeDay} onDayClick={setActiveDay} />
-              {activePlan && <DayTimeline dayPlan={activePlan} tips={{}} />}
-            </div>
-          )}
 
           {/* CTA */}
           <div className="text-center pt-4 border-t border-border-default">

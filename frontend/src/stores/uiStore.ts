@@ -34,6 +34,10 @@ interface UIState {
   wizardStep: number;
   setWizardStep: (step: number) => void;
 
+  // Day plans background generation
+  dayPlansGenerating: boolean;
+  setDayPlansGenerating: (generating: boolean) => void;
+
   // Reset
   resetUI: () => void;
 }
@@ -80,6 +84,9 @@ export const useUIStore = create<UIState>((set) => ({
   wizardStep: 1,
   setWizardStep: (step) => set({ wizardStep: step }),
 
+  dayPlansGenerating: false,
+  setDayPlansGenerating: (generating) => set({ dayPlansGenerating: generating }),
+
   resetUI: () => {
     set({
       phase: 'input',
@@ -90,6 +97,7 @@ export const useUIStore = create<UIState>((set) => ({
       dayMapVisible: {},
       isChatOpen: false,
       wizardStep: 1,
+      dayPlansGenerating: false,
     });
     sessionStorage.removeItem('tc_phase');
     sessionStorage.removeItem('tc_tripId');

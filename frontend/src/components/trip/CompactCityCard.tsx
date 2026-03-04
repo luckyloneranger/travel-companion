@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { MapPin, Star, Sparkles, ChevronDown, Clock, Navigation, ArrowRight, Car, Train, Bus, Plane, Ship } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import type { CityStop, TravelLeg } from '@/types';
+import { DayTimeline } from '@/components/trip/DayTimeline';
+import type { CityStop, TravelLeg, DayPlan } from '@/types';
 
 interface CompactCityCardProps {
   city: CityStop;
   index: number;
   departureLeg?: TravelLeg;
+  dayPlans?: DayPlan[];
+  tips?: Record<string, string>;
   defaultExpanded?: boolean;
 }
 
@@ -22,7 +25,7 @@ function formatDuration(hours: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-export function CompactCityCard({ city, index, departureLeg, defaultExpanded = false }: CompactCityCardProps) {
+export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false }: CompactCityCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const estimatedCost = city.accommodation?.estimated_nightly_usd
     ? city.accommodation.estimated_nightly_usd * city.days
@@ -173,6 +176,27 @@ export function CompactCityCard({ city, index, departureLeg, defaultExpanded = f
                 </div>
               );
             })()}
+
+            {/* Inline day plans for this city */}
+            {dayPlans && dayPlans.length > 0 && (
+              <div className="space-y-4 pt-2 border-t border-border-default">
+                <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">Day-by-Day Itinerary</h4>
+                {dayPlans.map((dp) => (
+                  <div key={dp.day_number} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white shrink-0">
+                        {dp.day_number}
+                      </span>
+                      <span className="text-sm font-medium text-text-primary">{dp.theme}</span>
+                      {dp.daily_cost_usd != null && dp.daily_cost_usd > 0 && (
+                        <span className="text-xs text-text-muted ml-auto">~${dp.daily_cost_usd.toFixed(0)}</span>
+                      )}
+                    </div>
+                    <DayTimeline dayPlan={dp} tips={tips} />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>

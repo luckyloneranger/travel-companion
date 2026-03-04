@@ -6,7 +6,6 @@ import { ChatPanel } from '@/components/trip/ChatPanel';
 import { WizardForm } from '@/components/trip/WizardForm';
 import { PlanningDashboard } from '@/components/trip/PlanningDashboard';
 import { JourneyDashboard } from '@/components/trip/JourneyDashboard';
-import { DayPlansView } from '@/components/trip/DayPlansView';
 import { SharedTrip } from '@/pages/SharedTrip';
 import { useStreamingPlan } from '@/hooks/useStreamingPlan';
 import { useStreamingDayPlans } from '@/hooks/useStreamingDayPlans';
@@ -17,7 +16,7 @@ import { AlertCircle } from 'lucide-react';
 
 function App() {
   const { phase, isLoading, error, setError, resetUI } = useUIStore();
-  const { journey, dayPlans, reset: resetTrip } = useTripStore();
+  const { journey, reset: resetTrip } = useTripStore();
   const { fetchUser } = useAuthStore();
   const { startPlanning, cancelPlanning } = useStreamingPlan();
   const { startGenerating, cancelGenerating } = useStreamingDayPlans();
@@ -28,7 +27,8 @@ function App() {
     const savedPhase = sessionStorage.getItem('tc_phase');
     if (savedTripId && savedPhase && savedPhase !== 'input' && savedPhase !== 'planning') {
       useTripStore.getState().loadTrip(savedTripId).then(() => {
-        useUIStore.getState().setPhase(savedPhase as 'preview' | 'day-plans');
+        // All trips load into preview now (day plans show inline)
+        useUIStore.getState().setPhase('preview');
       }).catch(() => {
         sessionStorage.removeItem('tc_tripId');
         sessionStorage.removeItem('tc_phase');
@@ -57,11 +57,11 @@ function App() {
 
   // Browser back/forward button navigation
   useEffect(() => {
-    const validPhases = new Set(['input', 'preview', 'day-plans']);
+    const validPhases = new Set(['input', 'preview']);
     const handler = (e: PopStateEvent) => {
       const targetPhase = e.state?.phase as string | undefined;
       if (targetPhase && validPhases.has(targetPhase)) {
-        useUIStore.setState({ phase: targetPhase as 'input' | 'preview' | 'day-plans' });
+        useUIStore.setState({ phase: targetPhase as 'input' | 'preview' });
       }
     };
     window.addEventListener('popstate', handler);
@@ -79,14 +79,10 @@ function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [error, setError]);
 
-  // Determine which cancel handler to use based on context
+  // Cancel handler for journey planning
   const handleCancelPlanning = useCallback(() => {
-    if (journey) {
-      cancelGenerating();
-    } else {
-      cancelPlanning();
-    }
-  }, [journey, cancelGenerating, cancelPlanning]);
+    cancelPlanning();
+  }, [cancelPlanning]);
 
   return (
     <div className="min-h-screen bg-surface-dim">
@@ -123,10 +119,7 @@ function App() {
 
               {phase === 'planning' && (
                 <div key="planning" className="animate-fade-in-up">
-                  <PlanningDashboard
-                    onCancel={handleCancelPlanning}
-                    mode={journey ? 'dayplans' : 'journey'}
-                  />
+                  <PlanningDashboard onCancel={handleCancelPlanning} />
                 </div>
               )}
 
@@ -134,15 +127,10 @@ function App() {
                 <div key="preview" className="animate-fade-in-up">
                   <JourneyDashboard
                     onGenerateDayPlans={handleGenerateDayPlans}
+                    onCancelDayPlans={cancelGenerating}
                     onOpenChat={handleOpenChat}
                     onNewTrip={handleNewTrip}
                   />
-                </div>
-              )}
-
-              {phase === 'day-plans' && dayPlans && dayPlans.length > 0 && (
-                <div key="day-plans" className="animate-fade-in-up">
-                  <DayPlansView />
                 </div>
               )}
             </PageContainer>

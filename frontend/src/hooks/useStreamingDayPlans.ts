@@ -9,7 +9,7 @@ const STALL_TIMEOUT_MS = 180_000;
 export function useStreamingDayPlans() {
   const abortRef = useRef<AbortController | null>(null);
   const { tripId, setDayPlans } = useTripStore();
-  const { setPhase, setProgress, setLoading, setError } = useUIStore();
+  const { setProgress, setError, setDayPlansGenerating } = useUIStore();
 
   const startGenerating = useCallback(async () => {
     if (!tripId) return;
@@ -18,8 +18,8 @@ export function useStreamingDayPlans() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setPhase('planning'); // reuse planning phase for day plans too
-    setLoading(true);
+    // Stay on preview — generate in background
+    setDayPlansGenerating(true);
     setError(null);
 
     let stallTimer: ReturnType<typeof setTimeout> | null = null;
@@ -35,7 +35,7 @@ export function useStreamingDayPlans() {
       clearStallTimer();
       stallTimer = setTimeout(() => {
         if (!controller.signal.aborted) {
-          setError('Planning is taking longer than expected. You can wait or cancel and try again.');
+          setError('Day plan generation is taking longer than expected. You can wait or cancel.');
         }
       }, STALL_TIMEOUT_MS);
     };
@@ -52,12 +52,10 @@ export function useStreamingDayPlans() {
         if (event.phase === 'complete' && event.data) {
           const dayPlans = (event.data as Record<string, unknown>).day_plans as DayPlan[];
           setDayPlans(dayPlans);
-          setPhase('day-plans');
         }
 
         if (event.phase === 'error') {
           setError(event.message);
-          setPhase('preview');
         }
       }
     } catch (err) {
@@ -67,21 +65,20 @@ export function useStreamingDayPlans() {
           ? 'Connection lost. Please try again.'
           : message;
         setError(userMessage);
-        setPhase('preview');
       }
     } finally {
       clearStallTimer();
-      setLoading(false);
+      setDayPlansGenerating(false);
+      setProgress(null);
       abortRef.current = null;
     }
-  }, [tripId, setDayPlans, setPhase, setProgress, setLoading, setError]);
+  }, [tripId, setDayPlans, setProgress, setError, setDayPlansGenerating]);
 
   const cancelGenerating = useCallback(() => {
     abortRef.current?.abort();
-    setPhase('preview');
-    setLoading(false);
+    setDayPlansGenerating(false);
     setProgress(null);
-  }, [setPhase, setLoading, setProgress]);
+  }, [setDayPlansGenerating, setProgress]);
 
   return { startGenerating, cancelGenerating };
 }
