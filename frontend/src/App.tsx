@@ -4,7 +4,7 @@ import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ChatPanel } from '@/components/trip/ChatPanel';
 import { WizardForm } from '@/components/trip/WizardForm';
-import { PlanProgress } from '@/components/trip/PlanProgress';
+import { PlanningDashboard } from '@/components/trip/PlanningDashboard';
 import { JourneyPreview } from '@/components/trip/JourneyPreview';
 import { DayCard } from '@/components/trip/DayCard';
 import { BudgetSummary } from '@/components/trip/BudgetSummary';
@@ -144,7 +144,7 @@ function App() {
 
               {phase === 'planning' && (
                 <div key="planning" className="animate-fade-in-up">
-                  <PlanProgress onCancel={handleCancelPlanning} />
+                  <PlanningDashboard onCancel={handleCancelPlanning} />
                 </div>
               )}
 

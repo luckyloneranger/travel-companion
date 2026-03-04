@@ -4,7 +4,7 @@ import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import type { DayPlan } from '@/types';
 
-const STALL_TIMEOUT_MS = 90_000;
+const STALL_TIMEOUT_MS = 180_000;
 
 export function useStreamingDayPlans() {
   const abortRef = useRef<AbortController | null>(null);
