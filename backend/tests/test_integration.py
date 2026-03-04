@@ -10,14 +10,14 @@ class TestTripApiLifecycle:
     @pytest.mark.asyncio
     async def test_list_empty(self, client: AsyncClient):
         """List trips returns empty initially."""
-        response = await client.get("/api/trips")
+        response = await client.get("/api/trips", headers={"x-test-user": "true"})
         assert response.status_code == 200
         assert response.json() == []
 
     @pytest.mark.asyncio
     async def test_get_nonexistent(self, client: AsyncClient):
         """Get non-existent trip returns 404."""
-        response = await client.get("/api/trips/does-not-exist")
+        response = await client.get("/api/trips/does-not-exist", headers={"x-test-user": "true"})
         assert response.status_code == 404
 
     @pytest.mark.asyncio
@@ -35,6 +35,7 @@ class TestTripApiLifecycle:
         response = await client.post(
             "/api/trips/nonexistent-id/chat",
             json={"message": "change destination", "context": "journey"},
+            headers={"x-test-user": "true"},
         )
         assert response.status_code == 404
 
@@ -44,6 +45,7 @@ class TestTripApiLifecycle:
         response = await client.post(
             "/api/trips/nonexistent-id/days/stream",
             json={},
+            headers={"x-test-user": "true"},
         )
         assert response.status_code == 404
 
@@ -53,6 +55,7 @@ class TestTripApiLifecycle:
         response = await client.post(
             "/api/trips/nonexistent-id/tips",
             json=[],
+            headers={"x-test-user": "true"},
         )
         assert response.status_code == 404
 

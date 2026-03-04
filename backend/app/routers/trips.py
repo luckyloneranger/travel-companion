@@ -7,7 +7,6 @@ from fastapi.responses import StreamingResponse
 from app.db.repository import TripRepository
 from app.dependencies import (
     get_chat_service,
-    get_current_user,
     get_day_plan_orchestrator,
     get_enricher,
     get_journey_orchestrator,
@@ -139,7 +138,7 @@ async def plan_trip_stream(
     request: TripRequest,
     orchestrator: JourneyOrchestrator = Depends(get_journey_orchestrator),
     repo: TripRepository = Depends(get_trip_repository),
-    user: dict | None = Depends(get_current_user),
+    user: dict = Depends(require_user),
 ):
     """Stream journey planning via SSE."""
 
@@ -151,8 +150,7 @@ async def plan_trip_stream(
                     from app.models.journey import JourneyPlan
 
                     journey = JourneyPlan.model_validate(event.data)
-                    user_id = user["sub"] if user else None
-                    trip_id = await repo.save_trip(request, journey, user_id=user_id)
+                    trip_id = await repo.save_trip(request, journey, user_id=user["sub"])
                     event.data["trip_id"] = trip_id
                 yield f"data: {event.model_dump_json()}\n\n"
         except Exception as e:
@@ -168,14 +166,13 @@ async def generate_day_plans_stream(
     trip_id: str,
     orchestrator: DayPlanOrchestrator = Depends(get_day_plan_orchestrator),
     repo: TripRepository = Depends(get_trip_repository),
-    user: dict | None = Depends(get_current_user),
+    user: dict = Depends(require_user),
 ):
     """Stream day plan generation for a saved trip."""
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
-    if user:
-        await _check_trip_ownership(repo, trip_id, user["sub"])
+    await _check_trip_ownership(repo, trip_id, user["sub"])
 
     async def event_generator():
         try:
@@ -201,13 +198,12 @@ async def chat_edit(
     chat: ChatService = Depends(get_chat_service),
     repo: TripRepository = Depends(get_trip_repository),
     enricher: EnricherAgent = Depends(get_enricher),
-    user: dict | None = Depends(get_current_user),
+    user: dict = Depends(require_user),
 ) -> ChatEditResponse:
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
-    if user:
-        await _check_trip_ownership(repo, trip_id, user["sub"])
+    await _check_trip_ownership(repo, trip_id, user["sub"])
 
     if request.context == "day_plans":
         if not trip.day_plans:
@@ -242,27 +238,21 @@ async def chat_edit(
 @router.get("")
 async def list_trips(
     repo: TripRepository = Depends(get_trip_repository),
-    user: dict | None = Depends(get_current_user),
+    user: dict = Depends(require_user),
 ) -> list[TripSummary]:
-    user_id = user["sub"] if user else None
-    return await repo.list_trips(user_id=user_id)
+    return await repo.list_trips(user_id=user["sub"])
 
 
 @router.get("/{trip_id}")
 async def get_trip(
     trip_id: str,
     repo: TripRepository = Depends(get_trip_repository),
-    user: dict | None = Depends(get_current_user),
+    user: dict = Depends(require_user),
 ) -> TripResponse:
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
-    owner = await repo.get_trip_user_id(trip_id)
-    # Allow if: no owner (legacy), user is owner, or trip is shared
-    if owner is not None and (not user or owner != user.get("sub")):
-        share_token = await repo.get_share_token(trip_id)
-        if not share_token:
-            raise HTTPException(404, "Trip not found")
+    await _check_trip_ownership(repo, trip_id, user["sub"])
     trip.cost_breakdown = _compute_cost_breakdown(trip)
     return trip
 
@@ -286,13 +276,12 @@ async def generate_tips(
     activities: list[dict],
     tips_service: TipsService = Depends(get_tips_service),
     repo: TripRepository = Depends(get_trip_repository),
-    user: dict | None = Depends(get_current_user),
+    user: dict = Depends(require_user),
 ):
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
-    if user:
-        await _check_trip_ownership(repo, trip_id, user["sub"])
+    await _check_trip_ownership(repo, trip_id, user["sub"])
     return await tips_service.generate_tips(activities, trip.request.destination)
 
 

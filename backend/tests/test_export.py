@@ -12,13 +12,13 @@ class TestPDFExport:
     @pytest.mark.asyncio
     async def test_pdf_trip_not_found(self, client: AsyncClient):
         """GET /api/trips/<id>/export/pdf with unknown id returns 404."""
-        response = await client.get("/api/trips/nonexistent/export/pdf")
+        response = await client.get("/api/trips/nonexistent/export/pdf", headers={"x-test-user": "true"})
         assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_pdf_content_type(self, client: AsyncClient):
         """Requesting PDF for a non-existent trip returns 404."""
-        response = await client.get("/api/trips/nonexistent/export/pdf")
+        response = await client.get("/api/trips/nonexistent/export/pdf", headers={"x-test-user": "true"})
         assert response.status_code == 404
 
 
@@ -26,7 +26,7 @@ class TestCalendarExport:
     @pytest.mark.asyncio
     async def test_calendar_trip_not_found(self, client: AsyncClient):
         """GET /api/trips/<id>/export/calendar with unknown id returns 404."""
-        response = await client.get("/api/trips/nonexistent/export/calendar")
+        response = await client.get("/api/trips/nonexistent/export/calendar", headers={"x-test-user": "true"})
         assert response.status_code == 404
 
     @pytest.mark.asyncio

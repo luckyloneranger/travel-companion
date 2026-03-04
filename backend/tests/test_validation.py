@@ -5,6 +5,8 @@ from datetime import date
 import pytest
 from httpx import AsyncClient
 
+AUTH = {"x-test-user": "true"}
+
 
 class TestPlanTripValidation:
     """Test request validation for the plan endpoint."""
@@ -14,10 +16,8 @@ class TestPlanTripValidation:
         """Request without destination should fail."""
         response = await client.post(
             "/api/trips/plan/stream",
-            json={
-                "total_days": 3,
-                "start_date": "2026-06-15",
-            },
+            json={"total_days": 3, "start_date": "2026-06-15"},
+            headers=AUTH,
         )
         assert response.status_code == 422
 
@@ -26,11 +26,8 @@ class TestPlanTripValidation:
         """Empty destination string should fail validation."""
         response = await client.post(
             "/api/trips/plan/stream",
-            json={
-                "destination": "",
-                "total_days": 3,
-                "start_date": "2026-06-15",
-            },
+            json={"destination": "", "total_days": 3, "start_date": "2026-06-15"},
+            headers=AUTH,
         )
         assert response.status_code == 422
 
@@ -39,11 +36,8 @@ class TestPlanTripValidation:
         """Single-char destination should fail (min_length=2)."""
         response = await client.post(
             "/api/trips/plan/stream",
-            json={
-                "destination": "X",
-                "total_days": 3,
-                "start_date": "2026-06-15",
-            },
+            json={"destination": "X", "total_days": 3, "start_date": "2026-06-15"},
+            headers=AUTH,
         )
         assert response.status_code == 422
 
@@ -52,11 +46,8 @@ class TestPlanTripValidation:
         """Zero days should fail validation (ge=1)."""
         response = await client.post(
             "/api/trips/plan/stream",
-            json={
-                "destination": "Paris",
-                "total_days": 0,
-                "start_date": "2026-06-15",
-            },
+            json={"destination": "Paris", "total_days": 0, "start_date": "2026-06-15"},
+            headers=AUTH,
         )
         assert response.status_code == 422
 
@@ -65,11 +56,8 @@ class TestPlanTripValidation:
         """More than 21 days should fail validation (le=21)."""
         response = await client.post(
             "/api/trips/plan/stream",
-            json={
-                "destination": "Paris",
-                "total_days": 22,
-                "start_date": "2026-06-15",
-            },
+            json={"destination": "Paris", "total_days": 22, "start_date": "2026-06-15"},
+            headers=AUTH,
         )
         assert response.status_code == 422
 
@@ -78,11 +66,8 @@ class TestPlanTripValidation:
         """Invalid date string should fail."""
         response = await client.post(
             "/api/trips/plan/stream",
-            json={
-                "destination": "Paris",
-                "total_days": 3,
-                "start_date": "not-a-date",
-            },
+            json={"destination": "Paris", "total_days": 3, "start_date": "not-a-date"},
+            headers=AUTH,
         )
         assert response.status_code == 422
 
@@ -91,12 +76,8 @@ class TestPlanTripValidation:
         """Invalid pace value should fail."""
         response = await client.post(
             "/api/trips/plan/stream",
-            json={
-                "destination": "Paris",
-                "total_days": 3,
-                "start_date": "2026-06-15",
-                "pace": "extreme",
-            },
+            json={"destination": "Paris", "total_days": 3, "start_date": "2026-06-15", "pace": "extreme"},
+            headers=AUTH,
         )
         assert response.status_code == 422
 
@@ -105,14 +86,19 @@ class TestPlanTripValidation:
         """Invalid travel mode should fail."""
         response = await client.post(
             "/api/trips/plan/stream",
-            json={
-                "destination": "Paris",
-                "total_days": 3,
-                "start_date": "2026-06-15",
-                "travel_mode": "HELICOPTER",
-            },
+            json={"destination": "Paris", "total_days": 3, "start_date": "2026-06-15", "travel_mode": "HELICOPTER"},
+            headers=AUTH,
         )
         assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_plan_requires_auth(self, client: AsyncClient):
+        """Planning without auth should return 401."""
+        response = await client.post(
+            "/api/trips/plan/stream",
+            json={"destination": "Paris", "total_days": 3, "start_date": "2026-06-15"},
+        )
+        assert response.status_code == 401
 
 
 class TestChatValidation:
@@ -124,6 +110,7 @@ class TestChatValidation:
         response = await client.post(
             "/api/trips/nonexistent/chat",
             json={"message": "change destination", "context": "journey"},
+            headers=AUTH,
         )
         assert response.status_code == 404
 
@@ -133,6 +120,7 @@ class TestChatValidation:
         response = await client.post(
             "/api/trips/some-id/chat",
             json={"context": "journey"},
+            headers=AUTH,
         )
         assert response.status_code == 422
 
@@ -146,6 +134,7 @@ class TestTipsValidation:
         response = await client.post(
             "/api/trips/nonexistent/tips",
             json=[],
+            headers=AUTH,
         )
         assert response.status_code == 404
 
@@ -159,6 +148,7 @@ class TestDayPlanValidation:
         response = await client.post(
             "/api/trips/nonexistent/days/stream",
             json={},
+            headers=AUTH,
         )
         assert response.status_code == 404
 

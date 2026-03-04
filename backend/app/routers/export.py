@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
 from app.db.repository import TripRepository
-from app.dependencies import get_current_user, get_trip_repository
+from app.dependencies import require_user, get_trip_repository
 
 logger = logging.getLogger(__name__)
 
@@ -17,18 +17,15 @@ router = APIRouter(prefix="/api/trips", tags=["export"])
 async def export_pdf(
     trip_id: str,
     repo: TripRepository = Depends(get_trip_repository),
-    user: dict | None = Depends(get_current_user),
+    user: dict = Depends(require_user),
 ):
     """Download trip as PDF."""
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
-    # Allow export if owner or shared
     owner = await repo.get_trip_user_id(trip_id)
-    if owner is not None and (not user or owner != user.get("sub")):
-        share_token = await repo.get_share_token(trip_id)
-        if not share_token:
-            raise HTTPException(404, "Trip not found")
+    if owner is not None and owner != user["sub"]:
+        raise HTTPException(404, "Trip not found")
 
     from app.services.export import generate_pdf
 
@@ -50,18 +47,15 @@ async def export_pdf(
 async def export_calendar(
     trip_id: str,
     repo: TripRepository = Depends(get_trip_repository),
-    user: dict | None = Depends(get_current_user),
+    user: dict = Depends(require_user),
 ):
     """Download trip as .ics calendar file."""
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
-    # Allow export if owner or shared
     owner = await repo.get_trip_user_id(trip_id)
-    if owner is not None and (not user or owner != user.get("sub")):
-        share_token = await repo.get_share_token(trip_id)
-        if not share_token:
-            raise HTTPException(404, "Trip not found")
+    if owner is not None and owner != user["sub"]:
+        raise HTTPException(404, "Trip not found")
 
     from app.services.export import generate_ics
 

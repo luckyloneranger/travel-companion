@@ -87,7 +87,7 @@ class TestHealthCheck:
 class TestListTrips:
     async def test_empty_list(self, client: AsyncClient):
         """An empty database should return an empty list."""
-        response = await client.get("/api/trips")
+        response = await client.get("/api/trips", headers={"x-test-user": "true"})
 
         assert response.status_code == 200
         assert response.json() == []
@@ -96,7 +96,7 @@ class TestListTrips:
 class TestGetTrip:
     async def test_not_found(self, client: AsyncClient):
         """Requesting a non-existent trip should return 404."""
-        response = await client.get("/api/trips/nonexistent-id")
+        response = await client.get("/api/trips/nonexistent-id", headers={"x-test-user": "true"})
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
@@ -130,6 +130,7 @@ class TestPlanTripStream:
         response = await client.post(
             "/api/trips/plan/stream",
             json=_make_trip_request(),
+            headers={"x-test-user": "true"},
         )
 
         assert response.status_code == 200
@@ -166,6 +167,7 @@ class TestPlanTripStream:
         response = await client.post(
             "/api/trips/plan/stream",
             json=_make_trip_request(),
+            headers={"x-test-user": "true"},
         )
 
         assert response.status_code == 200  # SSE always returns 200; errors are in the stream
