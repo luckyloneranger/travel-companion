@@ -13,7 +13,7 @@ import {
 } from '@/components/trip/wizard';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
-import type { TripRequest, TripSummary, Pace, Budget } from '@/types';
+import type { TripRequest, TripSummary, Pace, Budget, Travelers } from '@/types';
 
 function getTomorrowDate(): string {
   const d = new Date();
@@ -49,6 +49,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
   const [avoid, setAvoid] = useState<string[]>([]);
   const [budget, setBudget] = useState<Budget>('moderate');
   const [budgetUsd, setBudgetUsd] = useState('');
+  const [travelers, setTravelers] = useState<Travelers>({ adults: 1, children: 0, infants: 0 });
 
   // Saved trips
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -80,6 +81,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       if (template.must_include) setMustInclude(template.must_include);
       if (template.avoid) setAvoid(template.avoid);
       if (template.budget_usd) setBudgetUsd(String(template.budget_usd));
+      if (template.travelers) setTravelers(template.travelers);
       setWizardStep(5); // Jump to Review
     },
     [setWizardStep],
@@ -98,6 +100,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       avoid,
       budget,
       budget_usd: budgetUsd ? parseFloat(budgetUsd) : undefined,
+      travelers,
     };
     onSubmit(request);
   }, [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, budget, budgetUsd, onSubmit]);
@@ -157,8 +160,10 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
             startDate={startDate}
             totalDays={totalDays}
             destination={destination}
+            travelers={travelers}
             onStartDateChange={setStartDate}
             onTotalDaysChange={setTotalDays}
+            onTravelersChange={setTravelers}
             onNext={handleNext}
             onBack={handleBack}
           />
@@ -200,6 +205,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
             avoid={avoid}
             budget={budget}
             budgetUsd={budgetUsd}
+            travelers={travelers}
             isLoading={isLoading}
             onEditStep={setWizardStep}
             onSubmit={handleSubmit}

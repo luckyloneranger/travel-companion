@@ -154,6 +154,12 @@ export interface DayPlan {
 
 // ── trip.py ────────────────────────────────────────────────
 
+export interface Travelers {
+  adults: number;
+  children: number;
+  infants: number;
+}
+
 export interface TripRequest {
   destination: string;
   origin: string;
@@ -167,6 +173,7 @@ export interface TripRequest {
   budget?: Budget;
   budget_usd?: number | null;
   home_currency?: string;
+  travelers?: Travelers;
 }
 
 export interface TripSummary {

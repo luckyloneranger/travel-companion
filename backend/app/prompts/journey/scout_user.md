@@ -4,6 +4,7 @@ Travel dates: {travel_dates}
 **Traveler Profile:**
 - Interests: {interests}
 - Pace: {pace}
+- Group: {travelers_description}
 - Places to include (if any): {must_include}
 - Places to avoid (if any): {avoid}
 

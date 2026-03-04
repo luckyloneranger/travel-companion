@@ -1,9 +1,9 @@
 import {
-  MapPin, Calendar, Sparkles, DollarSign, ArrowLeft, Rocket,
+  MapPin, Calendar, Sparkles, DollarSign, ArrowLeft, Rocket, Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { Pace, Budget } from '@/types';
+import type { Pace, Budget, Travelers } from '@/types';
 
 interface WizardStepReviewProps {
   destination: string;
@@ -16,6 +16,7 @@ interface WizardStepReviewProps {
   avoid: string[];
   budget: Budget;
   budgetUsd: string;
+  travelers: Travelers;
   isLoading: boolean;
   onEditStep: (step: number) => void;
   onSubmit: () => void;
@@ -56,6 +57,7 @@ export function WizardStepReview({
   avoid,
   budget,
   budgetUsd,
+  travelers,
   isLoading,
   onEditStep,
   onSubmit,
@@ -93,11 +95,19 @@ export function WizardStepReview({
           )}
         </ReviewRow>
 
-        <ReviewRow label="Dates" stepNumber={2} onEdit={onEditStep}>
+        <ReviewRow label="Dates & Travelers" stepNumber={2} onEdit={onEditStep}>
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-primary-500 shrink-0" />
             <span className="text-sm text-text-primary">
               {formatDate(startDate)} · {totalDays} {totalDays === 1 ? 'day' : 'days'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <Users className="h-4 w-4 text-primary-500 shrink-0" />
+            <span className="text-sm text-text-primary">
+              {travelers.adults} adult{travelers.adults !== 1 ? 's' : ''}
+              {travelers.children > 0 && `, ${travelers.children} child${travelers.children !== 1 ? 'ren' : ''}`}
+              {travelers.infants > 0 && `, ${travelers.infants} infant${travelers.infants !== 1 ? 's' : ''}`}
             </span>
           </div>
         </ReviewRow>

@@ -47,6 +47,7 @@ class DayPlannerAgent:
         daily_budget_usd: float | None = None,
         must_include: list[str] | None = None,
         time_constraints: list[dict] | None = None,
+        travelers_description: str = "1 adult",
     ) -> AIPlan:
         """Given discovered place candidates, select and group into themed days.
 
@@ -70,6 +71,7 @@ class DayPlannerAgent:
             candidates, city_name, num_days, interests, pace,
             budget=budget, daily_budget_usd=daily_budget_usd,
             must_include=must_include, time_constraints=time_constraints,
+            travelers_description=travelers_description,
         )
 
         logger.info(
@@ -200,6 +202,7 @@ class DayPlannerAgent:
         daily_budget_usd: float | None = None,
         must_include: list[str] | None = None,
         time_constraints: list[dict] | None = None,
+        travelers_description: str = "1 adult",
     ) -> str:
         """Format the user prompt template with candidate data."""
         guide = _PACE_GUIDE.get(pace, _PACE_GUIDE["moderate"])
@@ -317,6 +320,7 @@ class DayPlannerAgent:
             city_name=city_name,
             must_include_section=must_include_section,
             time_constraints_section=time_constraints_section,
+            travelers_description=travelers_description,
         )
 
     def _parse_plan(self, data: dict, expected_days: int) -> AIPlan:

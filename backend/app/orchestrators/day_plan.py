@@ -201,6 +201,7 @@ class DayPlanOrchestrator:
                         daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
                         must_include=request.must_include if request.must_include else None,
                         time_constraints=time_constraints if time_constraints else None,
+                        travelers_description=request.travelers.summary,
                     )
                     # Retry once if the LLM returned no usable day groups
                     if not ai_plan.day_groups:
@@ -220,6 +221,7 @@ class DayPlanOrchestrator:
                             daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
                             must_include=request.must_include if request.must_include else None,
                             time_constraints=time_constraints if time_constraints else None,
+                            travelers_description=request.travelers.summary,
                         )
                 except Exception as exc:
                     logger.error(

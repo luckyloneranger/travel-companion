@@ -81,7 +81,9 @@ Choose the OPTIMAL number of destinations based on:
   - Well-positioned for the destination's main attractions (central for cities, waterfront for coastal areas, near entrance for parks, etc.)
   - Well-rated and appropriate for the trip's style
   - A real, named property (not generic "a hotel")
+  - Appropriately sized for the group (if traveling with children, prefer family-friendly options; for larger groups, ensure enough room capacity)
 - Match accommodation type to the destination (boutique hotels, resorts, eco-lodges, guesthouses, etc. as appropriate)
+- `estimated_nightly_usd` should reflect the total nightly cost for the ENTIRE group (not per person)
 
 ## CATEGORY OPTIONS
 Use ONLY these categories for highlights:

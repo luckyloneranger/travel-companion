@@ -84,13 +84,14 @@ If a restaurant is a destination in itself, it counts as both dining AND cultura
 
 Budget tier: {budget_tier}
 {daily_budget_line}
+Group: {travelers_description}
 
 **IMPORTANT: Total daily spend MUST stay within the daily budget target.** Select cheaper alternatives if needed to stay under budget.
 - If budget tier is "budget": prefer free attractions, street food, budget-friendly cafes, and low-cost options. Avoid expensive restaurants and paid attractions when free alternatives exist.
 - If budget tier is "moderate": balance cost and experience. Mix free and paid attractions.
 - If budget tier is "luxury": prioritize premium experiences, fine dining, and exclusive venues.
 
-For each selected place, estimate the cost per person in USD. Add a "cost_estimates" field to your JSON output.
+For each selected place, estimate the **total group cost** in USD (not per person). If there are children, note that many museums and attractions offer reduced or free entry for children under 12. Add a "cost_estimates" field to your JSON output.
 **CRITICAL: The keys in "cost_estimates" and "durations" MUST be the exact same place_id strings from the candidate lists above. Do NOT invent new IDs or use place names as keys.**
 
 ```json

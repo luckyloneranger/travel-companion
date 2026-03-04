@@ -70,6 +70,7 @@ class ScoutAgent:
                 ", ".join(request.interests) if request.interests else "general sightseeing"
             ),
             pace=request.pace.value,
+            travelers_description=request.travelers.summary,
             must_include=(
                 ", ".join(request.must_include) if request.must_include else "none"
             ),
