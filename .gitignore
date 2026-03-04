@@ -45,6 +45,7 @@ env/
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Node
 node_modules/
@@ -85,3 +86,4 @@ screenshots/
 
 # Git worktrees
 .worktrees/
+.env.production
