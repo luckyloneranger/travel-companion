@@ -52,7 +52,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         }
       }
     }
-    const breakdown = total > 0 ? { activities_usd: activities, dining_usd: dining, total_usd: total } : null;
+    const breakdown = total > 0 ? { accommodation_usd: 0, transport_usd: 0, activities_usd: activities, dining_usd: dining, total_usd: total } : null;
     set({ dayPlans: plans, costBreakdown: breakdown });
   },
   updateJourney: (journey) => set({ journey }),

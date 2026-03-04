@@ -11,6 +11,7 @@ class Accommodation(BaseModel):
     rating: float | None = None
     photo_url: str | None = None
     price_level: int | None = None
+    estimated_nightly_usd: float | None = None
 
 
 class CityHighlight(BaseModel):
@@ -40,6 +41,7 @@ class TravelLeg(BaseModel):
     distance_km: float | None = None
     notes: str = ""
     fare: str | None = None
+    fare_usd: float | None = None
     operator: str | None = None
     booking_tip: str | None = None
     polyline: str | None = None

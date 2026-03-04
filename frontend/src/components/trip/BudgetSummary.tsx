@@ -1,4 +1,4 @@
-import { DollarSign, TrendingUp, TrendingDown, Utensils, Ticket } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Utensils, Ticket, Hotel, Car } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { CostBreakdown } from '@/types';
 
@@ -32,6 +32,26 @@ export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) 
             <p className="text-xs text-text-muted">Per Day</p>
             <p className="text-lg font-semibold text-text-secondary">${dailyAvg.toFixed(0)}</p>
           </div>
+
+          {/* Accommodation */}
+          {costBreakdown.accommodation_usd > 0 && (
+            <div className="space-y-0.5">
+              <p className="text-xs text-text-muted flex items-center gap-1">
+                <Hotel className="h-3 w-3" /> Accommodation
+              </p>
+              <p className="text-lg font-semibold text-text-secondary">${costBreakdown.accommodation_usd.toFixed(0)}</p>
+            </div>
+          )}
+
+          {/* Transport */}
+          {costBreakdown.transport_usd > 0 && (
+            <div className="space-y-0.5">
+              <p className="text-xs text-text-muted flex items-center gap-1">
+                <Car className="h-3 w-3" /> Transport
+              </p>
+              <p className="text-lg font-semibold text-text-secondary">${costBreakdown.transport_usd.toFixed(0)}</p>
+            </div>
+          )}
 
           {/* Dining */}
           {costBreakdown.dining_usd > 0 && (
@@ -74,6 +94,10 @@ export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) 
             </span>
           </div>
         )}
+
+        <p className="text-xs text-text-muted italic mt-2">
+          * Estimates based on destination averages. Actual costs may vary.
+        </p>
       </CardContent>
     </Card>
   );

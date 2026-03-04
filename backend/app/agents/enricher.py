@@ -20,6 +20,34 @@ from app.services.google.directions import TransportOptions
 
 logger = logging.getLogger(__name__)
 
+# ── Cost estimation heuristics ────────────────────────────────────────
+
+_PRICE_LEVEL_TO_NIGHTLY_USD: dict[int, float] = {
+    0: 0,
+    1: 30,
+    2: 80,
+    3: 150,
+    4: 300,
+}
+
+
+def _estimate_fare_usd(mode: str, distance_km: float | None) -> float:
+    """Rough fare estimate based on transport mode and distance.
+
+    Returns a USD estimate using average per-km cost factors.
+    """
+    if not distance_km:
+        return 0
+    rates = {
+        "flight": 0.15,
+        "train": 0.10,
+        "bus": 0.05,
+        "ferry": 0.12,
+        "drive": 0.08,
+    }
+    rate = rates.get(mode, 0)
+    return round(distance_km * rate, 2)
+
 
 class EnricherAgent:
     """Enriches journey plans with Google API data.
@@ -190,6 +218,9 @@ class EnricherAgent:
                 )
 
             if result:
+                estimated_nightly = _PRICE_LEVEL_TO_NIGHTLY_USD.get(
+                    result.price_level or 2, 80
+                )
                 city.accommodation = Accommodation(
                     name=result.name,
                     address=result.address,
@@ -197,6 +228,7 @@ class EnricherAgent:
                     place_id=result.place_id,
                     rating=result.rating,
                     price_level=result.price_level,
+                    estimated_nightly_usd=estimated_nightly,
                     photo_url=(
                         self.places.get_photo_url(result.photo_reference)
                         if result.photo_reference
@@ -256,6 +288,11 @@ class EnricherAgent:
                 destination_name=leg.to_city,
             )
             self._update_leg_with_real_data(leg, options)
+            # Estimate fare in USD if not already set
+            if leg.fare_usd is None:
+                leg.fare_usd = _estimate_fare_usd(
+                    leg.mode.value, leg.distance_km
+                )
         except Exception as e:
             logger.warning(
                 "[Enricher] Failed to get transport for %s -> %s: %s",

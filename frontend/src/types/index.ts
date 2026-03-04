@@ -26,6 +26,7 @@ export interface Accommodation {
   rating: number | null;
   photo_url: string | null;
   price_level: number | null;
+  estimated_nightly_usd: number | null;
 }
 
 export interface CityHighlight {
@@ -55,6 +56,7 @@ export interface TravelLeg {
   distance_km: number | null;
   notes: string;
   fare: string | null;
+  fare_usd: number | null;
   operator: string | null;
   booking_tip: string | null;
   polyline: string | null;
@@ -178,6 +180,8 @@ export interface TripSummary {
 }
 
 export interface CostBreakdown {
+  accommodation_usd: number;
+  transport_usd: number;
   activities_usd: number;
   dining_usd: number;
   total_usd: number;

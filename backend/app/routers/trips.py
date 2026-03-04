@@ -27,25 +27,41 @@ router = APIRouter(prefix="/api/trips", tags=["trips"])
 
 
 def _compute_cost_breakdown(trip: TripResponse) -> dict[str, float] | None:
-    """Compute cost breakdown from day plans."""
-    if not trip.day_plans:
-        return None
-    total = dining = activities_cost = 0.0
+    """Compute cost breakdown from day plans, accommodation, and transport."""
+    dining = activities_cost = 0.0
     dining_categories = {"restaurant", "cafe", "bakery", "food", "dining", "bar",
                          "french_restaurant", "italian_restaurant", "sushi_restaurant",
                          "tea_house", "bistro", "falafel_restaurant"}
-    for dp in trip.day_plans:
-        for a in dp.activities:
-            if a.estimated_cost_usd:
-                total += a.estimated_cost_usd
-                cat = (a.place.category or "").lower()
-                if cat in dining_categories or "restaurant" in cat or "cafe" in cat:
-                    dining += a.estimated_cost_usd
-                else:
-                    activities_cost += a.estimated_cost_usd
+
+    if trip.day_plans:
+        for dp in trip.day_plans:
+            for a in dp.activities:
+                if a.estimated_cost_usd:
+                    cat = (a.place.category or "").lower()
+                    if cat in dining_categories or "restaurant" in cat or "cafe" in cat:
+                        dining += a.estimated_cost_usd
+                    else:
+                        activities_cost += a.estimated_cost_usd
+
+    # Accommodation costs
+    accommodation = 0.0
+    for city in trip.journey.cities:
+        if city.accommodation and city.accommodation.estimated_nightly_usd:
+            accommodation += city.accommodation.estimated_nightly_usd * city.days
+
+    # Transport costs
+    transport = 0.0
+    for leg in trip.journey.travel_legs:
+        if leg.fare_usd:
+            transport += leg.fare_usd
+
+    total = dining + activities_cost + accommodation + transport
     if total == 0:
         return None
+
     result = {
+        "accommodation_usd": round(accommodation, 2),
+        "transport_usd": round(transport, 2),
         "activities_usd": round(activities_cost, 2),
         "dining_usd": round(dining, 2),
         "total_usd": round(total, 2),
