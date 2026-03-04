@@ -55,7 +55,7 @@ Discover places → AI plans days (with time constraints) → TSP optimizes rout
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, Zustand |
 | LLM | Azure OpenAI GPT-4o, Anthropic Claude, or Google Gemini (switchable via config) |
 | APIs | Google Places, Routes, Directions, Weather |
-| Auth | OAuth (Google/GitHub) via authlib, JWT httpOnly cookies |
+| Auth | OAuth (Google/GitHub) via authlib, dual auth: JWT httpOnly cookies + Bearer tokens |
 | Streaming | Server-Sent Events (SSE) for real-time progress |
 | Export | weasyprint (PDF), icalendar (.ics) |
 
@@ -123,12 +123,14 @@ apt-get install libpango-1.0-0 libglib2.0-0
 | `GITHUB_OAUTH_CLIENT_SECRET` | GitHub OAuth app client secret |
 | `JWT_SECRET_KEY` | Secret key for JWT token signing |
 | `CORS_ORIGINS` | Allowed origins (default: `http://localhost:5173`) |
+| `COOKIE_DOMAIN` | Cookie domain for cross-subdomain auth (e.g., `.example.com`) |
 
 ### Frontend (`frontend/.env.local`)
 
 | Variable | Description |
 |----------|-------------|
 | `VITE_GOOGLE_MAPS_API_KEY` | Google Maps JavaScript API key |
+| `VITE_API_BASE_URL` | Backend URL for split deployment (leave empty in dev) |
 
 See `backend/.env.example` and `frontend/.env.example` for templates.
 
@@ -189,6 +191,7 @@ See `backend/.env.example` and `frontend/.env.example` for templates.
 
 ```
 travel-companion/
+├── Dockerfile                        # Multi-stage build (Node + Python)
 ├── backend/app/
 │   ├── main.py                     # FastAPI application
 │   ├── dependencies.py             # Depends() wiring for all services
@@ -224,6 +227,35 @@ travel-companion/
 │   └── types/                      # TypeScript interfaces
 └── CLAUDE.md                       # Claude Code project context
 ```
+
+## Deployment
+
+Supports multiple deployment modes via dual auth (cookie + Bearer token):
+
+| Mode | Auth Method | Setup |
+|------|-------------|-------|
+| **Dev** | Cookie via Vite proxy | Default — no config needed |
+| **Single container** | Cookie (same-origin) | `docker build -t travel-companion .` then run with env vars |
+| **Split deploy (same domain)** | Cookie (cross-subdomain) | Set `COOKIE_DOMAIN=.example.com` |
+| **Split deploy (different domains)** | Bearer token | Set `VITE_API_BASE_URL`, `CORS_ORIGINS` |
+| **Mobile app** | Bearer token | Use `Authorization: Bearer` header |
+
+### Single Container (Docker)
+
+```bash
+docker build -t travel-companion .
+docker run -p 8000:8000 --env-file backend/.env travel-companion
+```
+
+The multi-stage Dockerfile builds the frontend (Node 18) and serves it alongside the backend (Python 3.11). The backend auto-serves the built frontend from `static/` when present.
+
+### Split Deployment
+
+For separate frontend (e.g., Vercel, Azure Static Web Apps) and backend (e.g., Azure App Service):
+
+1. Set `VITE_API_BASE_URL` in `frontend/.env.production` to the backend URL
+2. Set `CORS_ORIGINS` on the backend to include the frontend URL
+3. Auth works via Bearer tokens — the OAuth callback redirects with `?token=` in the URL, which the frontend captures and stores in localStorage
 
 ## Testing
 

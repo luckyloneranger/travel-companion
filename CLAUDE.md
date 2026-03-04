@@ -100,7 +100,11 @@ user = day_plan_prompts.load("planning_user")
 
 **Request Tracing** -- `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs. `RequestLoggingFilter` injects `request_id` into log records.
 
-**Authentication** -- OAuth (Google/GitHub) via authlib, JWT tokens stored as httpOnly cookies, 401 auto-logout on frontend. All trip API endpoints require authentication; only `/health`, `/api/auth/me`, and `/api/shared/{token}` are public.
+**Authentication (Dual Auth)** -- OAuth (Google/GitHub) via authlib. Supports two auth mechanisms:
+- **Cookie auth** (same-origin / web): JWT stored as httpOnly cookie, set during OAuth callback
+- **Bearer token auth** (cross-origin / mobile): JWT returned as `?token=` query param in OAuth redirect, stored in localStorage by frontend, sent as `Authorization: Bearer` header
+
+`get_current_user()` in `dependencies.py` checks Bearer header first, falls back to cookie. All trip API endpoints require authentication; only `/health`, `/api/auth/me`, and `/api/shared/{token}` are public. Frontend auto-logout on 401.
 
 **Design Principles** -- Prefer LLM prompt updates and Google API grounding over hardcoded heuristics. Cost estimates, geographic diversity, destination validity, and activity planning are all LLM-driven via prompt guidance rather than deterministic rules.
 
@@ -148,10 +152,28 @@ user = day_plan_prompts.load("planning_user")
 
 ## Environment Variables
 
-**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
+**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`, `COOKIE_DOMAIN`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
 
 **Frontend** (`frontend/.env.local`): `VITE_GOOGLE_MAPS_API_KEY`
+
+**Frontend production** (`frontend/.env.production`): `VITE_API_BASE_URL` (set for split deploy, leave empty for single-container), `VITE_GOOGLE_MAPS_API_KEY`
 
 See `backend/.env.example` and `frontend/.env.example` for templates.
 
 Note: `VITE_API_BASE_URL` should NOT be set in development — the Vite dev server proxies `/api` to `:8000` automatically, which is required for httpOnly cookie same-origin to work with OAuth.
+
+## Deployment
+
+Supports multiple deployment modes via dual auth (cookie + Bearer token):
+
+| Mode | Auth | Config |
+|------|------|--------|
+| **Dev (Vite proxy)** | Cookie (same-origin) | No changes needed |
+| **Single container** | Cookie (same-origin) | `docker build .` — Dockerfile builds frontend + backend into one image, serves frontend from `static/` |
+| **Split deploy (same domain)** | Cookie (cross-subdomain) | Set `COOKIE_DOMAIN=.example.com` |
+| **Split deploy (different domains)** | Bearer token | Set `VITE_API_BASE_URL=https://api.example.com`, `CORS_ORIGINS=https://app.example.com` |
+| **Mobile app** | Bearer token | Use `Authorization: Bearer` header from OAuth `?token=` redirect |
+
+**Key settings:** `COOKIE_DOMAIN` (empty = same-origin only, `.example.com` = cross-subdomain), `APP_URL` (frontend URL for OAuth redirects), `CORS_ORIGINS` (allowed frontend origins).
+
+**Dockerfile** (project root): Multi-stage build — Stage 1: Node 18 builds frontend, Stage 2: Python 3.11-slim runs backend + serves built frontend from `static/`. Backend auto-mounts `static/` as SPA when `static/index.html` exists.
