@@ -1,10 +1,15 @@
 import type {
   ChatEditResponse,
+  Place,
   ProgressEvent,
   TripRequest,
   TripResponse,
   TripSummary,
 } from '@/types';
+
+export interface TipsResponse {
+  tips: Record<string, string>;
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -105,27 +110,27 @@ export const api = {
     query: string,
     lat?: number,
     lng?: number,
-  ): Promise<unknown[]> => {
+  ): Promise<Place[]> => {
     const params = new URLSearchParams({ query });
     if (lat !== undefined) params.set('lat', String(lat));
     if (lng !== undefined) params.set('lng', String(lng));
     const res = await fetch(`${API_BASE}/api/places/search?${params}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json() as Promise<unknown[]>;
+    return res.json() as Promise<Place[]>;
   },
 
   // ── Tips ───────────────────────────────────────────────
 
   generateTips: async (
     tripId: string,
-    activities: Record<string, unknown>[],
-  ): Promise<unknown> => {
+    activities: { place: { place_id: string; name: string }; time_start: string; time_end: string }[],
+  ): Promise<TipsResponse> => {
     const res = await fetch(`${API_BASE}/api/trips/${tripId}/tips`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(activities),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json() as Promise<unknown>;
+    return res.json() as Promise<TipsResponse>;
   },
 };

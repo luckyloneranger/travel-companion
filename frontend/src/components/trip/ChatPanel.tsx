@@ -89,8 +89,8 @@ export function ChatPanel() {
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-primary-600" />
+                <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                 </div>
               )}
               <div className={`rounded-lg px-4 py-2 max-w-[80%] ${

@@ -37,7 +37,7 @@ pytest -k "test_health"   # Run specific tests
 pytest --cov              # With coverage
 ```
 
-Test files: `backend/tests/test_api.py` (API endpoint tests with mocked dependencies). Fixtures in `conftest.py` provide `app` (FastAPI with overrides), `client` (httpx AsyncClient), in-memory SQLite, and MockLLMService.
+Test files: `backend/tests/test_api.py` (API endpoint tests), `test_tsp.py` (TSP optimizer), `test_scheduler.py` (schedule builder), `test_quality.py` (quality evaluators), `test_agents.py` (Scout/Reviewer agents), `test_services.py` (TipsService/ChatService/Routes helpers), `test_validation.py` (request validation edge cases), `test_integration.py` (API lifecycle), `test_weather.py` (weather service/parsing/warnings). Fixtures in `conftest.py` provide `app` (FastAPI with overrides), `client` (httpx AsyncClient), in-memory SQLite, and MockLLMService.
 
 ## Architecture
 
@@ -47,17 +47,17 @@ Test files: `backend/tests/test_api.py` (API endpoint tests with mocked dependen
 - **Routers** (`app/routers/`): FastAPI endpoints -- `trips.py` (journey plan, day plans, chat, CRUD), `places.py` (place search)
 - **Orchestrators** (`app/orchestrators/`): Pipeline coordination
   - `journey.py` -- JourneyOrchestrator: Scout(LLM) -> Enrich(Google APIs) -> Review(LLM, score>=70?) -> Planner(LLM, fix issues) -> loop
-  - `day_plan.py` -- DayPlanOrchestrator: discover -> AI plan -> TSP optimize -> schedule -> route computation per city
+  - `day_plan.py` -- DayPlanOrchestrator: discover -> AI plan -> TSP optimize -> schedule -> auto-select transport mode -> weather integration per city
 - **Agents** (`app/agents/`): LLM-powered components -- `scout.py`, `enricher.py`, `reviewer.py`, `planner.py`, `day_planner.py`
 - **Services** (`app/services/`):
   - `llm/` -- Abstract `LLMService` base, `AzureOpenAILLMService`, `AnthropicLLMService`, `factory.py` for provider switching
-  - `google/` -- `GooglePlacesService`, `GoogleRoutesService` (driving/walking), `GoogleDirectionsService` (transit/ferry)
+  - `google/` -- `GooglePlacesService`, `GoogleRoutesService`, `GoogleDirectionsService` (transit/ferry), `GoogleWeatherService` (daily forecasts)
   - `chat.py` -- ChatService for journey/day-plan editing via natural language
   - `tips.py` -- TipsService for activity tips generation
 - **Algorithms** (`app/algorithms/`): Deterministic computation -- `tsp.py` (route optimizer), `scheduler.py` (time-slot builder), `quality/` (7-metric evaluator)
 - **Models** (`app/models/`): Pydantic v2 models -- `common.py`, `journey.py`, `day_plan.py`, `trip.py`, `chat.py`, `progress.py`, `quality.py`, `internal.py`
 - **Database** (`app/db/`): SQLAlchemy async + aiosqlite -- `engine.py`, `models.py` (SQLAlchemy models), `repository.py` (TripRepository)
-- **Prompts** (`app/prompts/`): Markdown templates loaded via `PromptLoader` in `loader.py`
+- **Prompts** (`app/prompts/`): Markdown templates loaded via `PromptLoader` in `loader.py` (14 templates across journey, day_plan, chat, tips categories)
 - **Config** (`app/config/`): Settings (Pydantic BaseSettings), planning configs (`planning.py`), regional transport guidance (`regional_transport.py`)
 - **Core** (`app/core/`): Shared HTTP client (`http.py`), request tracing middleware (`middleware.py`)
 - **Dependencies** (`app/dependencies.py`): FastAPI `Depends()` wiring for all services and orchestrators
@@ -126,11 +126,11 @@ All trip-related endpoints are under `/api/trips`:
 - `GET /api/trips/{trip_id}` -- get full trip details
 - `DELETE /api/trips/{trip_id}` -- delete a trip
 - `GET /api/places/search` -- search places (Google Places)
-- `GET /health` -- health check (returns version 2.0.0)
+- `GET /health` -- health check (status, version, LLM provider)
 
 ## Environment Variables
 
-**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
+**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
 
 **Frontend** (`frontend/.env.local`): `VITE_API_BASE_URL` (defaults to `http://localhost:8000`), `VITE_GOOGLE_MAPS_API_KEY`
 

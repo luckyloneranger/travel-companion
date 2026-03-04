@@ -10,10 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MapPin, Calendar, Clock, Sparkles, X, Plus, Loader2, Trash2, FolderOpen } from 'lucide-react';
+import { MapPin, Calendar, Clock, Sparkles, X, Plus, Loader2, Trash2, FolderOpen, ChevronDown } from 'lucide-react';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
-import type { TripRequest, Pace, TravelMode, TripSummary } from '@/types';
+import type { TripRequest, Pace, TripSummary } from '@/types';
 
 interface InputFormProps {
   onSubmit: (request: TripRequest) => void;
@@ -45,6 +45,11 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
   const [totalDays, setTotalDays] = useState(3);
   const [interests, setInterests] = useState<string[]>([]);
   const [pace, setPace] = useState<Pace>('moderate');
+  const [mustInclude, setMustInclude] = useState<string[]>([]);
+  const [avoid, setAvoid] = useState<string[]>([]);
+  const [mustIncludeInput, setMustIncludeInput] = useState('');
+  const [avoidInput, setAvoidInput] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [interestInput, setInterestInput] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadingTripId, setLoadingTripId] = useState<string | null>(null);
@@ -93,14 +98,13 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
         total_days: totalDays,
         interests,
         pace,
-        travel_mode: 'WALK' as TravelMode,
-        must_include: [],
-        avoid: [],
+        must_include: mustInclude,
+        avoid,
       };
 
       onSubmit(request);
     },
-    [destination, origin, startDate, totalDays, interests, pace, onSubmit],
+    [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, onSubmit],
   );
 
   const handleLoadTrip = useCallback(
@@ -196,7 +200,7 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
             </div>
 
             {/* Date and Duration row */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label
                   htmlFor="start-date"
@@ -264,6 +268,149 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
               </Select>
             </div>
 
+            {/* Advanced options toggle */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((prev) => !prev)}
+              className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary transition-colors"
+            >
+              <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+              Advanced options
+              {(mustInclude.length > 0 || avoid.length > 0) && (
+                <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                  {mustInclude.length + avoid.length}
+                </Badge>
+              )}
+            </button>
+
+            {showAdvanced && (
+              <>
+            {/* Must Include */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-primary">
+                Must Include
+                <span className="text-xs text-text-muted font-normal ml-1">(optional)</span>
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g. Eiffel Tower, sushi restaurant..."
+                  value={mustIncludeInput}
+                  onChange={(e) => setMustIncludeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const trimmed = mustIncludeInput.trim();
+                      if (trimmed && !mustInclude.includes(trimmed)) {
+                        setMustInclude((prev) => [...prev, trimmed]);
+                      }
+                      setMustIncludeInput('');
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const trimmed = mustIncludeInput.trim();
+                    if (trimmed && !mustInclude.includes(trimmed)) {
+                      setMustInclude((prev) => [...prev, trimmed]);
+                    }
+                    setMustIncludeInput('');
+                  }}
+                  disabled={isLoading || !mustIncludeInput.trim()}
+                  className="h-9"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+              {mustInclude.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {mustInclude.map((item) => (
+                    <Badge key={item} variant="secondary" className="gap-1 pr-1">
+                      {item}
+                      <button
+                        type="button"
+                        onClick={() => setMustInclude((prev) => prev.filter((i) => i !== item))}
+                        disabled={isLoading}
+                        className="ml-0.5 rounded-full p-1 hover:bg-muted-foreground/20 transition-colors"
+                        aria-label={`Remove ${item}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Avoid */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-primary">
+                Avoid
+                <span className="text-xs text-text-muted font-normal ml-1">(optional)</span>
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g. crowded tourist traps, long bus rides..."
+                  value={avoidInput}
+                  onChange={(e) => setAvoidInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const trimmed = avoidInput.trim();
+                      if (trimmed && !avoid.includes(trimmed)) {
+                        setAvoid((prev) => [...prev, trimmed]);
+                      }
+                      setAvoidInput('');
+                    }
+                  }}
+                  disabled={isLoading}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const trimmed = avoidInput.trim();
+                    if (trimmed && !avoid.includes(trimmed)) {
+                      setAvoid((prev) => [...prev, trimmed]);
+                    }
+                    setAvoidInput('');
+                  }}
+                  disabled={isLoading || !avoidInput.trim()}
+                  className="h-9"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+              {avoid.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {avoid.map((item) => (
+                    <Badge key={item} variant="destructive" className="gap-1 pr-1 bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800">
+                      {item}
+                      <button
+                        type="button"
+                        onClick={() => setAvoid((prev) => prev.filter((i) => i !== item))}
+                        disabled={isLoading}
+                        className="ml-0.5 rounded-full p-1 hover:bg-red-300/30 transition-colors"
+                        aria-label={`Remove ${item}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+              </>
+            )}
+
             {/* Interests */}
             <div className="space-y-3">
               <label id="interests-label" className="text-sm font-medium text-text-primary">Interests</label>
@@ -286,7 +433,7 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
                         disabled:opacity-50 disabled:cursor-not-allowed
                         ${
                           isSelected
-                            ? 'bg-primary-100 border-primary-300 text-primary-700'
+                            ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
                             : 'bg-surface border-border-default text-text-secondary hover:bg-surface-muted hover:border-border-default'
                         }
                       `}
@@ -339,7 +486,7 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
                         type="button"
                         onClick={() => removeInterest(interest)}
                         disabled={isLoading}
-                        className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+                        className="ml-0.5 rounded-full p-1 hover:bg-muted-foreground/20 transition-colors"
                         aria-label={`Remove ${interest}`}
                       >
                         <X className="h-3 w-3" />
@@ -403,7 +550,7 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
                         {trip.theme}
                       </span>
                       {trip.has_day_plans && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">
                           Day Plans
                         </Badge>
                       )}

@@ -70,7 +70,7 @@ export function DayMap({ dayPlan }: DayMapProps) {
           title={activity.place.name}
         >
           <div className="flex flex-col items-center">
-            <span className="mb-1 max-w-[140px] truncate rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-gray-800 shadow whitespace-nowrap">
+            <span className="mb-1 max-w-[140px] truncate rounded bg-white/90 px-1.5 py-0.5 text-xs font-medium text-gray-800 shadow whitespace-nowrap">
               {activity.place.name}
             </span>
             <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-indigo-600 text-xs font-bold text-white shadow-md">

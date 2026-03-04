@@ -117,7 +117,7 @@ export function TripMap({ journey }: TripMapProps) {
             title={accom.name}
           >
             <div className="flex flex-col items-center">
-              <span className="mb-1 rounded bg-amber-500 px-1.5 py-0.5 text-[10px] font-medium text-white shadow whitespace-nowrap">
+              <span className="mb-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-medium text-white shadow whitespace-nowrap">
                 {accom.name}
               </span>
               <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-amber-500 shadow-md">

@@ -13,6 +13,7 @@ class Place(BaseModel):
     category: str = ""
     rating: float | None = None
     photo_url: str | None = None
+    photo_urls: list[str] = []
     opening_hours: list[str] = []
     website: str | None = None
 
@@ -33,6 +34,18 @@ class Activity(BaseModel):
     place: Place
     notes: str = ""
     route_to_next: Route | None = None
+    weather_warning: str | None = None
+
+
+class Weather(BaseModel):
+    """Daily weather forecast for a day plan."""
+    temperature_high_c: float
+    temperature_low_c: float
+    condition: str = ""
+    precipitation_chance_percent: int = Field(default=0, ge=0, le=100)
+    wind_speed_kmh: float = 0.0
+    humidity_percent: int = Field(default=0, ge=0, le=100)
+    uv_index: int | None = None
 
 
 class DayPlan(BaseModel):
@@ -41,3 +54,4 @@ class DayPlan(BaseModel):
     theme: str = ""
     activities: list[Activity] = []
     city_name: str = ""
+    weather: Weather | None = None

@@ -17,14 +17,16 @@ from datetime import time, timedelta
 from app.agents.day_planner import DayPlannerAgent
 from app.algorithms.scheduler import ScheduleBuilder
 from app.algorithms.tsp import RouteOptimizer, haversine_distance
-from app.models.common import Location, Pace
-from app.models.day_plan import Activity, DayPlan, Place, Route
+from app.models.common import Location, Pace, TravelMode
+from app.models.day_plan import Activity, DayPlan, Place, Route, Weather
 from app.models.internal import PlaceCandidate
 from app.models.journey import CityHighlight, JourneyPlan
 from app.models.progress import ProgressEvent
 from app.models.trip import TripRequest
+from app.services.google.directions import GoogleDirectionsService
 from app.services.google.places import GooglePlacesService
 from app.services.google.routes import GoogleRoutesService
+from app.services.google.weather import GoogleWeatherService, WeatherForecast
 from app.services.llm.base import LLMService
 
 logger = logging.getLogger(__name__)
@@ -51,10 +53,14 @@ class DayPlanOrchestrator:
         llm: LLMService,
         places: GooglePlacesService,
         routes: GoogleRoutesService,
+        directions: GoogleDirectionsService | None = None,
+        weather: GoogleWeatherService | None = None,
     ):
         self.day_planner = DayPlannerAgent(llm)
         self.places = places
         self.routes = routes
+        self.directions = directions
+        self.weather = weather
         self.optimizer = RouteOptimizer()
         self.scheduler = ScheduleBuilder()
 
@@ -136,6 +142,15 @@ class DayPlanOrchestrator:
                                 candidates.append(hc)
                                 existing_ids.add(hc.place_id)
 
+                # Resolve photo references to full URLs
+                for c in candidates:
+                    if c.photo_references:
+                        c.photo_references = [
+                            self.places.get_photo_url(ref) for ref in c.photo_references
+                        ]
+                    if c.photo_reference:
+                        c.photo_reference = self.places.get_photo_url(c.photo_reference)
+
                 if not candidates:
                     logger.warning(
                         "[DayPlanOrchestrator] No candidates found for %s, skipping",
@@ -205,7 +220,24 @@ class DayPlanOrchestrator:
                     start_location = city.accommodation.location
 
                 # ----------------------------------------------------------
-                # 3. Process each day group
+                # 3. Fetch weather forecast for this city
+                # ----------------------------------------------------------
+                city_weather: dict[str, WeatherForecast] = {}
+                if self.weather and city.location:
+                    try:
+                        forecasts = await self.weather.get_daily_forecast(
+                            city.location, days=10
+                        )
+                        city_weather = {str(f.date): f for f in forecasts}
+                    except Exception as exc:
+                        logger.warning(
+                            "[DayPlanOrchestrator] Weather fetch failed for %s: %s",
+                            city_name,
+                            exc,
+                        )
+
+                # ----------------------------------------------------------
+                # 4. Process each day group
                 # ----------------------------------------------------------
                 city_plans: list[DayPlan] = []
 
@@ -275,8 +307,23 @@ class DayPlanOrchestrator:
 
                     # e. Compute routes between consecutive activities
                     activities = await self._compute_activity_routes(
-                        activities, request.travel_mode
+                        activities
                     )
+
+                    # f. Attach weather and add warnings to outdoor activities
+                    day_weather: Weather | None = None
+                    forecast = city_weather.get(str(schedule_date))
+                    if forecast:
+                        day_weather = Weather(
+                            temperature_high_c=forecast.temperature_high_c,
+                            temperature_low_c=forecast.temperature_low_c,
+                            condition=forecast.condition,
+                            precipitation_chance_percent=forecast.precipitation_chance_percent,
+                            wind_speed_kmh=forecast.wind_speed_kmh,
+                            humidity_percent=forecast.humidity_percent,
+                            uv_index=forecast.uv_index,
+                        )
+                        activities = self._add_weather_warnings(activities, forecast)
 
                     city_plans.append(
                         DayPlan(
@@ -285,6 +332,7 @@ class DayPlanOrchestrator:
                             theme=group.theme,
                             activities=activities,
                             city_name=city_name,
+                            weather=day_weather,
                         )
                     )
 
@@ -495,15 +543,19 @@ class DayPlanOrchestrator:
     async def _compute_activity_routes(
         self,
         activities: list[Activity],
-        travel_mode,
     ) -> list[Activity]:
-        """Compute routes between consecutive activities via the Routes API.
+        """Compute routes between consecutive activities.
 
-        Adds ``route_to_next`` to each activity except the last one.
+        For each leg, queries WALK and DRIVE via the Routes API (and TRANSIT
+        via the Directions API when available) in parallel, then picks the
+        best mode based on actual travel times from Google:
+
+        - Walk <= 20 min → walk (short, pleasant, no parking)
+        - Walk <= 1.5× the fastest alternative → walk
+        - Otherwise → whichever of drive/transit is fastest
 
         Args:
             activities: Ordered list of activities for a day.
-            travel_mode: Travel mode (WALK, DRIVE, TRANSIT).
 
         Returns:
             The same activities list with route_to_next populated.
@@ -511,27 +563,126 @@ class DayPlanOrchestrator:
         if len(activities) < 2:
             return activities
 
-        # Build origin-destination pairs
-        pairs: list[tuple[Location, Location]] = []
-        for i in range(len(activities) - 1):
-            origin = activities[i].place.location
-            destination = activities[i + 1].place.location
-            pairs.append((origin, destination))
+        tasks = [
+            self._compute_best_route_for_leg(
+                activities[i].place.location,
+                activities[i + 1].place.location,
+            )
+            for i in range(len(activities) - 1)
+        ]
 
         try:
-            routes = await self.routes.compute_routes_batch(
-                pairs=pairs,
-                mode=travel_mode,
-            )
-
-            for i, route in enumerate(routes):
-                activities[i].route_to_next = route
-
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    logger.warning(
+                        "[DayPlanOrchestrator] Route computation failed for leg %d: %s",
+                        i, result,
+                    )
+                else:
+                    activities[i].route_to_next = result
         except Exception as exc:
             logger.warning(
                 "[DayPlanOrchestrator] Route computation failed: %s", exc
             )
-            # Activities remain without route_to_next — non-fatal
+
+        return activities
+
+    async def _compute_best_route_for_leg(
+        self,
+        origin: Location,
+        destination: Location,
+    ) -> Route:
+        """Query WALK, DRIVE, and TRANSIT via Routes API in parallel, pick the best."""
+        walk_task = self.routes.compute_route(origin, destination, TravelMode.WALK)
+        drive_task = self.routes.compute_route(origin, destination, TravelMode.DRIVE)
+        transit_task = self.routes.compute_route(origin, destination, TravelMode.TRANSIT)
+
+        results = await asyncio.gather(
+            walk_task, drive_task, transit_task, return_exceptions=True
+        )
+
+        # Collect successful routes
+        candidates: list[Route] = []
+        for r in results:
+            if not isinstance(r, Exception):
+                candidates.append(r)
+
+        if not candidates:
+            return self.routes._fallback_route(TravelMode.WALK)
+
+        return self._pick_best_route(candidates)
+
+    @staticmethod
+    def _pick_best_route(candidates: list[Route]) -> Route:
+        """Pick the best route from candidates using actual Google travel times.
+
+        Priority:
+        1. Walk if <= 20 min (short, pleasant, no waiting/parking)
+        2. Walk if <= 1.5× the fastest alternative (close enough)
+        3. Otherwise the fastest option (transit or drive)
+        """
+        walk = next((r for r in candidates if r.travel_mode == TravelMode.WALK), None)
+        others = [r for r in candidates if r.travel_mode != TravelMode.WALK]
+        fastest_other = min(others, key=lambda r: r.duration_seconds) if others else None
+
+        if walk:
+            # Short walk — always prefer
+            if walk.duration_seconds <= 1200:  # 20 minutes
+                return walk
+            # Walk is only slightly slower than fastest alternative
+            if fastest_other and walk.duration_seconds <= fastest_other.duration_seconds * 1.5:
+                return walk
+
+        # Return the fastest overall
+        return min(candidates, key=lambda r: r.duration_seconds)
+
+    # ── Weather warnings ─────────────────────────────────────────────
+
+    _OUTDOOR_CATEGORIES: set[str] = {
+        "park", "garden", "nature", "beach", "national_park", "campground",
+        "zoo", "scenic_spot", "viewpoint", "trail", "hiking_area",
+        "amusement_park", "tourist_attraction", "stadium",
+    }
+
+    @classmethod
+    def _add_weather_warnings(
+        cls,
+        activities: list[Activity],
+        forecast: WeatherForecast,
+    ) -> list[Activity]:
+        """Tag outdoor activities with weather warnings based on forecast data."""
+        for activity in activities:
+            category = activity.place.category.lower() if activity.place.category else ""
+            name_lower = activity.place.name.lower()
+
+            is_outdoor = (
+                category in cls._OUTDOOR_CATEGORIES
+                or any(kw in name_lower for kw in ("park", "garden", "beach", "trail", "lake", "river", "mountain", "forest"))
+            )
+            if not is_outdoor:
+                continue
+
+            warnings: list[str] = []
+            if forecast.precipitation_chance_percent >= 60:
+                warnings.append(
+                    f"Rain likely ({forecast.precipitation_chance_percent}%) — bring umbrella or consider indoor alternative"
+                )
+            if forecast.temperature_high_c >= 35:
+                warnings.append(
+                    f"Extreme heat ({forecast.temperature_high_c:.0f}°C) — stay hydrated, wear sunscreen"
+                )
+            if forecast.uv_index is not None and forecast.uv_index >= 8:
+                warnings.append(
+                    f"Very high UV ({forecast.uv_index}) — wear sun protection"
+                )
+            if forecast.wind_speed_kmh >= 40:
+                warnings.append(
+                    f"Strong winds ({forecast.wind_speed_kmh:.0f} km/h) — exercise caution"
+                )
+
+            if warnings:
+                activity.weather_warning = " | ".join(warnings)
 
         return activities
 

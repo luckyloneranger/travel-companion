@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     google_places_api_key: str = ""
     google_routes_api_key: str = ""
+    google_weather_api_key: str = ""
 
     app_env: str = "development"
     debug: bool = True

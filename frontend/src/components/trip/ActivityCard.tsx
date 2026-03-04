@@ -1,5 +1,6 @@
-import { MapPin, Clock, Star, Hotel, Navigation } from 'lucide-react';
+import { MapPin, Clock, Star, Hotel, Navigation, Lightbulb, ExternalLink, CloudRain } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useTripStore } from '@/stores/tripStore';
 import type { Activity } from '@/types';
 
 interface ActivityCardProps {
@@ -44,6 +45,7 @@ const isAccommodation = (category: string): boolean =>
 
 export function ActivityCard({ activity, index }: ActivityCardProps) {
   const accommodation = isAccommodation(activity.place.category);
+  const tip = useTripStore((s) => s.tips[activity.place.place_id]);
 
   return (
     <div className="flex gap-3">
@@ -52,8 +54,8 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
         <div
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
             accommodation
-              ? 'bg-accent-100 text-accent-500'
-              : 'bg-primary-100 text-primary-700'
+              ? 'bg-accent-100 dark:bg-accent-500/20 text-accent-500'
+              : 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300'
           }`}
         >
           {accommodation ? (
@@ -71,7 +73,7 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
         <div
           className={`rounded-lg border p-3 ${
             accommodation
-              ? 'bg-accent-50/50 border-accent-200'
+              ? 'bg-accent-50/50 border-accent-200 dark:bg-accent-500/10 dark:border-accent-500/30'
               : 'bg-surface border-border-default'
           }`}
         >
@@ -99,17 +101,44 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
               )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              {activity.place.website && (
+                <a
+                  href={activity.place.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-muted hover:text-primary-600 transition-colors"
+                  aria-label={`Visit ${activity.place.name} website`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
               {activity.place.rating && (
                 <span className="flex items-center gap-0.5 text-xs text-text-secondary">
                   <Star className="h-3 w-3 fill-accent-400 text-accent-400" />
                   {activity.place.rating.toFixed(1)}
                 </span>
               )}
-              <Badge variant="outline" className="text-[10px] capitalize">
+              <Badge variant="outline" className="text-xs capitalize">
                 {activity.place.category}
               </Badge>
             </div>
           </div>
+
+          {/* Photos */}
+          {activity.place.photo_urls.length > 0 && (
+            <div className="flex gap-1.5 mt-2 overflow-x-auto">
+              {activity.place.photo_urls.map((url, i) => (
+                <img
+                  key={i}
+                  src={url}
+                  alt={`${activity.place.name} photo ${i + 1}`}
+                  loading="lazy"
+                  className="h-16 w-20 rounded-md object-cover shrink-0"
+                />
+              ))}
+            </div>
+          )}
 
           {/* Notes */}
           {activity.notes && (
@@ -117,11 +146,27 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
               {activity.notes}
             </p>
           )}
+
+          {/* Tip */}
+          {tip && (
+            <div className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2.5 py-1.5">
+              <Lightbulb className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">{tip}</p>
+            </div>
+          )}
+
+          {/* Weather warning */}
+          {activity.weather_warning && (
+            <div className="mt-2 flex items-start gap-1.5 rounded-md bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 px-2.5 py-1.5">
+              <CloudRain className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
+              <p className="text-xs text-orange-800 dark:text-orange-300 leading-relaxed">{activity.weather_warning}</p>
+            </div>
+          )}
         </div>
 
         {/* Route to next */}
         {activity.route_to_next && (
-          <div className="mt-1.5 ml-2 flex items-center gap-2 text-[11px] text-text-muted">
+          <div className="mt-1.5 ml-2 flex items-center gap-2 text-xs text-text-muted">
             <TravelModeIcon mode={activity.route_to_next.travel_mode} />
             <span>{formatDistance(activity.route_to_next.distance_meters)}</span>
             <span className="text-border-default">&middot;</span>

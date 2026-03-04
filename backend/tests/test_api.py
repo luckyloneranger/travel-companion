@@ -81,6 +81,7 @@ class TestHealthCheck:
         data = response.json()
         assert data["status"] == "healthy"
         assert data["version"] == "2.0.0"
+        assert "llm_provider" in data
 
 
 class TestListTrips:

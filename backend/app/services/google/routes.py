@@ -160,6 +160,53 @@ class GoogleRoutesService:
                 routes.append(r)
         return routes
 
+    async def compute_best_route(
+        self,
+        origin: Location,
+        destination: Location,
+    ) -> Route:
+        """Compute routes for WALK and DRIVE in parallel, return the best one.
+
+        Selection logic:
+        - If walk <= 20 min, prefer walk (healthier, no parking hassle).
+        - If walk <= 1.5x drive time, prefer walk (close enough).
+        - Otherwise, use the faster mode (drive).
+
+        Falls back to walk-only on errors.
+        """
+        walk_task = asyncio.ensure_future(
+            self.compute_route(origin, destination, TravelMode.WALK)
+        )
+        drive_task = asyncio.ensure_future(
+            self.compute_route(origin, destination, TravelMode.DRIVE)
+        )
+
+        results = await asyncio.gather(walk_task, drive_task, return_exceptions=True)
+
+        walk_route = results[0] if not isinstance(results[0], Exception) else None
+        drive_route = results[1] if not isinstance(results[1], Exception) else None
+
+        # If only one succeeded, return it
+        if walk_route and not drive_route:
+            return walk_route
+        if drive_route and not walk_route:
+            return drive_route
+        if not walk_route and not drive_route:
+            return self._fallback_route(TravelMode.WALK)
+
+        # Both succeeded — pick the better option
+        walk_secs = walk_route.duration_seconds
+        drive_secs = drive_route.duration_seconds
+
+        # Prefer walking for short trips (<=20 min) or when it's
+        # not much slower than driving (<=1.5x).
+        if walk_secs <= 1200:  # 20 minutes
+            return walk_route
+        if drive_secs > 0 and walk_secs <= drive_secs * 1.5:
+            return walk_route
+
+        return drive_route
+
     async def get_distance_matrix(
         self,
         origins: list[Location],

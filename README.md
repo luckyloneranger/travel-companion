@@ -1,6 +1,6 @@
 # Travel Companion
 
-AI-powered multi-city travel planner. Uses LLMs for creative planning decisions and Google APIs for real-time data — routes, distances, opening hours, and transport options.
+AI-powered multi-city travel planner. Uses LLMs for creative planning decisions and Google APIs for real-time data — routes, distances, opening hours, weather, and transport options.
 
 ## How It Works
 
@@ -21,18 +21,32 @@ Scout (LLM picks cities) → Enrich (Google APIs ground with real data)
 **Day plan pipeline (per city):**
 
 ```
-Discover highlights → AI plans days → TSP optimizes routes
-  → Schedule builder assigns time slots → Google Routes computes legs
+Discover places → AI plans days → TSP optimizes routes
+  → Schedule builder assigns time slots → Auto-select best transport mode
+  → Attach weather forecasts → Add weather warnings for outdoor activities
 ```
+
+## Features
+
+- **Multi-city journey planning** with quality-scored iterative refinement
+- **Per-day itineraries** with themed days, meal timing, and pace control
+- **Smart transport selection** — walks short distances, drives or takes transit for longer legs (based on real Google travel times, not hardcoded thresholds)
+- **Weather integration** — daily forecasts on day plans, warnings for outdoor activities in bad weather
+- **Interactive maps** — journey-level city map + per-day activity maps with route polylines
+- **Chat editing** — modify journeys and day plans via natural language
+- **Activity tips** — LLM-generated insider tips for each place
+- **Dark mode** — full component coverage with system preference detection
+- **Copy itinerary** — one-click clipboard export
+- **Quality filtering** — filters out closed/low-rated places, prefers current opening hours over regular
 
 ## Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
 | Backend | FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy + aiosqlite |
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, Zustand |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, shadcn/ui, Zustand |
 | LLM | Azure OpenAI GPT-4o or Anthropic Claude (switchable via config) |
-| APIs | Google Places, Google Routes, Google Directions (transit/ferry) |
+| APIs | Google Places, Routes, Directions, Weather |
 | Streaming | Server-Sent Events (SSE) for real-time progress |
 
 ## Quick Start
@@ -60,7 +74,7 @@ npm run dev                    # Opens at http://localhost:5173
 
 - Python 3.11+
 - Node.js 18+
-- Google Cloud account (Places, Routes, and Directions APIs enabled)
+- Google Cloud account (Places, Routes, Directions, and Weather APIs enabled)
 - Azure OpenAI or Anthropic API access
 
 ## Configuration
@@ -77,6 +91,7 @@ npm run dev                    # Opens at http://localhost:5173
 | `ANTHROPIC_MODEL` | Anthropic model name |
 | `GOOGLE_PLACES_API_KEY` | Google Places API key |
 | `GOOGLE_ROUTES_API_KEY` | Google Routes API key |
+| `GOOGLE_WEATHER_API_KEY` | Google Weather API key |
 | `CORS_ORIGINS` | Allowed origins (default: `http://localhost:5173`) |
 
 ### Frontend (`frontend/.env.local`)
@@ -102,19 +117,20 @@ All trip endpoints are under `/api/trips`:
 | GET | `/api/trips/{id}` | Get full trip details |
 | DELETE | `/api/trips/{id}` | Delete a trip |
 | GET | `/api/places/search` | Search places |
-| GET | `/health` | Health check |
+| GET | `/health` | Health check (status, version, LLM provider) |
 
 ### Example Request
 
 ```json
 {
-  "origin": "Bangalore, India",
-  "region": "Vietnam",
-  "total_days": 14,
-  "start_date": "2026-03-01",
-  "interests": ["culture", "food", "history", "nature"],
+  "destination": "Japan",
+  "origin": "London",
+  "total_days": 5,
+  "start_date": "2026-07-01",
+  "interests": ["food", "culture", "nature"],
   "pace": "moderate",
-  "return_to_origin": false
+  "must_include": ["Mount Fuji", "Fushimi Inari"],
+  "avoid": ["crowded malls"]
 }
 ```
 
@@ -134,11 +150,12 @@ travel-companion/
 │   ├── agents/                     # scout, enricher, reviewer, planner, day_planner
 │   ├── services/
 │   │   ├── llm/                    # Abstract base + Azure OpenAI / Anthropic
-│   │   ├── google/                 # Places, Routes, Directions
+│   │   ├── google/                 # Places, Routes, Directions, Weather
 │   │   ├── chat.py                 # Chat-based plan editing
 │   │   └── tips.py                 # Activity tips generation
-│   ├── algorithms/                 # TSP solver, scheduler, quality scoring
+│   ├── algorithms/                 # TSP solver, scheduler, quality scoring (7 evaluators)
 │   └── prompts/                    # Markdown templates (journey, day_plan, chat, tips)
+├── backend/tests/                  # 135 tests (API, agents, algorithms, services, weather)
 ├── frontend/src/
 │   ├── App.tsx                     # Main app with phase-based routing
 │   ├── components/
@@ -150,16 +167,18 @@ travel-companion/
 │   ├── hooks/                      # useStreamingPlan, useStreamingDayPlans
 │   ├── services/api.ts             # API client with SSE streaming
 │   └── types/                      # TypeScript interfaces
-├── CLAUDE.md                       # Claude Code project context
-└── docs/plans/                     # Implementation plans
+└── CLAUDE.md                       # Claude Code project context
 ```
 
-## Development
+## Testing
 
 ```bash
-# Run backend tests
+# Run all backend tests (135 tests)
 cd backend && source venv/bin/activate
 pytest -v
+
+# Run with coverage
+pytest --cov=app
 
 # Type check frontend
 cd frontend && npx tsc --noEmit

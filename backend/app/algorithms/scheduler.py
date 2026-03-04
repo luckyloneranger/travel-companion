@@ -253,6 +253,8 @@ class ScheduleBuilder:
                 location=place.location,
                 category=place.types[0] if place.types else "",
                 rating=place.rating,
+                photo_url=place.photo_reference,
+                photo_urls=place.photo_references,
                 opening_hours=[],
                 website=place.website,
             )

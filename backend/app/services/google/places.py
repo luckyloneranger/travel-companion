@@ -408,8 +408,9 @@ class GooglePlacesService:
                 "places.id,places.displayName,places.formattedAddress,"
                 "places.location,places.types,places.rating,"
                 "places.userRatingCount,places.priceLevel,"
-                "places.regularOpeningHours,places.photos,"
-                "places.websiteUri,places.editorialSummary"
+                "places.regularOpeningHours,places.currentOpeningHours,"
+                "places.photos,places.websiteUri,places.editorialSummary,"
+                "places.businessStatus"
             ),
         }
         body: dict[str, Any] = {
@@ -458,9 +459,12 @@ class GooglePlacesService:
         loc = raw.get("location", {})
         photos = raw.get("photos", [])
         photo_ref = photos[0].get("name", "") if photos else None
-        opening_hours = self._parse_opening_hours(
-            raw.get("regularOpeningHours", {})
-        )
+        photo_refs = [p.get("name", "") for p in photos[:3] if p.get("name")]
+
+        # Prefer currentOpeningHours (accounts for holidays/temp closures)
+        # over regularOpeningHours
+        hours_data = raw.get("currentOpeningHours") or raw.get("regularOpeningHours", {})
+        opening_hours = self._parse_opening_hours(hours_data)
 
         return PlaceCandidate(
             place_id=raw.get("id", ""),
@@ -475,7 +479,9 @@ class GooglePlacesService:
             user_ratings_total=raw.get("userRatingCount"),
             price_level=self._parse_price_level(raw.get("priceLevel")),
             opening_hours=opening_hours if opening_hours else None,
+            business_status=raw.get("businessStatus"),
             photo_reference=photo_ref,
+            photo_references=photo_refs,
             website=raw.get("websiteUri"),
             editorial_summary=(
                 raw.get("editorialSummary", {}).get("text")
@@ -547,9 +553,13 @@ class GooglePlacesService:
         Quality thresholds:
         - rating >= ``MIN_RATING``
         - user_ratings_total >= ``MIN_RATINGS_COUNT``
+        - business_status is OPERATIONAL (or unknown)
 
         Sorted by (rating descending, user_ratings_total descending).
         """
+        # Non-operational statuses to exclude
+        _CLOSED_STATUSES = {"CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"}
+
         seen: set[str] = set()
         unique: list[PlaceCandidate] = []
         for c in candidates:
@@ -566,6 +576,7 @@ class GooglePlacesService:
                 c.user_ratings_total is not None
                 and c.user_ratings_total >= MIN_RATINGS_COUNT
             )
+            and (c.business_status is None or c.business_status not in _CLOSED_STATUSES)
         ]
 
         filtered.sort(

@@ -24,13 +24,13 @@
   --color-accent-400: #ffa94d;
   --color-accent-500: #ff922b;
 
-  --color-surface: #ffffff;
-  --color-surface-dim: #f8f9fa;
-  --color-surface-muted: #f1f3f5;
-  --color-border-default: #dee2e6;
-  --color-text-primary: #212529;
-  --color-text-secondary: #495057;
-  --color-text-muted: #868e96;
+  --color-surface: var(--theme-surface);
+  --color-surface-dim: var(--theme-surface-dim);
+  --color-surface-muted: var(--theme-surface-muted);
+  --color-border-default: var(--theme-border-default);
+  --color-text-primary: var(--theme-text-primary);
+  --color-text-secondary: var(--theme-text-secondary);
+  --color-text-muted: var(--theme-text-muted);
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
@@ -80,6 +80,13 @@
 
 :root {
   --radius: 0.625rem;
+  --theme-surface: #ffffff;
+  --theme-surface-dim: #f8f9fa;
+  --theme-surface-muted: #f1f3f5;
+  --theme-border-default: #dee2e6;
+  --theme-text-primary: #212529;
+  --theme-text-secondary: #495057;
+  --theme-text-muted: #868e96;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -114,6 +121,13 @@
 }
 
 .dark {
+  --theme-surface: #1a1b1e;
+  --theme-surface-dim: #141517;
+  --theme-surface-muted: #25262b;
+  --theme-border-default: #373a40;
+  --theme-text-primary: #e9ecef;
+  --theme-text-secondary: #ced4da;
+  --theme-text-muted: #909296;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -153,5 +167,39 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Phase transition animation */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out;
+}
+
+/* Print styles */
+@media print {
+  header, button, .sr-only {
+    display: none !important;
+  }
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .animate-fade-in-up {
+    animation: none !important;
+  }
+  * {
+    color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

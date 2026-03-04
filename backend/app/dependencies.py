@@ -11,6 +11,7 @@ from app.services.chat import ChatService
 from app.services.google.directions import GoogleDirectionsService
 from app.services.google.places import GooglePlacesService
 from app.services.google.routes import GoogleRoutesService
+from app.services.google.weather import GoogleWeatherService
 from app.services.llm.base import LLMService
 from app.services.llm.factory import create_llm_service
 from app.services.tips import TipsService
@@ -46,6 +47,12 @@ def get_directions_service(
     return GoogleDirectionsService(settings.google_places_api_key, http)
 
 
+def get_weather_service(
+    settings: Settings = Depends(get_settings), http=Depends(get_http)
+) -> GoogleWeatherService:
+    return GoogleWeatherService(settings.google_weather_api_key, http)
+
+
 def get_journey_orchestrator(
     llm=Depends(get_llm_service),
     places=Depends(get_places_service),
@@ -59,8 +66,10 @@ def get_day_plan_orchestrator(
     llm=Depends(get_llm_service),
     places=Depends(get_places_service),
     routes=Depends(get_routes_service),
+    directions=Depends(get_directions_service),
+    weather=Depends(get_weather_service),
 ) -> DayPlanOrchestrator:
-    return DayPlanOrchestrator(llm, places, routes)
+    return DayPlanOrchestrator(llm, places, routes, directions, weather)
 
 
 def get_chat_service(

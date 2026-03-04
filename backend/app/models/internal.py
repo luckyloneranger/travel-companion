@@ -19,7 +19,9 @@ class PlaceCandidate(BaseModel):
     user_ratings_total: int | None = None
     price_level: int | None = Field(default=None, ge=0, le=4)
     opening_hours: list[OpeningHours] | None = None
+    business_status: str | None = None
     photo_reference: str | None = None
+    photo_references: list[str] = []
     website: str | None = None
     editorial_summary: str | None = None
     suggested_duration_minutes: int | None = None

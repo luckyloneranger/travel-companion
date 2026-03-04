@@ -103,6 +103,7 @@ export interface Place {
   category: string;
   rating: number | null;
   photo_url: string | null;
+  photo_urls: string[];
   opening_hours: string[];
   website: string | null;
 }
@@ -123,6 +124,17 @@ export interface Activity {
   place: Place;
   notes: string;
   route_to_next: Route | null;
+  weather_warning: string | null;
+}
+
+export interface Weather {
+  temperature_high_c: number;
+  temperature_low_c: number;
+  condition: string;
+  precipitation_chance_percent: number;
+  wind_speed_kmh: number;
+  humidity_percent: number;
+  uv_index: number | null;
 }
 
 export interface DayPlan {
@@ -131,6 +143,7 @@ export interface DayPlan {
   theme: string;
   activities: Activity[];
   city_name: string;
+  weather: Weather | null;
 }
 
 // ── trip.py ────────────────────────────────────────────────
@@ -142,7 +155,7 @@ export interface TripRequest {
   start_date: string; // ISO date string (YYYY-MM-DD)
   interests: string[];
   pace: Pace;
-  travel_mode: TravelMode;
+  travel_mode?: TravelMode;
   must_include: string[];
   avoid: string[];
 }

@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import { Suspense } from 'react';
+import { Suspense, useCallback, useState } from 'react';
 import {
   MapPin,
   Calendar,
@@ -8,6 +7,9 @@ import {
   Map,
   MessageSquare,
   Sparkles,
+  PlusCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   Card,
@@ -20,7 +22,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CityCard } from '@/components/trip/CityCard';
-import { TravelLegCard } from '@/components/trip/TravelLegCard';
 import { TripMap } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -28,14 +29,52 @@ import { useUIStore } from '@/stores/uiStore';
 interface JourneyPreviewProps {
   onGenerateDayPlans: () => void;
   onOpenChat: () => void;
+  onNewTrip: () => void;
 }
 
 export function JourneyPreview({
   onGenerateDayPlans,
   onOpenChat,
+  onNewTrip,
 }: JourneyPreviewProps) {
   const { journey } = useTripStore();
   const { showJourneyMap, toggleJourneyMap } = useUIStore();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyItinerary = useCallback(() => {
+    if (!journey) return;
+    const lines: string[] = [
+      `${journey.theme}`,
+      journey.summary,
+      '',
+      `Route: ${journey.origin ? `${journey.origin} → ` : ''}${journey.cities.map(c => c.name).join(' → ')}`,
+      `Duration: ${journey.total_days} days | ${journey.cities.length} cities`,
+      journey.total_distance_km ? `Distance: ${journey.total_distance_km.toFixed(0)} km` : '',
+      '',
+    ];
+
+    journey.cities.forEach((city, i) => {
+      lines.push(`--- ${city.name}, ${city.country} (${city.days} days) ---`);
+      if (city.why_visit) lines.push(city.why_visit);
+      if (city.highlights.length > 0) {
+        lines.push('Highlights:');
+        city.highlights.forEach(h => lines.push(`  • ${h.name}${h.description ? ` - ${h.description}` : ''}`));
+      }
+      if (city.accommodation) {
+        lines.push(`Stay: ${city.accommodation.name}${city.accommodation.rating ? ` (${city.accommodation.rating.toFixed(1)}★)` : ''}`);
+      }
+
+      if (i < journey.travel_legs.length) {
+        const leg = journey.travel_legs[i];
+        lines.push(`→ ${leg.mode} to ${leg.to_city} (${leg.duration_hours.toFixed(1)}h${leg.fare ? `, ${leg.fare}` : ''})`);
+      }
+      lines.push('');
+    });
+
+    navigator.clipboard.writeText(lines.filter(l => l !== undefined).join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [journey]);
 
   if (!journey) return null;
 
@@ -63,9 +102,11 @@ export function JourneyPreview({
               <Badge
                 variant={journey.review_score >= 70 ? 'default' : 'outline'}
                 className={`shrink-0 text-xs ${
-                  journey.review_score >= 70
-                    ? 'bg-green-600 text-white'
-                    : 'border-amber-400 text-amber-700'
+                  journey.review_score >= 80
+                    ? 'bg-green-600 dark:bg-green-700 text-white'
+                    : journey.review_score >= 70
+                      ? 'bg-green-600/80 dark:bg-green-700/80 text-white'
+                      : 'border-amber-400 dark:border-amber-600 text-amber-700 dark:text-amber-400'
                 }`}
               >
                 Score: {journey.review_score}
@@ -90,6 +131,11 @@ export function JourneyPreview({
               <span className="flex items-center gap-1.5">
                 <Navigation className="h-4 w-4 text-text-muted" />
                 {journey.total_distance_km.toFixed(0)} km total
+              </span>
+            )}
+            {journey.total_travel_hours != null && (
+              <span className="flex items-center gap-1.5">
+                ~{journey.total_travel_hours.toFixed(1)}h travel
               </span>
             )}
             {journey.route && (
@@ -124,18 +170,27 @@ export function JourneyPreview({
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={onGenerateDayPlans}
+              size="sm"
               className="bg-primary-600 hover:bg-primary-700 text-white"
             >
               <Calendar className="h-4 w-4" />
               Generate Day Plans
             </Button>
-            <Button variant="outline" onClick={toggleJourneyMap}>
+            <Button variant="outline" size="sm" onClick={toggleJourneyMap}>
               <Map className="h-4 w-4" />
               {showJourneyMap ? 'Hide Map' : 'Show Map'}
             </Button>
-            <Button variant="outline" onClick={onOpenChat}>
+            <Button variant="outline" size="sm" onClick={onOpenChat}>
               <MessageSquare className="h-4 w-4" />
               Edit via Chat
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleCopyItinerary}>
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? 'Copied!' : 'Copy'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onNewTrip}>
+              <PlusCircle className="h-4 w-4" />
+              New Trip
             </Button>
           </div>
 
@@ -150,50 +205,26 @@ export function JourneyPreview({
         </CardContent>
       </Card>
 
-      {/* City cards interleaved with travel legs */}
-      <div className="space-y-0">
-        {(() => {
-          // Build an ordered list: [leg?, city, leg?, city, leg?, city, leg?]
-          // travel_legs[i] connects stop i to stop i+1 in the full route.
-          // If origin is set, the stops are [origin, city0, city1, ...].
-          // If no origin, the stops are [city0, city1, ...].
-          const hasOrigin = Boolean(journey.origin);
-          const elements: ReactNode[] = [];
+      {/* City cards with integrated transport info */}
+      <div className="space-y-4">
+        {journey.cities.map((city, i) => {
+          // The departure leg from this city to the next stop.
+          // travel_legs[i] = leg from cities[i] to cities[i+1] (when no origin)
+          // travel_legs[i] = leg from cities[i] to cities[i+1] (when origin, legs[0] is from origin/first city)
+          // We simply match: leg whose from_city matches this city's name
+          const departureLeg = journey.travel_legs.find(
+            (leg) => leg.from_city === city.name,
+          );
 
-          journey.cities.forEach((city, i) => {
-            // Index into travel_legs for the leg arriving at this city
-            const legIndex = hasOrigin ? i : i - 1;
-            if (legIndex >= 0 && legIndex < journey.travel_legs.length) {
-              elements.push(
-                <TravelLegCard
-                  key={`leg-${legIndex}`}
-                  leg={journey.travel_legs[legIndex]}
-                />,
-              );
-            }
-            elements.push(
-              <div key={`city-${i}`} className={elements.length > 0 ? 'mt-2' : ''}>
-                <CityCard city={city} index={i} />
-              </div>,
-            );
-          });
-
-          // Any remaining legs after the last city (e.g., return to origin)
-          const lastUsedLeg = hasOrigin
-            ? journey.cities.length - 1
-            : journey.cities.length - 2;
-          for (
-            let j = lastUsedLeg + 1;
-            j < journey.travel_legs.length;
-            j++
-          ) {
-            elements.push(
-              <TravelLegCard key={`leg-${j}`} leg={journey.travel_legs[j]} />,
-            );
-          }
-
-          return elements;
-        })()}
+          return (
+            <CityCard
+              key={`city-${i}`}
+              city={city}
+              index={i}
+              departureLeg={departureLeg}
+            />
+          );
+        })}
       </div>
     </div>
   );
