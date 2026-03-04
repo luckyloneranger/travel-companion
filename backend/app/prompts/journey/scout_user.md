@@ -92,7 +92,8 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
       ],
       "accommodation": {{
         "name": "Specific Hotel, Resort, or Guesthouse Name",
-        "why": "Brief reason — location advantage, style match, or value"
+        "why": "Brief reason — location advantage, style match, or value",
+        "estimated_nightly_usd": 120
       }}
     }}
   ],
@@ -105,6 +106,7 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
       "distance_km": 250,
       "notes": "Specific service name, departure recommendations, comfort level",
       "estimated_cost": "Local currency estimate",
+      "fare_usd": 85,
       "booking_tip": "How/where to book, how far in advance"
     }}
   ]
@@ -119,4 +121,6 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
 - Travel legs connect destination1 to destination2 to destination3 and so on (first leg is from first destination to second destination)
 - Choose transport modes that are ACTUALLY available and popular in {region} — include ferries/boats for coastal and island destinations
 - Each destination MUST have an accommodation suggestion with a specific, real property name
+- Each accommodation MUST include `estimated_nightly_usd` — your best estimate for a typical nightly rate in USD for this property
+- Each travel leg MUST include `fare_usd` — your best estimate for a one-way fare per person in USD
 - Return ONLY the JSON object — no markdown fences, no text before or after

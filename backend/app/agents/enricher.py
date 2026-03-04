@@ -218,8 +218,11 @@ class EnricherAgent:
                 )
 
             if result:
-                estimated_nightly = _PRICE_LEVEL_TO_NIGHTLY_USD.get(
-                    result.price_level or 2, 80
+                # Prefer LLM's cost estimate if available, otherwise use price_level heuristic
+                llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
+                estimated_nightly = (
+                    llm_nightly
+                    or _PRICE_LEVEL_TO_NIGHTLY_USD.get(result.price_level or 2, 80)
                 )
                 city.accommodation = Accommodation(
                     name=result.name,
@@ -296,9 +299,8 @@ class EnricherAgent:
                 destination_name=leg.to_city,
             )
             self._update_leg_with_real_data(leg, options)
-            # Estimate fare in USD if not already set
+            # Estimate fare in USD — prefer LLM estimate, fall back to heuristic
             if leg.fare_usd is None:
-                # Use haversine distance as fallback for flights/missing distance
                 distance = leg.distance_km
                 if distance is None and origin_loc and dest_loc:
                     from app.algorithms.tsp import haversine_distance
