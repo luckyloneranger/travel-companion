@@ -29,16 +29,17 @@ Discover places → AI plans days (with time constraints) → TSP optimizes rout
 ## Features
 
 - **Multi-city journey planning** with quality-scored iterative refinement (returns best attempt across iterations)
-- **Guided wizard input** — 5-step form (Where → When → Style → Budget → Review) with quick-start templates
+- **Group travel support** — plan for solo, couples, families (with children/infants), or friend groups with age-aware cost estimates
+- **Guided wizard input** — 5-step form (Where → When & Who → Style → Budget → Review) with quick-start templates
 - **Unified trip view** — journey overview and day plans on a single page, no context switching
 - **Inline day plans** — generated in background, rendered per-city inside each city card
 - **Per-day timeline** — activities with time, cost, rating, photos, address, weather, and tips shown inline (no clicks needed)
 - **Smart transport selection** — walks short distances, drives or takes transit for longer legs (based on real Google travel times)
 - **Weather integration** — daily forecasts on day plans, inline warnings for outdoor activities in bad weather
-- **Budget tracking** — complete cost breakdown across all categories (accommodation, transport, dining, activities), per-city totals, journey total
+- **Budget tracking** — complete cost breakdown across all categories (accommodation, transport, dining, activities), per-city totals, journey total — all costs reflect total for the group
 - **Interactive maps** — journey-level city map + per-day route maps in fullscreen overlay
 - **Chat editing** — modify journeys and day plans via natural language with suggestion chips
-- **User accounts** — OAuth login via Google or GitHub, trip ownership
+- **User accounts** — OAuth login via Google or GitHub, trip ownership; all trip endpoints require authentication
 - **Trip sharing** — shareable links for read-only access with inline day plans
 - **Export** — PDF itinerary and .ics calendar export
 - **Activity tips** — LLM-generated insider tips for each place, shown inline
@@ -172,12 +173,13 @@ See `backend/.env.example` and `frontend/.env.example` for templates.
 {
   "destination": "Japan",
   "origin": "London",
-  "total_days": 5,
+  "total_days": 7,
   "start_date": "2026-07-01",
   "interests": ["food", "culture", "nature"],
   "pace": "moderate",
   "budget": "moderate",
-  "budget_usd": 3000,
+  "budget_usd": 5000,
+  "travelers": {"adults": 2, "children": 1, "infants": 0},
   "must_include": ["Mount Fuji", "Fushimi Inari"],
   "avoid": ["crowded malls"]
 }
@@ -205,7 +207,7 @@ travel-companion/
 │   │   └── export.py               # PDF and calendar export
 │   ├── algorithms/                 # TSP solver, scheduler, quality scoring (7 evaluators)
 │   └── prompts/                    # Markdown templates (journey, day_plan, chat, tips)
-├── backend/tests/                  # 163 tests (API, agents, algorithms, services, weather)
+├── backend/tests/                  # 164 tests (API, agents, algorithms, services, weather, auth)
 ├── frontend/src/
 │   ├── App.tsx                     # Main app — wizard input → planning → unified trip view
 │   ├── components/
@@ -226,7 +228,7 @@ travel-companion/
 ## Testing
 
 ```bash
-# Run all backend tests (163 tests)
+# Run all backend tests (164 tests)
 cd backend && source venv/bin/activate
 pytest -v
 

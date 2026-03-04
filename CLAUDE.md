@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Travel Companion AI (V2) -- a hybrid AI + deterministic travel planning app. LLMs handle creative decisions (place selection, theming, descriptions, cost estimation); deterministic layers handle calculations (distance, time, validation, scheduling).
+Travel Companion AI (V2) -- a hybrid AI + deterministic travel planning app. LLMs handle creative decisions (place selection, theming, descriptions, cost estimation for groups); deterministic layers handle calculations (distance, time, validation, scheduling).
 
-Unified pipeline: multi-city journey planning with Scout -> Enrich -> Review -> Planner loop (~2-5min), iterating until quality threshold (min 70 score, max 3 iterations, returns best attempt). Day plans are generated per-city with discover -> AI plan -> TSP optimize -> schedule -> route computation.
+Unified pipeline: multi-city journey planning with Scout -> Enrich -> Review -> Planner loop (~2-5min), iterating until quality threshold (min 70 score, max 3 iterations, returns best attempt). Day plans are generated in background per-city with discover -> AI plan -> TSP optimize -> schedule -> route computation. All trip endpoints require authentication.
 
 ## Build & Run Commands
 
@@ -56,7 +56,7 @@ Test files: `backend/tests/test_api.py` (API endpoint tests), `test_tsp.py` (TSP
   - `tips.py` -- TipsService for activity tips generation
   - `export.py` -- PDF (weasyprint) and calendar (.ics) export
 - **Algorithms** (`app/algorithms/`): Deterministic computation -- `tsp.py` (route optimizer), `scheduler.py` (time-slot builder), `quality/` (7-metric evaluator)
-- **Models** (`app/models/`): Pydantic v2 models -- `common.py`, `journey.py`, `day_plan.py`, `trip.py`, `chat.py`, `progress.py`, `quality.py`, `internal.py`
+- **Models** (`app/models/`): Pydantic v2 models -- `common.py`, `journey.py`, `day_plan.py`, `trip.py` (TripRequest with Travelers model), `chat.py`, `progress.py`, `quality.py`, `internal.py`
 - **Database** (`app/db/`): SQLAlchemy async + aiosqlite -- `engine.py`, `models.py` (SQLAlchemy models), `repository.py` (TripRepository)
 - **Prompts** (`app/prompts/`): Markdown templates loaded via `PromptLoader` in `loader.py` (14 templates across journey, day_plan, chat, tips categories)
 - **Config** (`app/config/`): Settings (Pydantic BaseSettings), planning configs (`planning.py`), regional transport guidance (`regional_transport.py`)
@@ -94,13 +94,13 @@ user = day_plan_prompts.load("planning_user")
 **SSE Streaming** -- endpoints yield `data: {json}\n\n` events via `ProgressEvent` model with phases: `scouting`, `enriching`, `reviewing`, `planning`, `complete`, `error`. Day plan generation runs in background (no phase switch). Frontend consumes via async generator in `api.ts` with AbortController. Stall timeout (180s) warns users on slow connections.
 
 **Zustand Stores** -- frontend state management via three stores:
-- `tripStore.ts` -- journey plan, day plans, saved trips CRUD, cost breakdown (includes accommodation + transport + dining + activities)
+- `tripStore.ts` -- journey plan, day plans, travelers (adults/children/infants), saved trips CRUD, cost breakdown (includes accommodation + transport + dining + activities, costs are total-for-group)
 - `uiStore.ts` -- phase management (input -> planning -> preview), wizard step tracking, day plans generating state, progress tracking, chat toggles, browser history integration
 - `authStore.ts` -- user authentication state, periodic token refresh
 
 **Request Tracing** -- `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs. `RequestLoggingFilter` injects `request_id` into log records.
 
-**Authentication** -- OAuth (Google/GitHub) via authlib, JWT tokens stored as httpOnly cookies, 401 auto-logout on frontend.
+**Authentication** -- OAuth (Google/GitHub) via authlib, JWT tokens stored as httpOnly cookies, 401 auto-logout on frontend. All trip API endpoints require authentication; only `/health`, `/api/auth/me`, and `/api/shared/{token}` are public.
 
 **Design Principles** -- Prefer LLM prompt updates and Google API grounding over hardcoded heuristics. Cost estimates, geographic diversity, destination validity, and activity planning are all LLM-driven via prompt guidance rather than deterministic rules.
 
