@@ -43,6 +43,7 @@ class Settings(BaseSettings):
 
     # App
     app_url: str = "http://localhost:5173"
+    backend_url: str = ""  # e.g. "https://ret-app.azurewebsites.net" — used for OAuth callback URIs
 
     app_env: str = "development"
     debug: bool = True

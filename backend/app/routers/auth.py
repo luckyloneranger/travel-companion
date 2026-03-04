@@ -51,9 +51,12 @@ async def login(provider: str, request: Request):
         raise HTTPException(400, f"{provider} OAuth not configured")
 
     # In development, use app_url (frontend) to route through Vite proxy
-    # so cookies are set on the same origin. In production, use the backend URL.
+    # so cookies are set on the same origin. In production, use backend_url
+    # to ensure HTTPS (reverse proxies strip TLS internally).
     if settings.is_development:
         redirect_uri = f"{settings.app_url}/api/auth/callback/{provider}"
+    elif settings.backend_url:
+        redirect_uri = f"{settings.backend_url}/api/auth/callback/{provider}"
     else:
         redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
 
@@ -89,6 +92,8 @@ async def callback(provider: str, request: Request, response: Response):
 
     if settings.is_development:
         redirect_uri = f"{settings.app_url}/api/auth/callback/{provider}"
+    elif settings.backend_url:
+        redirect_uri = f"{settings.backend_url}/api/auth/callback/{provider}"
     else:
         redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
 
