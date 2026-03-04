@@ -21,11 +21,9 @@ Each place has coordinates (lat, lng). Group places that are close together on t
 - Places 5km+ apart = prefer different days unless on a transit route
 
 ## MEAL PLACEMENT RULES
-- Place dining spots based on the pace:
-  - Relaxed/Moderate: 2 dining per day (lunch + dinner)
-  - Packed: 1-2 dining per day (at least dinner)
+- Every day MUST have exactly 2 dining places: one for lunch, one for dinner. No exceptions.
 - The FIRST dining place in each day's list = LUNCH (scheduled ~12:30)
-- The LAST dining place in each day's list = DINNER (scheduled ~19:00)
+- The LAST dining place in each day's list = DINNER (scheduled ~18:30)
 - Place lunch restaurant AFTER 2-3 morning attractions
 - Place dinner restaurant LAST or second-to-last in the day
 
@@ -95,4 +93,5 @@ Respond with this JSON:
 3. Keep each day geographically clustered (check lat/lng coordinates)
 4. Select places that match the user's interests
 5. Each day needs a descriptive, engaging theme
-6. Return ONLY valid JSON — no markdown fences, no text before or after
+6. NEVER repeat the same place_id in multiple days or within the same day — each place should appear exactly once
+7. Return ONLY valid JSON — no markdown fences, no text before or after

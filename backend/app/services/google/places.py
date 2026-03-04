@@ -231,6 +231,52 @@ class GooglePlacesService:
         best = max(places, key=lambda p: p.get("rating", 0))
         return self._parse_place(best)
 
+    async def text_search_places(
+        self,
+        query: str,
+        location: Location,
+        radius_meters: int = 15_000,
+        max_results: int = 5,
+    ) -> list[PlaceCandidate]:
+        """Text search returning PlaceCandidate objects, biased to a location.
+
+        Useful for finding specific named attractions (e.g. "Coffee Plantation
+        Walk Coorg") that nearby-by-type searches would miss.
+        """
+        url = f"{BASE_URL}/places:searchText"
+        headers = {
+            "X-Goog-Api-Key": self.api_key,
+            "X-Goog-FieldMask": (
+                "places.id,places.displayName,places.formattedAddress,"
+                "places.location,places.types,places.rating,"
+                "places.userRatingCount,places.priceLevel,"
+                "places.regularOpeningHours,places.photos,"
+                "places.websiteUri,places.editorialSummary"
+            ),
+        }
+        body: dict[str, Any] = {
+            "textQuery": query,
+            "maxResultCount": min(max_results, 20),
+            "locationBias": {
+                "circle": {
+                    "center": {"latitude": location.lat, "longitude": location.lng},
+                    "radius": float(radius_meters),
+                }
+            },
+        }
+
+        try:
+            resp = await self.client.post(
+                url, json=body, headers=headers, timeout=REQUEST_TIMEOUT
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (httpx.HTTPStatusError, httpx.RequestError) as exc:
+            logger.warning("Text search error for %r: %s", query, exc)
+            return []
+
+        return [self._parse_place(p) for p in data.get("places", [])]
+
     async def text_search(
         self, query: str, max_results: int = 10
     ) -> list[dict[str, Any]]:

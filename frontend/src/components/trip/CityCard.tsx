@@ -126,6 +126,7 @@ export function CityCard({ city, index }: CityCardProps) {
                 <img
                   src={city.accommodation.photo_url}
                   alt={city.accommodation.name}
+                  loading="lazy"
                   className="h-14 w-14 rounded-md object-cover shrink-0"
                 />
               )}

@@ -8,9 +8,9 @@ planner to steer the LLM toward region-appropriate transport choices.
 REGIONAL_TRANSPORT_PROFILES: dict[str, dict] = {
     # Southeast Asia
     "vietnam": {
-        "popular": ["bus", "train", "flight"],
-        "notes": "Sleeper buses are very popular for long distances (8-12h overnight). Limited train network (Hanoi-HCMC main line). Domestic flights cheap.",
-        "tips": "Futa, The Sinh Tourist for buses. Vietnam Railways for trains. VietJet, Bamboo for budget flights.",
+        "popular": ["bus", "train", "flight", "ferry"],
+        "notes": "Sleeper buses are very popular for long distances (8-12h overnight). Limited train network (Hanoi-HCMC main line). Domestic flights cheap. Ferries and cruise boats for Ha Long Bay and coastal/island destinations (Cat Ba, Phu Quoc).",
+        "tips": "Futa, The Sinh Tourist for buses. Vietnam Railways for trains. VietJet, Bamboo for budget flights. Ha Long Bay cruise operators for overnight bay experiences.",
     },
     "thailand": {
         "popular": ["bus", "train", "flight"],

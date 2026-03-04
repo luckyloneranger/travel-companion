@@ -88,12 +88,13 @@ class ScheduleConfig:
     day_end: time = field(default_factory=lambda: time(21, 0))
     lunch_window_start: time = field(default_factory=lambda: time(12, 0))
     lunch_window_end: time = field(default_factory=lambda: time(14, 0))
-    dinner_window_start: time = field(default_factory=lambda: time(18, 30))
+    dinner_window_start: time = field(default_factory=lambda: time(18, 0))
     dinner_window_end: time = field(default_factory=lambda: time(21, 0))
     lunch_target: time = field(default_factory=lambda: time(12, 30))
-    dinner_target: time = field(default_factory=lambda: time(19, 0))
+    dinner_target: time = field(default_factory=lambda: time(18, 30))
     buffer_minutes: int = 15
     min_activity_duration: int = 30
+    max_meal_wait_minutes: int = 90
 
 
 class ScheduleBuilder:
@@ -119,13 +120,15 @@ class ScheduleBuilder:
         durations: dict[str, int] | None = None,
         start_location=None,
         schedule_date: date | None = None,
+        day_start_time: time | None = None,
+        day_end_time: time | None = None,
     ) -> list[Activity]:
         """
         Build a time-slotted schedule for a day's activities.
 
         Meals are scheduled at appropriate times:
         - Lunch: 12:00-14:00 (target 12:30)
-        - Dinner: 18:30-21:00 (target 19:00)
+        - Dinner: 18:00-21:00 (target 18:30)
 
         If a meal activity arrives before its window, we wait.
 
@@ -138,6 +141,10 @@ class ScheduleBuilder:
             durations: Optional per-place duration overrides keyed by place_id.
             start_location: Optional starting location (reserved for future use).
             schedule_date: The date for this schedule (defaults to today).
+            day_start_time: Custom start time (e.g. for arrival days). Defaults
+                to config.day_start.
+            day_end_time: Custom end time (e.g. for departure days). Defaults
+                to config.day_end.
 
         Returns:
             List of Activity with calculated time slots.
@@ -150,8 +157,10 @@ class ScheduleBuilder:
         the_date = schedule_date or date.today()
 
         schedule: list[Activity] = []
-        current_time = datetime.combine(the_date, self.config.day_start)
-        day_end = datetime.combine(the_date, self.config.day_end)
+        effective_start = day_start_time or self.config.day_start
+        effective_end = day_end_time or self.config.day_end
+        current_time = datetime.combine(the_date, effective_start)
+        day_end = datetime.combine(the_date, effective_end)
 
         has_lunch = False
         has_dinner = False
@@ -173,9 +182,15 @@ class ScheduleBuilder:
             current_time_only = current_time.time()
             is_meal = self._is_meal_place(place)
 
-            # Smart meal timing: wait for appropriate meal window
+            # Smart meal timing: wait for appropriate meal window,
+            # but never wait more than max_meal_wait_minutes.
+            # Skip meal-wait entirely if no non-meal activities have been
+            # scheduled yet (don't delay the day start for a meal).
             if is_meal:
                 meals_scheduled += 1
+                has_prior_activities = any(
+                    not self._is_meal_place(places[j]) for j in range(i)
+                )
                 is_lunch_slot = meals_scheduled == 1 and num_meals >= 1
                 is_dinner_slot = (
                     meals_scheduled == 2
@@ -186,27 +201,28 @@ class ScheduleBuilder:
                 )
 
                 if is_lunch_slot and not has_lunch:
-                    if current_time_only < self.config.lunch_window_start:
-                        logger.info(
-                            "Waiting for lunch window: %s -> %s",
-                            current_time_only,
-                            self.config.lunch_target,
-                        )
-                        current_time = datetime.combine(
+                    if (
+                        has_prior_activities
+                        and current_time_only < self.config.lunch_window_start
+                    ):
+                        target = datetime.combine(
                             the_date, self.config.lunch_target
                         )
+                        wait_mins = (target - current_time).total_seconds() / 60
+                        if wait_mins <= self.config.max_meal_wait_minutes:
+                            current_time = target
+                        # else: schedule immediately, don't create large gap
                     has_lunch = True
 
                 elif is_dinner_slot and not has_dinner:
                     if current_time_only < self.config.dinner_window_start:
-                        logger.info(
-                            "Waiting for dinner window: %s -> %s",
-                            current_time_only,
-                            self.config.dinner_target,
-                        )
-                        current_time = datetime.combine(
+                        target = datetime.combine(
                             the_date, self.config.dinner_target
                         )
+                        wait_mins = (target - current_time).total_seconds() / 60
+                        if wait_mins <= self.config.max_meal_wait_minutes:
+                            current_time = target
+                        # else: schedule immediately, don't create large gap
                     has_dinner = True
 
             # Calculate end time

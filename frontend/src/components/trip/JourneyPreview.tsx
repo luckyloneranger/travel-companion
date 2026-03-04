@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Suspense } from 'react';
 import {
   MapPin,
   Calendar,
@@ -20,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CityCard } from '@/components/trip/CityCard';
 import { TravelLegCard } from '@/components/trip/TravelLegCard';
+import { TripMap } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 
@@ -136,6 +138,15 @@ export function JourneyPreview({
               Edit via Chat
             </Button>
           </div>
+
+          {/* Map */}
+          {showJourneyMap && (
+            <Suspense fallback={<div className="h-80 rounded-lg bg-surface-muted animate-pulse" />}>
+              <div className="h-80 rounded-lg overflow-hidden border border-border-default">
+                <TripMap journey={journey} />
+              </div>
+            </Suspense>
+          )}
         </CardContent>
       </Card>
 

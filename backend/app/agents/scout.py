@@ -49,11 +49,16 @@ class ScoutAgent:
             JourneyPlan with cities and travel legs (not yet enriched with
             real API data).
         """
-        system_prompt = journey_prompts.load("scout_system")
-
         transport_guidance = get_transport_guidance(
             origin=request.origin or "",
             region=request.destination,
+        )
+
+        system_prompt = journey_prompts.load("scout_system").format(
+            region=request.destination,
+            total_days=request.total_days,
+            pace=request.pace.value,
+            travel_dates=str(request.start_date),
         )
 
         user_prompt = journey_prompts.load("scout_user").format(

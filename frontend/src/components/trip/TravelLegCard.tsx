@@ -33,8 +33,8 @@ export function TravelLegCard({ leg }: TravelLegCardProps) {
   return (
     <div className="relative my-2 mx-4">
       {/* Vertical connector lines */}
-      <div className="absolute left-1/2 -top-2 h-2 w-px bg-border-default" />
-      <div className="absolute left-1/2 -bottom-2 h-2 w-px bg-border-default" />
+      <div className="absolute left-1/2 -top-2 h-2 w-px bg-border-default" aria-hidden="true" />
+      <div className="absolute left-1/2 -bottom-2 h-2 w-px bg-border-default" aria-hidden="true" />
 
       {/* Card */}
       <div

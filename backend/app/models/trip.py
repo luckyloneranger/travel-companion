@@ -16,7 +16,7 @@ class TripRequest(BaseModel):
     start_date: date
     interests: list[str] = []
     pace: Pace = Pace.MODERATE
-    travel_mode: TravelMode = TravelMode.WALK
+    travel_mode: TravelMode = TravelMode.DRIVE
     must_include: list[str] = []
     avoid: list[str] = []
 

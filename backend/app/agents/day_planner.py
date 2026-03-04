@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 # Pace → stops-per-day guidance (attractions, dining, total)
 _PACE_GUIDE: dict[str, dict[str, int]] = {
-    "relaxed": {"total": 4, "attractions": 2, "dining": 2},
-    "moderate": {"total": 5, "attractions": 3, "dining": 2},
-    "packed": {"total": 7, "attractions": 5, "dining": 2},
+    "relaxed": {"total": 5, "attractions": 3, "dining": 2},
+    "moderate": {"total": 7, "attractions": 5, "dining": 2},
+    "packed": {"total": 9, "attractions": 7, "dining": 2},
 }
 
 # Dining-related type identifiers (mirrors scheduler._MEAL_TYPES)
@@ -80,6 +80,35 @@ class DayPlannerAgent:
 
         plan = self._parse_plan(data, num_days)
 
+        # Deduplicate place_ids within and across days
+        plan = self._deduplicate_plan(plan, candidates)
+
+        # Validate: check for orphan IDs (LLM-generated IDs not in candidates)
+        valid_ids = {c.place_id for c in candidates}
+        orphan_ids = [
+            pid for pid in plan.selected_place_ids if pid not in valid_ids
+        ]
+        if orphan_ids:
+            logger.warning(
+                "[DayPlanner] %d orphan place_ids not in candidates: %s",
+                len(orphan_ids),
+                orphan_ids[:5],
+            )
+
+        # Validate dining presence per day
+        dining_ids = {
+            c.place_id for c in candidates if _is_dining(c)
+        }
+        for i, group in enumerate(plan.day_groups):
+            day_dining = [pid for pid in group.place_ids if pid in dining_ids]
+            if len(day_dining) == 0:
+                logger.warning(
+                    "[DayPlanner] Day %d (%s) has NO dining places — "
+                    "LLM ignored meal requirement",
+                    i + 1,
+                    group.theme,
+                )
+
         logger.info(
             "[DayPlanner] LLM selected %d places across %d day groups",
             len(plan.selected_place_ids),
@@ -91,6 +120,60 @@ class DayPlannerAgent:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _deduplicate_plan(
+        self,
+        plan: AIPlan,
+        candidates: list[PlaceCandidate],
+    ) -> AIPlan:
+        """Remove duplicate place_ids within and across days.
+
+        Within a day, exact duplicates are collapsed. Across days,
+        non-dining places are only kept on their first occurrence.
+        Dining places may repeat across days (e.g. a hotel breakfast spot).
+        """
+        dining_ids = {c.place_id for c in candidates if _is_dining(c)}
+        seen_across_days: set[str] = set()
+        total_removed = 0
+
+        for group in plan.day_groups:
+            # 1. Remove within-day duplicates (preserve first occurrence)
+            seen_in_day: set[str] = set()
+            deduped: list[str] = []
+            for pid in group.place_ids:
+                if pid in seen_in_day:
+                    total_removed += 1
+                    continue
+                seen_in_day.add(pid)
+                deduped.append(pid)
+
+            # 2. Remove cross-day duplicates for non-dining places
+            final: list[str] = []
+            for pid in deduped:
+                if pid not in dining_ids and pid in seen_across_days:
+                    total_removed += 1
+                    continue
+                final.append(pid)
+                seen_across_days.add(pid)
+
+            group.place_ids = final
+
+        if total_removed > 0:
+            logger.info(
+                "[DayPlanner] Removed %d duplicate place references",
+                total_removed,
+            )
+            # Rebuild selected_place_ids from deduped day groups
+            all_ids: list[str] = []
+            seen: set[str] = set()
+            for group in plan.day_groups:
+                for pid in group.place_ids:
+                    if pid not in seen:
+                        seen.add(pid)
+                        all_ids.append(pid)
+            plan.selected_place_ids = all_ids
+
+        return plan
 
     def _build_user_prompt(
         self,

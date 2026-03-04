@@ -10,11 +10,11 @@ Travel dates: {travel_dates}
 {transport_guidance}
 
 **Your Task:**
-1. Decide the optimal number of cities (you choose based on days, pace, and regional distances)
-2. Select cities that best match the interests — ensure variety across the journey
-3. Allocate days to each city (total must equal {total_days}, minimum 2 days per city)
-4. Create logical travel connections between cities (no backtracking)
-5. Suggest 3-5 highlights per city using ONLY the allowed categories
+1. Decide the optimal number of destinations (you choose based on days, pace, and regional distances)
+2. Select destinations that best match the interests — include iconic landmarks, natural wonders, and cultural hubs, not just major cities
+3. Allocate days to each destination (total must equal {total_days}, minimum 2 days per destination)
+4. Create logical travel connections between destinations (no backtracking)
+5. Suggest 3-5 highlights per destination using ONLY the allowed categories
 
 **EXAMPLE OUTPUT** (for a 7-day Japan trip — adapt structure to your region):
 ```json
@@ -70,17 +70,18 @@ Travel dates: {travel_dates}
 ```
 
 **JSON Output Format:**
+Note: Use the key "cities" for the destinations array, but destinations CAN be non-city locations (bays, islands, national parks, etc.).
 ```json
 {{
   "theme": "A catchy 3-6 word theme for this journey",
   "summary": "2-3 sentence engaging summary of the journey, mentioning what makes it special",
   "cities": [
     {{
-      "name": "CityName",
+      "name": "Destination Name (city, bay, island, region, etc.)",
       "country": "Country",
       "days": 2,
-      "why_visit": "Why this city fits the traveler's interests — be specific",
-      "best_time_to_visit": "Morning/Evening recommendations for this city",
+      "why_visit": "Why this destination fits the traveler's interests — be specific",
+      "best_time_to_visit": "Morning/Evening recommendations for this destination",
       "highlights": [
         {{
           "name": "Attraction or Experience Name",
@@ -90,15 +91,15 @@ Travel dates: {travel_dates}
         }}
       ],
       "accommodation": {{
-        "name": "Specific Hotel or Guesthouse Name",
+        "name": "Specific Hotel, Resort, or Guesthouse Name",
         "why": "Brief reason — location advantage, style match, or value"
       }}
     }}
   ],
   "travel_legs": [
     {{
-      "from_city": "FirstCity",
-      "to_city": "SecondCity",
+      "from_city": "FirstDestination",
+      "to_city": "SecondDestination",
       "mode": "bus|train|flight|drive|ferry",
       "duration_hours": 4.5,
       "distance_km": 250,
@@ -111,11 +112,11 @@ Travel dates: {travel_dates}
 ```
 
 **STRICT RULES:**
-- Total days across all cities MUST equal {total_days}
-- Each city MUST have minimum 2 days
-- Each city MUST have 3-5 highlights with vivid descriptions
-- The origin city ({origin}) is the departure point — only include it in cities if it matches the destination type AND has tourist value for day activities
-- Travel legs connect city1 to city2 to city3 and so on (first leg is from first city to second city)
-- Choose transport modes that are ACTUALLY available and popular in {region}
-- Each city MUST have an accommodation suggestion with a specific, real hotel name
+- Total days across all destinations MUST equal {total_days}
+- Each destination MUST have minimum 2 days
+- Each destination MUST have 3-5 highlights with vivid descriptions
+- The origin ({origin}) is the departure point — only include it in destinations if it matches the destination type AND has tourist value for day activities
+- Travel legs connect destination1 to destination2 to destination3 and so on (first leg is from first destination to second destination)
+- Choose transport modes that are ACTUALLY available and popular in {region} — include ferries/boats for coastal and island destinations
+- Each destination MUST have an accommodation suggestion with a specific, real property name
 - Return ONLY the JSON object — no markdown fences, no text before or after

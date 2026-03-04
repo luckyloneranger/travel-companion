@@ -43,11 +43,12 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Score <50: Severe misallocation
 
 ### 5. INTEREST ALIGNMENT (weight: 10%)
-- Do the cities and highlights match the traveler's stated interests?
-- Is there variety across the journey?
-- Score 90+: Perfectly matches interests
-- Score 70-89: Good match with gaps
-- Score 50-69: Partial match
+- Do the destinations and highlights match the traveler's stated interests?
+- Does the plan include the region's iconic, must-see destinations — including non-city locations (bays, islands, national parks, etc.) where relevant?
+- Is there variety across the journey (mix of urban and non-urban)?
+- Score 90+: Perfectly matches interests and includes iconic destinations
+- Score 70-89: Good match with minor gaps
+- Score 50-69: Partial match or missing well-known destinations
 - Score <50: Poor match to interests
 
 ## SEVERITY LEVELS

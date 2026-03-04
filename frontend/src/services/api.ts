@@ -40,8 +40,12 @@ async function* streamSSE(
 
     for (const line of lines) {
       if (line.startsWith('data: ')) {
-        const data: unknown = JSON.parse(line.slice(6));
-        yield data as ProgressEvent;
+        try {
+          const data: unknown = JSON.parse(line.slice(6));
+          yield data as ProgressEvent;
+        } catch {
+          console.warn('Skipping malformed SSE data:', line);
+        }
       }
     }
   }

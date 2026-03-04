@@ -63,15 +63,11 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
           )}
         </div>
         {/* Vertical connector line */}
-        <div className="w-px flex-1 bg-border-default mt-1" />
+        <div className="w-px flex-1 bg-border-default mt-1" aria-hidden="true" />
       </div>
 
       {/* Content */}
-      <div
-        className={`flex-1 pb-4 ${
-          accommodation ? '' : ''
-        }`}
-      >
+      <div className="flex-1 pb-4">
         <div
           className={`rounded-lg border p-3 ${
             accommodation

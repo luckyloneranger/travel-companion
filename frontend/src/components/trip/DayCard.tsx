@@ -68,7 +68,7 @@ export function DayCard({ dayPlan }: DayCardProps) {
                 {dayPlan.activities.length === 1 ? 'activity' : 'activities'}
               </span>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon-xs">
+                <Button variant="ghost" size="icon-xs" aria-label={isOpen ? `Collapse day ${dayPlan.day_number}` : `Expand day ${dayPlan.day_number}`}>
                   <ChevronDown
                     className={`h-4 w-4 text-text-muted transition-transform ${
                       isOpen ? 'rotate-180' : ''

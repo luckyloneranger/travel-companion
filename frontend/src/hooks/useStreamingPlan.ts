@@ -6,7 +6,7 @@ import type { TripRequest, JourneyPlan } from '@/types';
 
 export function useStreamingPlan() {
   const abortRef = useRef<AbortController | null>(null);
-  const { setJourney, setTripId } = useTripStore();
+  const { setJourney } = useTripStore();
   const { setPhase, setProgress, setLoading, setError } = useUIStore();
 
   const startPlanning = useCallback(async (request: TripRequest) => {
@@ -28,7 +28,6 @@ export function useStreamingPlan() {
         if (event.phase === 'complete' && event.data) {
           const { trip_id, ...journeyData } = event.data as Record<string, unknown>;
           setJourney(journeyData as unknown as JourneyPlan, trip_id as string);
-          if (trip_id) setTripId(trip_id as string);
           setPhase('preview');
         }
 
@@ -46,7 +45,7 @@ export function useStreamingPlan() {
       setLoading(false);
       abortRef.current = null;
     }
-  }, [setJourney, setTripId, setPhase, setProgress, setLoading, setError]);
+  }, [setJourney, setPhase, setProgress, setLoading, setError]);
 
   const cancelPlanning = useCallback(() => {
     abortRef.current?.abort();

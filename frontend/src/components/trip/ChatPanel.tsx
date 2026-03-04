@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTripStore } from '@/stores/tripStore';
@@ -79,10 +79,13 @@ export function ChatPanel() {
           <SheetTitle>
             {chatContext === 'journey' ? 'Edit Journey' : 'Edit Day Plans'}
           </SheetTitle>
+          <SheetDescription className="sr-only">
+            Chat to modify your {chatContext === 'journey' ? 'journey plan' : 'day plans'}
+          </SheetDescription>
         </SheetHeader>
 
         {/* Messages list */}
-        <div className="flex-1 overflow-y-auto space-y-4 py-4">
+        <div className="flex-1 overflow-y-auto space-y-4 py-4" role="log" aria-live="polite" aria-label="Chat messages">
           {messages.map((msg, i) => (
             <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}>
               {msg.role === 'assistant' && (
@@ -118,10 +121,11 @@ export function ChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your changes..."
+            aria-label="Chat message"
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
             disabled={isSending}
           />
-          <Button onClick={handleSend} disabled={isSending || !input.trim()} size="icon">
+          <Button onClick={handleSend} disabled={isSending || !input.trim()} size="icon" aria-label="Send message">
             {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>

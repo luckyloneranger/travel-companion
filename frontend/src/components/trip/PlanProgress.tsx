@@ -38,7 +38,14 @@ export function PlanProgress({ onCancel, title = 'Planning your journey...' }: P
             <p className="text-sm text-text-muted">{progress.message}</p>
 
             {/* Progress bar */}
-            <div className="w-full bg-surface-muted rounded-full h-2">
+            <div
+              className="w-full bg-surface-muted rounded-full h-2"
+              role="progressbar"
+              aria-valuenow={progress.progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Planning progress: ${progress.progress}% complete`}
+            >
               <div
                 className="bg-primary-500 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${progress.progress}%` }}

@@ -12,7 +12,7 @@ A good day should follow a NATURAL progression:
 - **Lunch (~12:30):** Restaurant appropriate to the area they're already in
 - **Afternoon (14:00-18:00):** Another attraction or experience
 - **Late afternoon:** Shopping, park, or lighter activity
-- **Dinner (~19:00):** Good restaurant to end the day
+- **Dinner (~18:30):** Good restaurant to end the day
 - **Night (optional):** Bar, show, or night attraction
 
 ## BAD vs GOOD EXAMPLES
@@ -35,14 +35,13 @@ A good day should follow a NATURAL progression:
 - **USE COORDINATES** to keep each day geographically clustered (places close together on map)
 
 ## KEY RULES
-1. Each day MUST mix attractions AND dining (not all of one type)
-2. Include dining stops for meals — typically 1-2 per day (see pace guidance below)
-3. Put major attractions in the morning when energy is high
-4. Places on the same day should be **geographically close** (check their lat/lng)
-5. End days with dinner options
-6. Balance heavy activities (museums) with lighter ones (parks, walks)
-7. Prioritize well-reviewed places (high review count = more reliable)
-8. Famous/historic restaurants (e.g., Le Procope, Café de Flore) can count as BOTH dining AND cultural experience
+1. Every day MUST have EXACTLY 2 dining stops — one for lunch, one for dinner. This is mandatory, not optional
+2. Put major attractions in the morning when energy is high
+3. Places on the same day should be **geographically close** (check their lat/lng)
+4. End days with a dinner restaurant
+5. Balance heavy activities (museums) with lighter ones (parks, walks)
+6. Prioritize well-reviewed places (high review count = more reliable)
+7. Famous/historic restaurants (e.g., Le Procope, Café de Flore) can count as BOTH dining AND cultural experience
 
 ## MEAL FLEXIBILITY
 - **Relaxed pace:** 2 dining stops (lunch + dinner)

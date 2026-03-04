@@ -14,7 +14,6 @@ interface TripState {
   setDayPlans: (plans: DayPlan[]) => void;
   updateJourney: (journey: JourneyPlan) => void;
   updateDayPlans: (plans: DayPlan[]) => void;
-  setTripId: (id: string) => void;
   reset: () => void;
 
   // Async actions
@@ -33,7 +32,6 @@ export const useTripStore = create<TripState>((set) => ({
   setDayPlans: (plans) => set({ dayPlans: plans }),
   updateJourney: (journey) => set({ journey }),
   updateDayPlans: (plans) => set({ dayPlans: plans }),
-  setTripId: (id) => set({ tripId: id }),
   reset: () => set({ journey: null, dayPlans: null, tripId: null }),
 
   loadTrips: async () => {

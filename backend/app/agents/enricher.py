@@ -44,6 +44,7 @@ class EnricherAgent:
         self.places = places
         self.routes = routes
         self.directions = directions
+        self._origin_cache: dict[str, Location] = {}
 
     async def enrich_plan(self, plan: JourneyPlan) -> JourneyPlan:
         """Enrich a journey plan with real Google API data.
@@ -106,20 +107,36 @@ class EnricherAgent:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _enrich_city(self, city: CityStop) -> None:
-        """Geocode a single city and set its location and place_id."""
-        try:
-            result = await self.places.geocode(city.name)
-            lat = result.get("lat", 0.0)
-            lng = result.get("lng", 0.0)
-            if lat and lng:
-                city.location = Location(lat=lat, lng=lng)
-            city.place_id = result.get("place_id")
-            # Update country if geocode returns one and the city lacks it.
-            if not city.country and result.get("country"):
-                city.country = result["country"]
-            logger.debug("[Enricher] Geocoded %s: (%.4f, %.4f)", city.name, lat, lng)
-        except Exception as e:
-            logger.warning("[Enricher] Failed to geocode %s: %s", city.name, e)
+        """Geocode a single city and set its location and place_id.
+
+        Tries the city name as-is first, then falls back to appending
+        the country (e.g. "Phuket Island" → "Phuket Island Thailand").
+        """
+        queries = [city.name]
+        if city.country:
+            queries.append(f"{city.name} {city.country}")
+
+        for query in queries:
+            try:
+                result = await self.places.geocode(query)
+                lat = result.get("lat", 0.0)
+                lng = result.get("lng", 0.0)
+                if lat and lng:
+                    city.location = Location(lat=lat, lng=lng)
+                    city.place_id = result.get("place_id")
+                    if not city.country and result.get("country"):
+                        city.country = result["country"]
+                    logger.debug(
+                        "[Enricher] Geocoded %s (query=%r): (%.4f, %.4f)",
+                        city.name, query, lat, lng,
+                    )
+                    return
+            except Exception as e:
+                logger.debug(
+                    "[Enricher] Geocode attempt failed for %r: %s", query, e
+                )
+
+        logger.warning("[Enricher] Failed to geocode %s (tried %s)", city.name, queries)
 
     # ── Accommodation enrichment ─────────────────────────────────────────
 
@@ -136,7 +153,8 @@ class EnricherAgent:
     async def _enrich_accommodation(self, city: CityStop) -> None:
         """Search for a city's accommodation via Places lodging search.
 
-        Falls back gracefully if the suggested hotel is not found.
+        Tries the LLM-suggested name first, then falls back to a generic
+        search by city name if the specific hotel isn't found.
         """
         if not city.accommodation or not city.accommodation.name:
             return
@@ -150,11 +168,26 @@ class EnricherAgent:
             return
 
         try:
-            query = f"{city.accommodation.name} hotel {city.name}"
+            # Try 1: search for the specific accommodation name
+            query = f"{city.accommodation.name} {city.name}"
             result = await self.places.search_lodging(
                 query=query,
                 location=city_location,
             )
+
+            # Try 2: broader search with just the city name
+            if not result:
+                logger.info(
+                    "[Enricher] Specific lodging %r not found in %s, "
+                    "trying generic search",
+                    city.accommodation.name,
+                    city.name,
+                )
+                result = await self.places.search_lodging(
+                    query=f"hotel {city.name}",
+                    location=city_location,
+                    radius_meters=20_000,
+                )
 
             if result:
                 city.accommodation = Accommodation(
@@ -201,6 +234,12 @@ class EnricherAgent:
         origin_loc = self._find_city_location(leg.from_city, plan)
         dest_loc = self._find_city_location(leg.to_city, plan)
 
+        # If origin not found (e.g. departure city not in destinations), geocode it
+        if not origin_loc:
+            origin_loc = await self._geocode_origin(leg.from_city)
+            if origin_loc:
+                self._origin_cache[leg.from_city.lower()] = origin_loc
+
         if not origin_loc or not dest_loc:
             logger.warning(
                 "[Enricher] Cannot enrich leg %s -> %s: missing location(s)",
@@ -225,17 +264,31 @@ class EnricherAgent:
                 e,
             )
 
+    async def _geocode_origin(self, origin_name: str) -> Location | None:
+        """Geocode the origin city if it's not in the plan's destinations."""
+        try:
+            result = await self.places.geocode(origin_name)
+            lat = result.get("lat", 0.0)
+            lng = result.get("lng", 0.0)
+            if lat and lng:
+                return Location(lat=lat, lng=lng)
+        except Exception as e:
+            logger.warning("[Enricher] Failed to geocode origin %s: %s", origin_name, e)
+        return None
+
     def _find_city_location(
         self, city_name: str, plan: JourneyPlan
     ) -> Location | None:
         """Look up a city's location from the enriched plan.
 
-        Checks the plan's cities first, then tries the origin name
-        (which may have been geocoded separately).
+        Checks the plan's cities and the cached origin location.
         """
         for city in plan.cities:
             if city.name.lower() == city_name.lower() and city.location:
                 return city.location
+        # Check cached origin location
+        if city_name.lower() in self._origin_cache:
+            return self._origin_cache[city_name.lower()]
         return None
 
     def _update_leg_with_real_data(
@@ -245,11 +298,17 @@ class EnricherAgent:
 
         Picks the best available data source based on the leg's transport
         mode, falling back to driving distance when the requested mode
-        is not available.
+        is not available. Rejects transit routes that are absurdly long
+        compared to driving.
         """
         # For flights, keep LLM estimates (we don't have a flight API).
         if leg.mode == TransportMode.FLIGHT:
             return
+
+        # Determine driving duration as a sanity baseline.
+        driving_seconds = (
+            options.driving.duration_seconds if options.driving else None
+        )
 
         # Try to find a matching transit route by mode.
         if leg.mode in (
@@ -258,7 +317,7 @@ class EnricherAgent:
             TransportMode.FERRY,
         ):
             best_transit = self._find_best_transit_route(
-                leg.mode, options.transit_routes
+                leg.mode, options.transit_routes, driving_seconds
             )
             if best_transit:
                 leg.duration_hours = round(
@@ -321,15 +380,18 @@ class EnricherAgent:
 
     @staticmethod
     def _find_best_transit_route(
-        mode: TransportMode, transit_routes: list
+        mode: TransportMode,
+        transit_routes: list,
+        driving_seconds: int | None = None,
     ):
         """Find the best transit route matching the requested mode.
 
         Filters transit routes by vehicle type and picks the one with
-        the shortest duration.
+        the shortest duration. Rejects routes that take more than 3x
+        the driving time (likely indirect/absurd routings).
 
         Returns:
-            The best matching transit route, or None if no match.
+            The best matching transit route, or None if no reasonable match.
         """
         if not transit_routes:
             return None
@@ -342,8 +404,15 @@ class EnricherAgent:
         }
         target_types = vehicle_type_map.get(mode, set())
 
+        # Max acceptable duration: 3x driving time, or 24 hours as absolute cap.
+        max_duration = 24 * 3600  # 24 hours absolute cap
+        if driving_seconds and driving_seconds > 0:
+            max_duration = min(max_duration, driving_seconds * 3)
+
         matching = []
         for route in transit_routes:
+            if route.duration_seconds > max_duration:
+                continue
             for step in route.steps:
                 if (
                     step.travel_mode == "TRANSIT"
@@ -353,7 +422,18 @@ class EnricherAgent:
                     break
 
         if not matching:
-            # Fall back to any transit route if no exact mode match.
-            return min(transit_routes, key=lambda r: r.duration_seconds) if transit_routes else None
+            # Fall back to any transit route, but still apply sanity check.
+            sane_routes = [
+                r for r in transit_routes
+                if r.duration_seconds <= max_duration
+            ]
+            if sane_routes:
+                return min(sane_routes, key=lambda r: r.duration_seconds)
+            logger.warning(
+                "[Enricher] All transit routes exceed sanity threshold "
+                "(max %.1fh), rejecting",
+                max_duration / 3600,
+            )
+            return None
 
         return min(matching, key=lambda r: r.duration_seconds)

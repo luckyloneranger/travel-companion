@@ -241,7 +241,7 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
 
             {/* Pace */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-text-primary">Pace</label>
+              <label htmlFor="pace-select" className="text-sm font-medium text-text-primary">Pace</label>
               <Select
                 value={pace}
                 onValueChange={(value) => setPace(value as Pace)}
@@ -266,10 +266,10 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
 
             {/* Interests */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-text-primary">Interests</label>
+              <label id="interests-label" className="text-sm font-medium text-text-primary">Interests</label>
 
               {/* Preset chips */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2" role="group" aria-labelledby="interests-label">
                 {INTEREST_PRESETS.map((preset) => {
                   const isSelected = interests.includes(preset);
                   return (
@@ -376,17 +376,25 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
       {/* Recent Trips */}
       {savedTrips.length > 0 && (
         <div className="mt-8 space-y-3">
-          <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider px-1 flex items-center gap-1.5">
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider px-1 flex items-center gap-1.5">
             <FolderOpen className="h-4 w-4" />
             Recent Trips
-          </h3>
+          </h2>
 
           <div className="space-y-2">
             {savedTrips.map((trip) => (
               <Card
                 key={trip.id}
                 className="cursor-pointer transition-colors hover:border-primary-300 hover:bg-surface-muted/50"
+                role="button"
+                tabIndex={0}
                 onClick={() => handleLoadTrip(trip)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleLoadTrip(trip);
+                  }
+                }}
               >
                 <CardContent className="flex items-center justify-between gap-3 py-3 px-4">
                   <div className="flex-1 min-w-0">
