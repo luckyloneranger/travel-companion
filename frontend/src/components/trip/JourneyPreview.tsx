@@ -10,6 +10,9 @@ import {
   PlusCircle,
   Copy,
   Check,
+  Share2,
+  FileDown,
+  CalendarPlus,
 } from 'lucide-react';
 import {
   Card,
@@ -25,6 +28,7 @@ import { CityCard } from '@/components/trip/CityCard';
 import { TripMap } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
+import { api } from '@/services/api';
 
 interface JourneyPreviewProps {
   onGenerateDayPlans: () => void;
@@ -37,7 +41,7 @@ export function JourneyPreview({
   onOpenChat,
   onNewTrip,
 }: JourneyPreviewProps) {
-  const { journey } = useTripStore();
+  const { journey, tripId } = useTripStore();
   const { showJourneyMap, toggleJourneyMap } = useUIStore();
   const [copied, setCopied] = useState(false);
 
@@ -75,6 +79,37 @@ export function JourneyPreview({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [journey]);
+
+  const handleShare = useCallback(async () => {
+    if (!tripId) return;
+    try {
+      const result = await api.shareTrip(tripId);
+      const fullUrl = `${window.location.origin}/shared/${result.token}`;
+      await navigator.clipboard.writeText(fullUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Share failed:', err);
+    }
+  }, [tripId]);
+
+  const handleExportPdf = useCallback(async () => {
+    if (!tripId) return;
+    try {
+      await api.exportPdf(tripId);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    }
+  }, [tripId]);
+
+  const handleExportCalendar = useCallback(async () => {
+    if (!tripId) return;
+    try {
+      await api.exportCalendar(tripId);
+    } catch (err) {
+      console.error('Calendar export failed:', err);
+    }
+  }, [tripId]);
 
   if (!journey) return null;
 
@@ -187,6 +222,18 @@ export function JourneyPreview({
             <Button variant="outline" size="sm" onClick={handleCopyItinerary}>
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Copied!' : 'Copy'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleShare}>
+              <Share2 className="h-4 w-4" />
+              Share
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportPdf}>
+              <FileDown className="h-4 w-4" />
+              PDF
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCalendar}>
+              <CalendarPlus className="h-4 w-4" />
+              Calendar
             </Button>
             <Button variant="ghost" size="sm" onClick={onNewTrip}>
               <PlusCircle className="h-4 w-4" />
