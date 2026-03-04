@@ -33,8 +33,8 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
   return (
     <div className="flex gap-3">
       {/* Time column */}
-      <div className="flex flex-col items-center w-14 shrink-0">
-        <span className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+      <div className="flex flex-col items-center w-16 shrink-0">
+        <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
           {activity.time_start}
         </span>
         {!isLast && <div className="w-px flex-1 bg-border-default mt-1" />}
@@ -49,20 +49,20 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
               <h4 className="text-sm font-semibold text-text-primary break-words">
                 {activity.place.name}
               </h4>
-              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-text-muted">
+              <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-text-muted">
                 <span className="flex items-center gap-0.5">
-                  <Clock className="h-3 w-3" />
+                  <Clock className="h-3.5 w-3.5" />
                   {activity.time_start} – {activity.time_end} · {activity.duration_minutes} min
                 </span>
                 <Badge variant="outline" className="text-xs capitalize">{activity.place.category}</Badge>
                 {activity.estimated_cost_usd != null && activity.estimated_cost_usd > 0 && (
-                  <span className="flex items-center gap-0.5">
-                    <DollarSign className="h-3 w-3" />~${activity.estimated_cost_usd.toFixed(0)}
+                  <span className="flex items-center gap-0.5 font-medium">
+                    <DollarSign className="h-3.5 w-3.5" />~${activity.estimated_cost_usd.toFixed(0)}
                   </span>
                 )}
                 {activity.place.rating && (
                   <span className="flex items-center gap-0.5">
-                    <Star className="h-3 w-3 fill-accent-400 text-accent-400" />{activity.place.rating.toFixed(1)}
+                    <Star className="h-3.5 w-3.5 fill-accent-400 text-accent-400" />{activity.place.rating.toFixed(1)}
                   </span>
                 )}
               </div>
@@ -76,29 +76,29 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
                 aria-label={`Visit ${activity.place.name} website`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <ExternalLink className="h-3.5 w-3.5" />
+                <ExternalLink className="h-4 w-4" />
               </a>
             )}
           </div>
 
           {/* Address */}
           {activity.place.address && (
-            <p className="flex items-center gap-1.5 text-xs text-text-muted">
-              <MapPin className="h-3 w-3 shrink-0" />
+            <p className="flex items-center gap-1.5 text-sm text-text-muted">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
               <span className="break-words">{activity.place.address}</span>
             </p>
           )}
 
           {/* Notes */}
           {activity.notes && (
-            <p className="text-xs text-text-secondary break-words">{activity.notes}</p>
+            <p className="text-sm text-text-secondary break-words leading-relaxed">{activity.notes}</p>
           )}
 
           {/* Photos */}
           {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
             <div className="flex gap-1.5 overflow-x-auto">
               {activity.place.photo_urls.map((url, i) => (
-                <img key={i} src={url} alt={`${activity.place.name} photo ${i + 1}`} loading="lazy" className="h-16 w-20 rounded-md object-cover shrink-0" />
+                <img key={i} src={url} alt={`${activity.place.name} photo ${i + 1}`} loading="lazy" className="h-20 w-24 rounded-md object-cover shrink-0" />
               ))}
             </div>
           )}
@@ -106,24 +106,24 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
           {/* Weather warning */}
           {activity.weather_warning && (
             <div className="flex items-start gap-1.5 rounded-md bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 px-2.5 py-1.5">
-              <CloudRain className="h-3.5 w-3.5 text-orange-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-orange-800 dark:text-orange-300 break-words">{activity.weather_warning}</p>
+              <CloudRain className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-orange-800 dark:text-orange-300 break-words">{activity.weather_warning}</p>
             </div>
           )}
 
           {/* Tip */}
           {tip && (
             <div className="flex items-start gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-2.5 py-1.5">
-              <Lightbulb className="h-3.5 w-3.5 text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-800 dark:text-amber-300 break-words">{tip}</p>
+              <Lightbulb className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-amber-800 dark:text-amber-300 break-words">{tip}</p>
             </div>
           )}
         </div>
 
         {/* Transport to next */}
         {activity.route_to_next && (
-          <div className="mt-2 ml-1 flex items-center gap-2 text-xs text-text-muted">
-            <Navigation className="h-3 w-3 shrink-0" />
+          <div className="mt-2 ml-1 flex items-center gap-2 text-sm text-text-muted">
+            <Navigation className="h-3.5 w-3.5 shrink-0" />
             <TravelModeLabel mode={activity.route_to_next.travel_mode} />
             <span>&middot;</span>
             <span>{formatDistance(activity.route_to_next.distance_meters)}</span>

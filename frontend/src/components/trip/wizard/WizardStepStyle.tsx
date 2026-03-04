@@ -142,7 +142,7 @@ export function WizardStepStyle({
                 }`}
               >
                 <Icon className="h-5 w-5" />
-                <span className="text-xs font-medium">{opt.label}</span>
+                <span className="text-sm font-medium">{opt.label}</span>
               </button>
             );
           })}

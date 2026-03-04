@@ -70,7 +70,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-text-primary break-words">
+                <h3 className="text-base font-display font-semibold text-text-primary break-words">
                   {city.name}, {city.country}
                 </h3>
                 <span className="text-xs text-text-muted shrink-0">
@@ -80,7 +80,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
 
               {/* Why visit — always visible */}
               {city.why_visit && (
-                <p className="text-xs text-text-secondary mt-1 break-words leading-relaxed">
+                <p className="text-sm text-text-secondary mt-1 break-words leading-relaxed">
                   {city.why_visit}
                 </p>
               )}
@@ -97,7 +97,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
       {city.highlights.length > 0 && (
         <div className="px-4 pb-2 flex flex-wrap gap-x-3 gap-y-1">
           {city.highlights.map((h) => (
-            <span key={h.name} className="text-xs text-text-secondary flex items-center gap-1">
+            <span key={h.name} className="text-sm text-text-secondary flex items-center gap-1">
               <Sparkles className="h-3 w-3 text-accent-400 shrink-0" />
               {h.name}
               {h.category && (

@@ -54,7 +54,7 @@ export function WizardStepper({ currentStep, onStepClick }: WizardStepperProps) 
 
               {/* Label */}
               <span
-                className={`mt-1.5 text-xs font-medium ${
+                className={`mt-1.5 text-xs sm:text-sm font-medium ${
                   isActive
                     ? 'text-primary-600 dark:text-primary-400'
                     : isCompleted

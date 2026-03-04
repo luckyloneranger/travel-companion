@@ -121,7 +121,7 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
       <CardContent className="p-6 space-y-6">
         {/* Header */}
         <div className="text-center">
-          <h2 className="text-xl font-display font-semibold text-text-primary">
+          <h2 className="text-xl font-display font-bold text-text-primary">
             {title}
           </h2>
           <p className="text-xs text-text-muted mt-1 flex items-center justify-center gap-1.5">
@@ -195,7 +195,7 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-2">
             <Icon className={`h-5 w-5 animate-pulse ${config.color}`} />
-            <span className="text-sm font-medium text-text-primary">{config.label}</span>
+            <span className="text-base font-semibold text-text-primary">{config.label}</span>
           </div>
           <p className="text-sm text-text-muted">{config.description}</p>
         </div>
