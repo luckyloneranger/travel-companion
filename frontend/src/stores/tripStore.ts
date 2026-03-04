@@ -35,8 +35,15 @@ export const useTripStore = create<TripState>((set, get) => ({
   tipsLoading: false,
   costBreakdown: null,
 
-  setJourney: (journey, tripId) => set({ journey, tripId: tripId ?? null }),
+  setJourney: (journey, tripId) => {
+    set({ journey, tripId: tripId ?? null });
+    if (tripId) sessionStorage.setItem('tc_tripId', tripId);
+  },
   setDayPlans: (plans) => {
+    if (plans.length === 0) {
+      set({ dayPlans: plans, costBreakdown: null });
+      return;
+    }
     // Compute cost breakdown from plans
     let total = 0, dining = 0, activities = 0;
     for (const dp of plans) {
@@ -57,7 +64,11 @@ export const useTripStore = create<TripState>((set, get) => ({
   },
   updateJourney: (journey) => set({ journey }),
   updateDayPlans: (plans) => set({ dayPlans: plans }),
-  reset: () => set({ journey: null, dayPlans: null, tripId: null, tips: {}, costBreakdown: null }),
+  reset: () => {
+    set({ journey: null, dayPlans: null, tripId: null, tips: {}, costBreakdown: null });
+    sessionStorage.removeItem('tc_tripId');
+    sessionStorage.removeItem('tc_phase');
+  },
 
   loadTrips: async () => {
     try {

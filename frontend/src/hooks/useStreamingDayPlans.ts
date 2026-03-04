@@ -4,6 +4,8 @@ import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import type { DayPlan } from '@/types';
 
+const STALL_TIMEOUT_MS = 90_000;
+
 export function useStreamingDayPlans() {
   const abortRef = useRef<AbortController | null>(null);
   const { tripId, setDayPlans } = useTripStore();
@@ -20,9 +22,31 @@ export function useStreamingDayPlans() {
     setLoading(true);
     setError(null);
 
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearStallTimer = () => {
+      if (stallTimer !== null) {
+        clearTimeout(stallTimer);
+        stallTimer = null;
+      }
+    };
+
+    const resetStallTimer = () => {
+      clearStallTimer();
+      stallTimer = setTimeout(() => {
+        if (!controller.signal.aborted) {
+          setError('Planning is taking longer than expected. You can wait or cancel and try again.');
+        }
+      }, STALL_TIMEOUT_MS);
+    };
+
     try {
+      resetStallTimer();
+
       for await (const event of api.generateDayPlansStream(tripId, controller.signal)) {
         if (controller.signal.aborted) break;
+
+        resetStallTimer();
         setProgress(event);
 
         if (event.phase === 'complete' && event.data) {
@@ -38,10 +62,15 @@ export function useStreamingDayPlans() {
       }
     } catch (err) {
       if (!controller.signal.aborted) {
-        setError(err instanceof Error ? err.message : 'Day plan generation failed');
+        const message = err instanceof Error ? err.message : 'Day plan generation failed';
+        const userMessage = message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch') || message.startsWith('HTTP')
+          ? 'Connection lost. Please try again.'
+          : message;
+        setError(userMessage);
         setPhase('preview');
       }
     } finally {
+      clearStallTimer();
       setLoading(false);
       abortRef.current = null;
     }

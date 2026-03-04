@@ -58,6 +58,12 @@ def _compute_cost_breakdown(trip: TripResponse) -> dict[str, float] | None:
         if leg.fare_usd:
             transport += leg.fare_usd
 
+    # Clamp negative values to 0
+    dining = max(0.0, dining)
+    activities_cost = max(0.0, activities_cost)
+    accommodation = max(0.0, accommodation)
+    transport = max(0.0, transport)
+
     total = dining + activities_cost + accommodation + transport
     if total == 0:
         return None
@@ -203,7 +209,12 @@ async def chat_edit(
     if user:
         await _check_trip_ownership(repo, trip_id, user["sub"])
 
-    if request.context == "day_plans" and trip.day_plans:
+    if request.context == "day_plans":
+        if not trip.day_plans:
+            return ChatEditResponse(
+                reply="No day plans to edit yet. Generate day plans first, then you can edit them.",
+                changes_made=[],
+            )
         response = await chat.edit_day_plans(request.message, trip.day_plans, trip.journey, trip.request)
         if response.updated_day_plans:
             await repo.update_day_plans(trip_id, response.updated_day_plans)

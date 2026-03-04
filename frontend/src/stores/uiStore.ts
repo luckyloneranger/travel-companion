@@ -36,7 +36,12 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   phase: 'input',
-  setPhase: (phase) => set({ phase }),
+  setPhase: (phase) => {
+    set({ phase });
+    if (phase !== 'planning') {
+      sessionStorage.setItem('tc_phase', phase);
+    }
+  },
 
   progress: null,
   setProgress: (event) => set({ progress: event }),
@@ -63,7 +68,7 @@ export const useUIStore = create<UIState>((set) => ({
     set({ isChatOpen: true, chatContext: context }),
   closeChat: () => set({ isChatOpen: false }),
 
-  resetUI: () =>
+  resetUI: () => {
     set({
       phase: 'input',
       progress: null,
@@ -72,5 +77,8 @@ export const useUIStore = create<UIState>((set) => ({
       showJourneyMap: false,
       dayMapVisible: {},
       isChatOpen: false,
-    }),
+    });
+    sessionStorage.removeItem('tc_phase');
+    sessionStorage.removeItem('tc_tripId');
+  },
 }));

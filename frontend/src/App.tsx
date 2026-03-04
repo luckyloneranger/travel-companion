@@ -24,8 +24,24 @@ function App() {
   const { startPlanning, cancelPlanning } = useStreamingPlan();
   const { startGenerating, cancelGenerating } = useStreamingDayPlans();
 
+  // Restore session from sessionStorage on page refresh
+  useEffect(() => {
+    const savedTripId = sessionStorage.getItem('tc_tripId');
+    const savedPhase = sessionStorage.getItem('tc_phase');
+    if (savedTripId && savedPhase && savedPhase !== 'input' && savedPhase !== 'planning') {
+      useTripStore.getState().loadTrip(savedTripId).then(() => {
+        useUIStore.getState().setPhase(savedPhase as 'preview' | 'day-plans');
+      }).catch(() => {
+        sessionStorage.removeItem('tc_tripId');
+        sessionStorage.removeItem('tc_phase');
+      });
+    }
+  }, []);
+
   useEffect(() => {
     fetchUser();
+    const interval = setInterval(fetchUser, 30 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [fetchUser]);
 
   const handleGenerateDayPlans = useCallback(() => {

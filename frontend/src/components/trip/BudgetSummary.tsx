@@ -8,7 +8,9 @@ interface BudgetSummaryProps {
 }
 
 export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) {
-  const dailyAvg = totalDays > 0 ? costBreakdown.total_usd / totalDays : 0;
+  if (!costBreakdown || costBreakdown.total_usd <= 0) return null;
+
+  const dailyAvg = totalDays > 0 ? costBreakdown.total_usd / totalDays : costBreakdown.total_usd;
   const isOverBudget = costBreakdown.budget_remaining_usd != null && costBreakdown.budget_remaining_usd < 0;
 
   return (

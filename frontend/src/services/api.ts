@@ -30,6 +30,11 @@ async function* streamSSE(
     credentials: 'include',
   });
 
+  if (response.status === 401) {
+    const { useAuthStore } = await import('@/stores/authStore');
+    useAuthStore.getState().logout();
+    throw new Error('Session expired. Please sign in again.');
+  }
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   if (!response.body) throw new Error('No response body');
 
@@ -82,6 +87,11 @@ export const api = {
       body: JSON.stringify({ message, context }),
       credentials: 'include',
     });
+    if (res.status === 401) {
+      const { useAuthStore } = await import('@/stores/authStore');
+      useAuthStore.getState().logout();
+      throw new Error('Session expired. Please sign in again.');
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<ChatEditResponse>;
   },
@@ -90,6 +100,11 @@ export const api = {
 
   listTrips: async (): Promise<TripSummary[]> => {
     const res = await fetch(`${API_BASE}/api/trips`, { credentials: 'include' });
+    if (res.status === 401) {
+      const { useAuthStore } = await import('@/stores/authStore');
+      useAuthStore.getState().logout();
+      throw new Error('Session expired. Please sign in again.');
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TripSummary[]>;
   },
@@ -105,6 +120,11 @@ export const api = {
       method: 'DELETE',
       credentials: 'include',
     });
+    if (res.status === 401) {
+      const { useAuthStore } = await import('@/stores/authStore');
+      useAuthStore.getState().logout();
+      throw new Error('Session expired. Please sign in again.');
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
   },
 
@@ -161,6 +181,11 @@ export const api = {
       method: 'POST',
       credentials: 'include',
     });
+    if (res.status === 401) {
+      const { useAuthStore } = await import('@/stores/authStore');
+      useAuthStore.getState().logout();
+      throw new Error('Session expired. Please sign in again.');
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<{ token: string; url: string }>;
   },
