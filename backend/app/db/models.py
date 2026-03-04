@@ -23,10 +23,10 @@ class Trip(Base):
     day_plans_json = Column(Text, nullable=True)  # Serialized list[DayPlan]
     quality_score = Column(Float, nullable=True)
     created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     updated_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
@@ -40,7 +40,7 @@ class User(Base):
     name = Column(String, nullable=False)
     avatar_url = Column(String, nullable=True)
     provider = Column(String, nullable=False)  # "google" or "github"
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime(timezone=True), default=func.now())
 
 
 class TripShare(Base):
@@ -50,4 +50,4 @@ class TripShare(Base):
     trip_id = Column(String, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
     share_token = Column(String, unique=True, nullable=False)
     access_level = Column(String, default="view")  # "view" or "edit"
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime(timezone=True), default=func.now())

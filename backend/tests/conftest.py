@@ -1,7 +1,7 @@
 """Shared fixtures for backend API tests.
 
 Provides a fully-isolated test environment with:
-- In-memory SQLite database (via StaticPool so the schema survives across connections)
+- PostgreSQL database via testcontainers (real DB per test session)
 - Mock LLM service (no real API calls)
 - httpx.AsyncClient wired to the FastAPI app through ASGITransport
 """
@@ -17,11 +17,21 @@ from unittest.mock import AsyncMock
 import pytest
 import pytest_asyncio
 from fastapi import Request
+from testcontainers.postgres import PostgresContainer
+
+# ── Start PostgreSQL container BEFORE any app imports ─────────────────
+
+_pg_container = PostgresContainer("postgres:16-alpine", driver="asyncpg")
+_pg_container.start()
+_pg_url = _pg_container.get_connection_url()
+
+import atexit
+atexit.register(_pg_container.stop)
 
 # ── Set environment variables BEFORE any app imports ────────────────────
 os.environ.update(
     {
-        "DATABASE_URL": "sqlite+aiosqlite:///:memory:",
+        "DATABASE_URL": _pg_url,
         "AZURE_OPENAI_API_KEY": "test-key",
         "AZURE_OPENAI_ENDPOINT": "https://test.openai.azure.com",
         "AZURE_OPENAI_DEPLOYMENT": "gpt-4-test",
@@ -42,10 +52,9 @@ _real_get_settings.cache_clear()
 from httpx import ASGITransport, AsyncClient
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 from app.config import Settings
-from app.db.models import Base
+from app.db.models import Base, User
 from app.db.repository import TripRepository
 from app.dependencies import (
     get_current_user,
@@ -104,38 +113,67 @@ def _test_settings() -> Settings:
 
 # ── Database fixtures ──────────────────────────────────────────────────
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-    echo=False,
-    future=True,
-)
+# Engine and session factory are created lazily per event loop to avoid
+# asyncpg "attached to a different loop" errors with pytest-asyncio.
+_test_engine = None
+_test_session_factory = None
 
-_test_session_factory = async_sessionmaker(
-    _test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+
+def _get_test_engine():
+    global _test_engine
+    if _test_engine is None:
+        _test_engine = create_async_engine(_pg_url, echo=False, future=True)
+    return _test_engine
+
+
+def _get_test_session_factory():
+    global _test_session_factory
+    if _test_session_factory is None:
+        _test_session_factory = async_sessionmaker(
+            _get_test_engine(), class_=AsyncSession, expire_on_commit=False
+        )
+    return _test_session_factory
 
 
 @pytest_asyncio.fixture(autouse=True)
 async def _setup_db():
     """Create tables before each test and drop them after."""
-    async with _test_engine.begin() as conn:
+    global _test_engine, _test_session_factory
+    # Reset engine per test to bind to the current event loop
+    if _test_engine is not None:
+        await _test_engine.dispose()
+    _test_engine = None
+    _test_session_factory = None
+
+    engine = _get_test_engine()
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed the mock user so foreign key constraints are satisfied
+    async with _get_test_session_factory()() as session:
+        session.add(User(
+            id=_MOCK_USER["sub"],
+            email=_MOCK_USER["email"],
+            name=_MOCK_USER["name"],
+            provider="test",
+        ))
+        await session.commit()
+
     yield
-    async with _test_engine.begin() as conn:
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
+    _test_engine = None
+    _test_session_factory = None
 
 
 async def _override_get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    async with _test_session_factory() as session:
+    async with _get_test_session_factory()() as session:
         yield session
 
 
 async def _override_get_trip_repository():
-    async with _test_session_factory() as session:
+    async with _get_test_session_factory()() as session:
         yield TripRepository(session)
 
 
