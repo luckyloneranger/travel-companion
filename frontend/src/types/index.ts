@@ -220,3 +220,13 @@ export interface QualityReport {
   critical_issues: string[];
   recommendations: string[];
 }
+
+// ── auth ──────────────────────────────────────────────────
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
+  provider: string;
+}
