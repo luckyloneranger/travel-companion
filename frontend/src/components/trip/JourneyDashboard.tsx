@@ -3,7 +3,7 @@ import {
   MapPin, Calendar, Navigation, ArrowRight, Sparkles,
   MessageSquare, Copy, Check, Share2,
   FileDown, CalendarPlus, ChevronDown, Car, Train, Bus, Plane, Ship,
-  Loader2, RefreshCw,
+  Loader2, RefreshCw, Users,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,7 @@ function formatDuration(hours: number): string {
 
 export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenChat }: JourneyDashboardProps) {
   const { journey, tripId, dayPlans, costBreakdown, tips } = useTripStore();
+  const travelers = useTripStore((s) => s.travelers);
   const dayPlansGenerating = useUIStore((s) => s.dayPlansGenerating);
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -145,6 +146,12 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           <div className="flex flex-wrap gap-4 text-sm text-text-secondary">
             <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-text-muted" />{journey.cities.length} {journey.cities.length === 1 ? 'city' : 'cities'}</span>
             <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4 text-text-muted" />{journey.total_days} days</span>
+            <span className="flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-text-muted" />
+              {travelers.adults} adult{travelers.adults !== 1 ? 's' : ''}
+              {travelers.children > 0 && `, ${travelers.children} child${travelers.children !== 1 ? 'ren' : ''}`}
+              {travelers.infants > 0 && `, ${travelers.infants} infant${travelers.infants !== 1 ? 's' : ''}`}
+            </span>
             {journey.total_distance_km != null && (
               <span className="flex items-center gap-1.5"><Navigation className="h-4 w-4 text-text-muted" />{journey.total_distance_km.toFixed(0)} km</span>
             )}

@@ -57,6 +57,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
 
   const { savedTrips, loadTrips, loadTrip, deleteTrip } = useTripStore();
   const { wizardStep, setWizardStep, setPhase } = useUIStore();
+  const setStoreTravelers = useTripStore((s) => s.setTravelers);
 
   useEffect(() => {
     loadTrips();
@@ -102,6 +103,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       budget_usd: budgetUsd ? parseFloat(budgetUsd) : undefined,
       travelers,
     };
+    setStoreTravelers(travelers);
     onSubmit(request);
   }, [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, budget, budgetUsd, onSubmit]);
 

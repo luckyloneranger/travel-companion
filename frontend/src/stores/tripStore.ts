@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { JourneyPlan, DayPlan, TripSummary, CostBreakdown } from '@/types';
+import type { JourneyPlan, DayPlan, TripSummary, CostBreakdown, Travelers } from '@/types';
 import { api, type TipsResponse } from '@/services/api';
 
 interface TripState {
@@ -7,6 +7,7 @@ interface TripState {
   journey: JourneyPlan | null;
   dayPlans: DayPlan[] | null;
   tripId: string | null;
+  travelers: Travelers;
   savedTrips: TripSummary[];
   tips: Record<string, string>;
   tipsLoading: boolean;
@@ -15,6 +16,7 @@ interface TripState {
   // Actions
   setJourney: (journey: JourneyPlan, tripId?: string) => void;
   setDayPlans: (plans: DayPlan[]) => void;
+  setTravelers: (travelers: Travelers) => void;
   updateJourney: (journey: JourneyPlan) => void;
   updateDayPlans: (plans: DayPlan[]) => void;
   reset: () => void;
@@ -30,6 +32,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   journey: null,
   dayPlans: null,
   tripId: null,
+  travelers: { adults: 1, children: 0, infants: 0 },
   savedTrips: [],
   tips: {},
   tipsLoading: false,
@@ -39,6 +42,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     set({ journey, tripId: tripId ?? null });
     if (tripId) sessionStorage.setItem('tc_tripId', tripId);
   },
+  setTravelers: (travelers) => set({ travelers }),
   setDayPlans: (plans) => {
     if (plans.length === 0) {
       set({ dayPlans: plans, costBreakdown: null });
@@ -97,7 +101,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   updateJourney: (journey) => set({ journey }),
   updateDayPlans: (plans) => set({ dayPlans: plans }),
   reset: () => {
-    set({ journey: null, dayPlans: null, tripId: null, tips: {}, costBreakdown: null });
+    set({ journey: null, dayPlans: null, tripId: null, travelers: { adults: 1, children: 0, infants: 0 }, tips: {}, costBreakdown: null });
     sessionStorage.removeItem('tc_tripId');
     sessionStorage.removeItem('tc_phase');
   },
@@ -118,6 +122,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         journey: trip.journey,
         dayPlans: trip.day_plans,
         tripId: trip.id,
+        travelers: trip.request.travelers ?? { adults: 1, children: 0, infants: 0 },
         costBreakdown: trip.cost_breakdown ?? null,
       });
     } catch (e) {
