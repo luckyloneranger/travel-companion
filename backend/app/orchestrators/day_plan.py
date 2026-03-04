@@ -175,6 +175,8 @@ class DayPlanOrchestrator:
                         num_days=city.days,
                         interests=request.interests,
                         pace=request.pace.value,
+                        budget=request.budget.value if hasattr(request, 'budget') else "moderate",
+                        daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
                     )
                     # Retry once if the LLM returned no usable day groups
                     if not ai_plan.day_groups:
@@ -190,6 +192,8 @@ class DayPlanOrchestrator:
                             num_days=city.days,
                             interests=request.interests,
                             pace=request.pace.value,
+                            budget=request.budget.value if hasattr(request, 'budget') else "moderate",
+                            daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
                         )
                 except Exception as exc:
                     logger.error(
@@ -294,6 +298,7 @@ class DayPlanOrchestrator:
                         schedule_date=schedule_date,
                         day_start_time=day_start_time,
                         day_end_time=day_end_time,
+                        cost_estimates=ai_plan.cost_estimates,
                     )
 
                     # d. Bookend — add hotel departure/return
@@ -325,6 +330,12 @@ class DayPlanOrchestrator:
                         )
                         activities = self._add_weather_warnings(activities, forecast)
 
+                    # g. Aggregate daily cost
+                    daily_cost = sum(
+                        a.estimated_cost_usd for a in activities
+                        if a.estimated_cost_usd is not None
+                    )
+
                     city_plans.append(
                         DayPlan(
                             date=str(schedule_date),
@@ -333,6 +344,7 @@ class DayPlanOrchestrator:
                             activities=activities,
                             city_name=city_name,
                             weather=day_weather,
+                            daily_cost_usd=daily_cost if daily_cost > 0 else None,
                         )
                     )
 

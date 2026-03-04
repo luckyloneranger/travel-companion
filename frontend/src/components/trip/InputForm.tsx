@@ -10,10 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { MapPin, Calendar, Clock, Sparkles, X, Plus, Loader2, Trash2, FolderOpen, ChevronDown } from 'lucide-react';
+import { MapPin, Calendar, Clock, Sparkles, X, Plus, Loader2, Trash2, FolderOpen, ChevronDown, Wallet, CreditCard, Gem } from 'lucide-react';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
-import type { TripRequest, Pace, TripSummary } from '@/types';
+import type { TripRequest, Pace, TripSummary, Budget } from '@/types';
 
 interface InputFormProps {
   onSubmit: (request: TripRequest) => void;
@@ -50,6 +50,8 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
   const [mustIncludeInput, setMustIncludeInput] = useState('');
   const [avoidInput, setAvoidInput] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [budget, setBudget] = useState<Budget>('moderate');
+  const [budgetUsd, setBudgetUsd] = useState('');
   const [interestInput, setInterestInput] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadingTripId, setLoadingTripId] = useState<string | null>(null);
@@ -100,11 +102,13 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
         pace,
         must_include: mustInclude,
         avoid,
+        budget,
+        budget_usd: budgetUsd ? parseFloat(budgetUsd) : undefined,
       };
 
       onSubmit(request);
     },
-    [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, onSubmit],
+    [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, budget, budgetUsd, onSubmit],
   );
 
   const handleLoadTrip = useCallback(
@@ -276,7 +280,7 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
             >
               <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
               Advanced options
-              {(mustInclude.length > 0 || avoid.length > 0) && (
+              {(mustInclude.length > 0 || avoid.length > 0 || budgetUsd) && (
                 <Badge variant="secondary" className="text-xs px-1.5 py-0">
                   {mustInclude.length + avoid.length}
                 </Badge>
@@ -285,6 +289,60 @@ export function InputForm({ onSubmit, isLoading = false }: InputFormProps) {
 
             {showAdvanced && (
               <>
+            {/* Budget */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-primary">Budget Tier</label>
+              <div className="flex gap-1">
+                {([
+                  { value: 'budget' as Budget, label: 'Budget', icon: Wallet, desc: 'Save money' },
+                  { value: 'moderate' as Budget, label: 'Moderate', icon: CreditCard, desc: 'Balanced' },
+                  { value: 'luxury' as Budget, label: 'Luxury', icon: Gem, desc: 'Premium' },
+                ]).map((option) => {
+                  const Icon = option.icon;
+                  const isSelected = budget === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => setBudget(option.value)}
+                      title={option.desc}
+                      className={`
+                        flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium
+                        border transition-colors cursor-pointer
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                        ${
+                          isSelected
+                            ? 'bg-primary-100 dark:bg-primary-900/40 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                            : 'bg-surface border-border-default text-text-secondary hover:bg-surface-muted'
+                        }
+                      `}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Total Budget */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-text-primary">
+                Total Budget (USD)
+                <span className="text-xs text-text-muted font-normal ml-1">(optional)</span>
+              </label>
+              <Input
+                type="number"
+                min="0"
+                step="100"
+                placeholder="e.g. 2000"
+                value={budgetUsd}
+                onChange={(e) => setBudgetUsd(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
             {/* Must Include */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-text-primary">

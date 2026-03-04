@@ -1,5 +1,5 @@
 import { Suspense, useState } from 'react';
-import { Calendar, MapPin, ChevronDown, Map, Lightbulb, Loader2, Cloud, Sun, CloudRain, Snowflake, Thermometer } from 'lucide-react';
+import { Calendar, MapPin, ChevronDown, Map, Lightbulb, Loader2, Cloud, Sun, CloudRain, Snowflake, Thermometer, DollarSign } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -86,6 +86,12 @@ export function DayCard({ dayPlan }: DayCardProps) {
                           · {dayPlan.weather.precipitation_chance_percent}% rain
                         </span>
                       )}
+                    </Badge>
+                  )}
+                  {dayPlan.daily_cost_usd != null && dayPlan.daily_cost_usd > 0 && (
+                    <Badge variant="outline" className="text-xs flex items-center gap-1">
+                      <DollarSign className="h-3 w-3" />
+                      ~${dayPlan.daily_cost_usd.toFixed(0)}/day
                     </Badge>
                   )}
                 </div>

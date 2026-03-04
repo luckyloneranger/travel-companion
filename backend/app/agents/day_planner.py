@@ -43,6 +43,8 @@ class DayPlannerAgent:
         num_days: int,
         interests: list[str],
         pace: str,
+        budget: str = "moderate",
+        daily_budget_usd: float | None = None,
     ) -> AIPlan:
         """Given discovered place candidates, select and group into themed days.
 
@@ -52,14 +54,17 @@ class DayPlannerAgent:
             num_days: Number of days to plan for this city.
             interests: User's stated interests (e.g. ["art", "food"]).
             pace: One of "relaxed", "moderate", "packed".
+            budget: Budget tier — "budget", "moderate", or "luxury".
+            daily_budget_usd: Optional daily budget target in USD.
 
         Returns:
             AIPlan with selected_place_ids, day_groups (theme + place_ids),
-            and durations (place_id -> minutes).
+            durations (place_id -> minutes), and cost_estimates (place_id -> USD).
         """
         system_prompt = day_plan_prompts.load("planning_system")
         user_prompt = self._build_user_prompt(
-            candidates, city_name, num_days, interests, pace
+            candidates, city_name, num_days, interests, pace,
+            budget=budget, daily_budget_usd=daily_budget_usd,
         )
 
         logger.info(
@@ -182,6 +187,8 @@ class DayPlannerAgent:
         num_days: int,
         interests: list[str],
         pace: str,
+        budget: str = "moderate",
+        daily_budget_usd: float | None = None,
     ) -> str:
         """Format the user prompt template with candidate data."""
         guide = _PACE_GUIDE.get(pace, _PACE_GUIDE["moderate"])
@@ -243,6 +250,12 @@ class DayPlannerAgent:
         # Build date range text
         travel_dates = f"{num_days} day(s)"
 
+        daily_budget_line = (
+            f"Daily budget target: ~${daily_budget_usd:.0f}/day"
+            if daily_budget_usd
+            else "No specific daily budget set"
+        )
+
         return day_plan_prompts.load("planning_user").format(
             num_days=num_days,
             destination=city_name,
@@ -255,6 +268,9 @@ class DayPlannerAgent:
             attractions_json=json.dumps(attractions, indent=2),
             dining_json=json.dumps(dining, indent=2),
             other_section=other_section,
+            budget_tier=budget,
+            daily_budget_line=daily_budget_line,
+            city_name=city_name,
         )
 
     def _parse_plan(self, data: dict, expected_days: int) -> AIPlan:
@@ -314,10 +330,18 @@ class DayPlannerAgent:
                 if isinstance(minutes, (int, float)):
                     durations[str(place_id)] = int(minutes)
 
+            # Parse cost estimates
+            cost_estimates: dict[str, float] = {}
+            raw_costs = data.get("cost_estimates", {})
+            for pid, cost in raw_costs.items():
+                if isinstance(cost, (int, float)):
+                    cost_estimates[str(pid)] = float(cost)
+
             return AIPlan(
                 selected_place_ids=selected_ids,
                 day_groups=day_groups,
                 durations=durations,
+                cost_estimates=cost_estimates,
             )
 
         except Exception as e:

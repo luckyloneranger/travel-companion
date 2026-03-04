@@ -26,6 +26,36 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/trips", tags=["trips"])
 
 
+def _compute_cost_breakdown(trip: TripResponse) -> dict[str, float] | None:
+    """Compute cost breakdown from day plans."""
+    if not trip.day_plans:
+        return None
+    total = dining = activities_cost = 0.0
+    dining_categories = {"restaurant", "cafe", "bakery", "food", "dining", "bar",
+                         "french_restaurant", "italian_restaurant", "sushi_restaurant",
+                         "tea_house", "bistro", "falafel_restaurant"}
+    for dp in trip.day_plans:
+        for a in dp.activities:
+            if a.estimated_cost_usd:
+                total += a.estimated_cost_usd
+                cat = (a.place.category or "").lower()
+                if cat in dining_categories or "restaurant" in cat or "cafe" in cat:
+                    dining += a.estimated_cost_usd
+                else:
+                    activities_cost += a.estimated_cost_usd
+    if total == 0:
+        return None
+    result = {
+        "activities_usd": round(activities_cost, 2),
+        "dining_usd": round(dining, 2),
+        "total_usd": round(total, 2),
+    }
+    if trip.request.budget_usd:
+        result["budget_usd"] = trip.request.budget_usd
+        result["budget_remaining_usd"] = round(trip.request.budget_usd - total, 2)
+    return result
+
+
 async def _check_trip_ownership(repo: TripRepository, trip_id: str, user_id: str):
     """Verify the user owns the trip. Allows access to ownerless legacy trips."""
     owner = await repo.get_trip_user_id(trip_id)
@@ -143,6 +173,7 @@ async def get_trip(
         share_token = await repo.get_share_token(trip_id)
         if not share_token:
             raise HTTPException(404, "Trip not found")
+    trip.cost_breakdown = _compute_cost_breakdown(trip)
     return trip
 
 
@@ -224,4 +255,5 @@ async def get_shared_trip(
     trip = await repo.get_trip_by_share_token(token)
     if not trip:
         raise HTTPException(404, "Shared trip not found")
+    trip.cost_breakdown = _compute_cost_breakdown(trip)
     return trip

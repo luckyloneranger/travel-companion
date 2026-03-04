@@ -35,6 +35,9 @@ class Activity(BaseModel):
     notes: str = ""
     route_to_next: Route | None = None
     weather_warning: str | None = None
+    estimated_cost_local: str | None = None
+    estimated_cost_usd: float | None = None
+    price_tier: str | None = None
 
 
 class Weather(BaseModel):
@@ -55,3 +58,4 @@ class DayPlan(BaseModel):
     activities: list[Activity] = []
     city_name: str = ""
     weather: Weather | None = None
+    daily_cost_usd: float | None = None

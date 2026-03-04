@@ -97,6 +97,14 @@ class ScheduleConfig:
     max_meal_wait_minutes: int = 90
 
 
+def _price_level_to_tier(price_level: int | None) -> str | None:
+    """Map Google Places price_level (0-4) to budget tier string."""
+    if price_level is None:
+        return None
+    tiers = ["free", "budget", "moderate", "expensive", "luxury"]
+    return tiers[min(price_level, 4)]
+
+
 class ScheduleBuilder:
     """
     Service for building deterministic schedules.
@@ -122,6 +130,7 @@ class ScheduleBuilder:
         schedule_date: date | None = None,
         day_start_time: time | None = None,
         day_end_time: time | None = None,
+        cost_estimates: dict[str, float] | None = None,
     ) -> list[Activity]:
         """
         Build a time-slotted schedule for a day's activities.
@@ -145,6 +154,8 @@ class ScheduleBuilder:
                 to config.day_start.
             day_end_time: Custom end time (e.g. for departure days). Defaults
                 to config.day_end.
+            cost_estimates: Optional per-place cost estimates (USD) keyed by
+                place_id.
 
         Returns:
             List of Activity with calculated time slots.
@@ -271,6 +282,8 @@ class ScheduleBuilder:
                     duration_minutes=duration,
                     place=activity_place,
                     route_to_next=route_to_next,
+                    estimated_cost_usd=cost_estimates.get(place.place_id) if cost_estimates else None,
+                    price_tier=_price_level_to_tier(place.price_level),
                 )
             )
 
