@@ -27,9 +27,16 @@ function formatDuration(hours: number): string {
 
 export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false }: CompactCityCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const estimatedCost = city.accommodation?.estimated_nightly_usd
-    ? city.accommodation.estimated_nightly_usd * city.days
-    : null;
+  const estimatedCost = (() => {
+    let cost = 0;
+    if (city.accommodation?.estimated_nightly_usd) {
+      cost += city.accommodation.estimated_nightly_usd * city.days;
+    }
+    if (departureLeg?.fare_usd) {
+      cost += departureLeg.fare_usd;
+    }
+    return cost > 0 ? cost : null;
+  })();
 
   return (
     <div className="rounded-lg border border-border-default bg-surface overflow-hidden">
