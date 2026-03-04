@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.core.http import get_http_client, close_http_client
 from app.core.middleware import RequestTracingMiddleware, RequestLoggingFilter
-from app.routers import trips, places
+from app.routers import auth, trips, places
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +62,7 @@ def create_app() -> FastAPI:
     )
     application.add_middleware(RequestTracingMiddleware)
 
+    application.include_router(auth.router)
     application.include_router(trips.router)
     application.include_router(places.router)
 

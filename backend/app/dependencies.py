@@ -1,4 +1,4 @@
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Request
 
 from app.config import Settings
 from app.config.settings import get_settings as _get_settings
@@ -90,3 +90,20 @@ async def get_db_session(settings: Settings = Depends(_get_settings)):
 
 async def get_trip_repository(session=Depends(get_db_session)):
     yield TripRepository(session)
+
+
+async def get_current_user(request: Request) -> dict | None:
+    """Extract current user from JWT cookie. Returns None if not authenticated."""
+    from app.core.auth import decode_access_token
+    token = request.cookies.get("access_token")
+    if not token:
+        return None
+    return decode_access_token(token)
+
+
+async def require_user(request: Request) -> dict:
+    """Require authentication. Raises 401 if not logged in."""
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(401, "Not authenticated")
+    return user
