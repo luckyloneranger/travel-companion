@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
-from .common import Pace, TravelMode
+from .common import Budget, Pace, TravelMode
 from .day_plan import DayPlan
 from .journey import JourneyPlan
 
@@ -19,6 +19,9 @@ class TripRequest(BaseModel):
     travel_mode: TravelMode = TravelMode.DRIVE
     must_include: list[str] = []
     avoid: list[str] = []
+    budget: Budget = Budget.MODERATE
+    budget_usd: float | None = None
+    home_currency: str = "USD"
 
 
 class TripSummary(BaseModel):
@@ -37,5 +40,6 @@ class TripResponse(BaseModel):
     journey: JourneyPlan
     day_plans: list[DayPlan] | None = None
     quality_score: float | None = None
+    cost_breakdown: dict[str, float] | None = None
     created_at: datetime
     updated_at: datetime

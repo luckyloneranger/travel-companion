@@ -36,3 +36,4 @@ class AIPlan(BaseModel):
     selected_place_ids: list[str]
     day_groups: list[DayGroup]
     durations: dict[str, int] = {}
+    cost_estimates: dict[str, float] = {}
