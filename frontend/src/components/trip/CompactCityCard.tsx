@@ -1,6 +1,7 @@
 import { useState, Suspense } from 'react';
-import { MapPin, Star, Sparkles, ChevronDown, Clock, Navigation, ArrowRight, Car, Train, Bus, Plane, Ship } from 'lucide-react';
+import { MapPin, Star, Sparkles, ChevronDown, Clock, Navigation, ArrowRight, Car, Train, Bus, Plane, Ship, Map, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DayTimeline } from '@/components/trip/DayTimeline';
 import { DayMap } from '@/components/maps';
@@ -37,6 +38,7 @@ function parseFare(leg: TravelLeg): number {
 
 export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
+  const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
 
   // Complete per-city cost: accommodation + transport + day plan activities
   const estimatedCost = (() => {
@@ -182,23 +184,54 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                         {dp.day_number}
                       </span>
                       <span className="text-sm font-medium text-text-primary">{dp.theme}</span>
-                      {dp.daily_cost_usd != null && dp.daily_cost_usd > 0 && (
-                        <span className="text-xs text-text-muted ml-auto">~${dp.daily_cost_usd.toFixed(0)}</span>
-                      )}
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        {dp.daily_cost_usd != null && dp.daily_cost_usd > 0 && (
+                          <span className="text-xs text-text-muted">~${dp.daily_cost_usd.toFixed(0)}</span>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setMapDayPlan(dp)}
+                          title={`View Day ${dp.day_number} map`}
+                        >
+                          <Map className="h-4 w-4 text-text-muted" />
+                        </Button>
+                      </div>
                     </div>
                     <DayTimeline dayPlan={dp} tips={tips} />
-                    {/* Day map */}
-                    <Suspense fallback={<div className="h-48 rounded-lg bg-surface-muted animate-pulse" />}>
-                      <div className="h-48 rounded-lg overflow-hidden border border-border-default">
-                        <DayMap dayPlan={dp} />
-                      </div>
-                    </Suspense>
                   </div>
                 ))}
               </div>
             </CollapsibleContent>
           </div>
         </Collapsible>
+      )}
+
+      {/* ── Map Overlay ───────────────────────────────────────── */}
+      {mapDayPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setMapDayPlan(null)}>
+          <div
+            className="relative w-[90vw] max-w-3xl h-[70vh] rounded-xl overflow-hidden bg-surface shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-3 left-4 z-10 rounded-lg bg-surface/90 backdrop-blur-sm px-3 py-1.5 shadow-sm">
+              <span className="text-sm font-semibold text-text-primary">
+                Day {mapDayPlan.day_number}: {mapDayPlan.theme}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMapDayPlan(null)}
+              className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 backdrop-blur-sm shadow-sm hover:bg-surface transition-colors"
+              aria-label="Close map"
+            >
+              <X className="h-4 w-4 text-text-primary" />
+            </button>
+            <Suspense fallback={<div className="h-full w-full bg-surface-muted animate-pulse" />}>
+              <DayMap dayPlan={mapDayPlan} />
+            </Suspense>
+          </div>
+        </div>
       )}
     </div>
   );
