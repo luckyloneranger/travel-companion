@@ -50,3 +50,21 @@ class TestBudgetModels:
             durations={"p1": 120}, cost_estimates={"p1": 15.0},
         )
         assert plan.cost_estimates["p1"] == 15.0
+
+
+class TestPriceLevelToTier:
+    def test_none(self):
+        from app.algorithms.scheduler import _price_level_to_tier
+        assert _price_level_to_tier(None) is None
+
+    def test_free(self):
+        from app.algorithms.scheduler import _price_level_to_tier
+        assert _price_level_to_tier(0) == "free"
+
+    def test_moderate(self):
+        from app.algorithms.scheduler import _price_level_to_tier
+        assert _price_level_to_tier(2) == "moderate"
+
+    def test_luxury(self):
+        from app.algorithms.scheduler import _price_level_to_tier
+        assert _price_level_to_tier(4) == "luxury"
