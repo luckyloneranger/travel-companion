@@ -24,6 +24,12 @@ Choose the OPTIMAL number of destinations based on:
 - Avoid destinations that are too similar (e.g., two beach towns back-to-back)
 - Ensure variety in the type of experience each destination offers
 
+### 2b. GEOGRAPHIC DIVERSITY
+- When the region is a **continent, subcontinent, or multi-country area** (e.g., "Europe", "Southeast Asia", "Scandinavia", "South America"), destinations MUST span **multiple countries** — do not cluster all stops in one country
+- For multi-country regions, aim for at least 2-3 different countries (for trips of 7+ days)
+- Prioritize the most iconic/representative cities from each country in the region
+- Exception: If the user specifies a single country (e.g., "Italy", "Japan"), all destinations should be within that country
+
 ### 3. RESPECT the Destination Type
 - If the region specifies a **type of destination** (islands, beaches, mountains, etc.), ALL destinations must match that type
 - If the region name specifies a **type** (e.g., "islands", "beaches", "mountains", "alps"), ALL destinations must match that type — do not include unrelated mainland cities
@@ -56,6 +62,12 @@ Choose the OPTIMAL number of destinations based on:
 - Do NOT suggest destinations in active conflict zones or areas with travel advisories
 - Consider visa/border crossing requirements for multi-country routes
 - Flag any significant safety or health considerations (altitude, extreme climate)
+- ONLY suggest real, well-known destinations that can be found on Google Maps. Never invent fictional places or obscure settlements that a traveler would not be able to locate.
+
+### 10. DESTINATION NAME ACCURACY
+- If the user's requested region or destination appears misspelled, interpret and correct it (e.g., "Tailand" → Thailand, "Bareclona" → Barcelona, "Pris" → Paris)
+- Always use the standard English spelling for all city, country, and region names in your output
+- Use the full official destination name where it reduces ambiguity (e.g., "Queenstown, New Zealand" not just "Queenstown")
 
 ### 8. SEASONAL AWARENESS
 - Consider the travel dates ({travel_dates}) when suggesting destinations

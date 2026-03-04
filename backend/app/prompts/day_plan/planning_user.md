@@ -13,6 +13,8 @@ PACE: {pace}
 - "relaxed": MUST have 3-5 activities per day (slow, easy-going)
 Failing to meet the activity count for the selected pace is a critical error.
 
+{time_constraints_section}
+
 === ATTRACTIONS (pick from these for sightseeing) ===
 {attractions_json}
 
@@ -88,13 +90,14 @@ Budget tier: {budget_tier}
 - If budget tier is "moderate": balance cost and experience. Mix free and paid attractions.
 - If budget tier is "luxury": prioritize premium experiences, fine dining, and exclusive venues.
 
-For each selected place, estimate the cost per person in USD. Add a "cost_estimates" field to your JSON output:
+For each selected place, estimate the cost per person in USD. Add a "cost_estimates" field to your JSON output.
+**CRITICAL: The keys in "cost_estimates" and "durations" MUST be the exact same place_id strings from the candidate lists above. Do NOT invent new IDs or use place names as keys.**
 
 ```json
 "cost_estimates": {{
-    "place_id_1": 0,
-    "place_id_2": 15.50,
-    "place_id_3": 35.00
+    "ChIJ_example1": 0,
+    "ChIJ_example2": 15.50,
+    "ChIJ_example3": 35.00
 }}
 ```
 
@@ -110,7 +113,7 @@ Google Places price_level reference (0-4 scale):
 - 0 = free, 1 = budget ($), 2 = moderate ($$), 3 = expensive ($$$), 4 = luxury ($$$$)
 
 ## OUTPUT FORMAT
-Respond with this JSON:
+Respond with this JSON (all place_id values MUST come from the candidate lists above — never invent IDs):
 {{
     "selected_place_ids": ["id1", "id2", ...],
     "day_groups": [

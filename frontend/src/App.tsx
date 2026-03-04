@@ -65,6 +65,19 @@ function App() {
     resetUI();
   }, [resetTrip, resetUI]);
 
+  // Browser back/forward button navigation
+  useEffect(() => {
+    const validPhases = new Set(['input', 'preview', 'day-plans']);
+    const handler = (e: PopStateEvent) => {
+      const targetPhase = e.state?.phase as string | undefined;
+      if (targetPhase && validPhases.has(targetPhase)) {
+        useUIStore.setState({ phase: targetPhase as 'input' | 'preview' | 'day-plans' });
+      }
+    };
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, []);
+
   // ESC to dismiss error
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

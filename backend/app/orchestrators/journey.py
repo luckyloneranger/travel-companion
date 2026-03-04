@@ -98,6 +98,8 @@ class JourneyOrchestrator:
             # ── Step 2-4: Enrich-Review-[Fix] loop ──────────────────
             iteration = 1
             review: ReviewResult | None = None
+            best_plan: JourneyPlan = plan
+            best_score: int = 0
 
             while iteration <= self.MAX_ITERATIONS:
                 # Enrich
@@ -131,6 +133,11 @@ class JourneyOrchestrator:
                     iteration,
                 )
 
+                # Track best plan across all iterations
+                if review.score >= best_score:
+                    best_score = review.score
+                    best_plan = plan
+
                 if review.is_acceptable or iteration == self.MAX_ITERATIONS:
                     break
 
@@ -147,6 +154,9 @@ class JourneyOrchestrator:
                 )
                 plan = await self.planner.fix_plan(plan, review, request)
                 iteration += 1
+
+            # Use the best plan seen across all iterations
+            plan = best_plan
 
             # ── Complete ─────────────────────────────────────────────
             score_display = plan.review_score if plan.review_score is not None else "N/A"

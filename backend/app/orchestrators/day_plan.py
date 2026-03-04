@@ -168,6 +168,28 @@ class DayPlanOrchestrator:
                 # ----------------------------------------------------------
                 # 2. AI Plan — LLM selects + groups into themed days
                 # ----------------------------------------------------------
+                # Compute time constraints for arrival/departure days
+                time_constraints: list[dict] = []
+                for d_idx in range(city.days):
+                    day_start, day_end = self._get_day_time_bounds(
+                        journey, city_idx, d_idx, city.days
+                    )
+                    if day_start or day_end:
+                        start_h = day_start.hour + day_start.minute / 60 if day_start else 9.0
+                        end_h = day_end.hour + day_end.minute / 60 if day_end else 21.0
+                        available = end_h - start_h
+                        reason = ""
+                        if day_start and day_start.hour > 9:
+                            reason = "arrival day — sightseeing starts later"
+                        if day_end and day_end.hour < 21:
+                            reason = "departure day — need to leave early"
+                        if reason:
+                            time_constraints.append({
+                                "day_num": d_idx + 1,
+                                "reason": reason,
+                                "available_hours": available,
+                            })
+
                 try:
                     ai_plan = await self.day_planner.plan_days(
                         candidates=candidates,
@@ -178,6 +200,7 @@ class DayPlanOrchestrator:
                         budget=request.budget.value if hasattr(request, 'budget') else "moderate",
                         daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
                         must_include=request.must_include if request.must_include else None,
+                        time_constraints=time_constraints if time_constraints else None,
                     )
                     # Retry once if the LLM returned no usable day groups
                     if not ai_plan.day_groups:
@@ -196,6 +219,7 @@ class DayPlanOrchestrator:
                             budget=request.budget.value if hasattr(request, 'budget') else "moderate",
                             daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
                             must_include=request.must_include if request.must_include else None,
+                            time_constraints=time_constraints if time_constraints else None,
                         )
                 except Exception as exc:
                     logger.error(

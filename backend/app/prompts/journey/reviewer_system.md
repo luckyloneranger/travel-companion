@@ -37,6 +37,7 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Is time distributed well across cities relative to their size/offerings?
 - Does every city have enough content for its allocated days?
 - Are cities sufficiently different from each other?
+- For multi-country regions (continents, subcontinents): are destinations spread across multiple countries? All cities in one country is a **major** issue.
 - Score 90+: Perfect balance and variety
 - Score 70-89: Minor imbalance
 - Score 50-69: One city has too many/few days
@@ -52,9 +53,14 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Score <50: Poor match to interests
 
 ## SEVERITY LEVELS
-- **critical**: Makes trip impossible (not enough time, missed connections, border issues)
+- **critical**: Makes trip impossible (not enough time, missed connections, border issues, **non-existent or unverifiable destination**)
 - **major**: Significantly degrades experience (very long travel days, poor routing, wrong season)
 - **minor**: Improvement suggestions (optimizations, better alternatives)
+
+## DESTINATION VALIDITY
+- Every destination MUST be a real, well-known place that exists on Google Maps
+- If a destination name appears fictional, misspelled, or refers to an area too vague to geocode (e.g. "Southern Coast" without a specific town), flag it as a **critical** issue with category `routing`
+- Suggest a specific, real alternative in the `suggestion` field
 
 ## ISSUE CATEGORIES
 Each issue MUST have a category: `timing`, `routing`, `transport`, `balance`, `interest_alignment`, `safety`, `seasonal`

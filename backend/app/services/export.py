@@ -37,6 +37,8 @@ def _build_trip_html(trip: TripResponse) -> str:
         .city-name { font-size: 16px; font-weight: 600; }
         .highlight { font-size: 13px; color: #495057; margin: 2px 0; }
         .day { margin: 16px 0; page-break-inside: avoid; }
+        .city-section { page-break-before: auto; }
+        .city-section:first-child { page-break-before: avoid; }
         .day-header { background: #4c6ef5; color: white; padding: 8px 12px; border-radius: 6px 6px 0 0; font-size: 14px; font-weight: 600; }
         .weather { font-size: 12px; color: #dbe4ff; margin-left: 8px; }
         .activity { border: 1px solid #dee2e6; border-top: none; padding: 8px 12px; font-size: 13px; }
@@ -91,7 +93,15 @@ def _build_trip_html(trip: TripResponse) -> str:
     # Day Plans
     if trip.day_plans:
         html += "<h2>Day-by-Day Itinerary</h2>"
+        current_city = ""
         for dp in trip.day_plans:
+            # Add city section break for grouping
+            if dp.city_name != current_city:
+                if current_city:
+                    html += "</div>"  # close previous city-section
+                html += f'<div class="city-section"><h3>{dp.city_name}</h3>'
+                current_city = dp.city_name
+
             weather_str = ""
             if dp.weather:
                 w = dp.weather
@@ -118,6 +128,10 @@ def _build_trip_html(trip: TripResponse) -> str:
     {notes}{warning}
 </div>"""
 
+            html += "</div>"
+
+        # Close last city-section
+        if current_city:
             html += "</div>"
 
     # Footer
@@ -150,7 +164,9 @@ def generate_ics(trip: TripResponse) -> str:
                     continue  # Skip hotel markers
 
                 event = Event()
-                event.add("summary", activity.place.name)
+                # Clean activity name for ICS (strip HTML entities, control chars)
+                clean_name = activity.place.name.replace("\n", " ").replace("\r", "").strip()
+                event.add("summary", clean_name)
 
                 # Parse times
                 try:

@@ -46,6 +46,7 @@ class DayPlannerAgent:
         budget: str = "moderate",
         daily_budget_usd: float | None = None,
         must_include: list[str] | None = None,
+        time_constraints: list[dict] | None = None,
     ) -> AIPlan:
         """Given discovered place candidates, select and group into themed days.
 
@@ -58,6 +59,7 @@ class DayPlannerAgent:
             budget: Budget tier — "budget", "moderate", or "luxury".
             daily_budget_usd: Optional daily budget target in USD.
             must_include: Optional list of place names that MUST appear in the plan.
+            time_constraints: Optional per-day time constraints (arrival/departure days).
 
         Returns:
             AIPlan with selected_place_ids, day_groups (theme + place_ids),
@@ -67,7 +69,7 @@ class DayPlannerAgent:
         user_prompt = self._build_user_prompt(
             candidates, city_name, num_days, interests, pace,
             budget=budget, daily_budget_usd=daily_budget_usd,
-            must_include=must_include,
+            must_include=must_include, time_constraints=time_constraints,
         )
 
         logger.info(
@@ -102,6 +104,10 @@ class DayPlannerAgent:
                 len(orphan_ids),
                 orphan_ids[:5],
             )
+            # Remove orphan IDs from cost_estimates and durations
+            for oid in orphan_ids:
+                plan.cost_estimates.pop(oid, None)
+                plan.durations.pop(oid, None)
 
         # Validate dining presence per day
         dining_ids = {
@@ -193,6 +199,7 @@ class DayPlannerAgent:
         budget: str = "moderate",
         daily_budget_usd: float | None = None,
         must_include: list[str] | None = None,
+        time_constraints: list[dict] | None = None,
     ) -> str:
         """Format the user prompt template with candidate data."""
         guide = _PACE_GUIDE.get(pace, _PACE_GUIDE["moderate"])
@@ -280,6 +287,19 @@ class DayPlannerAgent:
                 + "\n".join(matched)
             )
 
+        # Build time constraints section for arrival/departure days
+        time_constraints_section = ""
+        if time_constraints:
+            lines = ["## TIME CONSTRAINTS (reduced-hours days)",
+                      "Some days have limited sightseeing time due to travel. Plan FEWER activities on these days to fit the available window:"]
+            for tc in time_constraints:
+                day_num = tc.get("day_num", "?")
+                reason = tc.get("reason", "travel")
+                available_hours = tc.get("available_hours")
+                if available_hours is not None:
+                    lines.append(f"- Day {day_num}: only ~{available_hours:.0f} hours available ({reason}). Scale activity count proportionally.")
+            time_constraints_section = "\n".join(lines)
+
         return day_plan_prompts.load("planning_user").format(
             num_days=num_days,
             destination=city_name,
@@ -296,6 +316,7 @@ class DayPlannerAgent:
             daily_budget_line=daily_budget_line,
             city_name=city_name,
             must_include_section=must_include_section,
+            time_constraints_section=time_constraints_section,
         )
 
     def _parse_plan(self, data: dict, expected_days: int) -> AIPlan:

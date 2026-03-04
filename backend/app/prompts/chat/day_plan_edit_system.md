@@ -34,6 +34,7 @@ Return a JSON object with:
 5. Preserve the city grouping structure
 6. Standard meal times: breakfast 8-9am, lunch 12-1pm, dinner 7-8pm
 7. If moving activities between days, update both days' themes appropriately
+8. If a request is too vague to act on (e.g., "make it better", "improve this", "change something"), do NOT make random changes. Instead, set `updated_day_plans` to null and use `assistant_message` to ask a clarifying question suggesting 2-3 specific options the user could choose from.
 
 ## Day Plan Structure
 Each day has:
