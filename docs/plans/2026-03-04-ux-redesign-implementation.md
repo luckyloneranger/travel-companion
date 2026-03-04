@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Transform Travel Companion from a single-page phase-based app into a guided wizard flow with dashboard preview, timeline day plans, and improved chat editing for public launch.
+**Goal:** Transform Regular Everyday Traveller from a single-page phase-based app into a guided wizard flow with dashboard preview, timeline day plans, and improved chat editing for public launch.
 
 **Architecture:** Replace InputForm with a multi-step wizard (5 steps), replace PlanProgress with a rich dashboard, restructure JourneyPreview as a dashboard layout with compact expandable city cards, and replace the day-plans card list with a timeline view + sticky day navigation. All existing backend APIs remain unchanged — this is a frontend-only redesign.
 

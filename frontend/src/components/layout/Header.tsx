@@ -55,7 +55,7 @@ export function Header() {
           >
             <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600 shrink-0" />
             <h1 className="text-lg sm:text-xl font-display font-bold text-text-primary truncate">
-              Travel Companion
+              Regular Everyday Traveller
               {showTripContext && (
                 <span className="text-text-muted font-normal text-sm sm:text-base">
                   {' · '}{journey.theme}

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Travel Companion AI (V2) -- a hybrid AI + deterministic travel planning app. LLMs handle creative decisions (place selection, theming, descriptions, cost estimation for groups); deterministic layers handle calculations (distance, time, validation, scheduling).
+Regular Everyday Traveller (RET) -- a hybrid AI + deterministic travel planning app. LLMs handle creative decisions (place selection, theming, descriptions, cost estimation for groups); deterministic layers handle calculations (distance, time, validation, scheduling).
 
 Unified pipeline: multi-city journey planning with Scout -> Enrich -> Review -> Planner loop (~2-5min), iterating until quality threshold (min 70 score, max 3 iterations, returns best attempt). Day plans are generated in background per-city with discover -> AI plan -> TSP optimize -> schedule -> route computation. All trip endpoints require authentication.
 
@@ -178,4 +178,4 @@ Supports multiple deployment modes via dual auth (cookie + Bearer token):
 
 **Key settings:** `COOKIE_DOMAIN` (empty = same-origin only, `.example.com` = cross-subdomain), `APP_URL` (frontend URL for OAuth redirects), `CORS_ORIGINS` (allowed frontend origins).
 
-**Dockerfile** (project root): Multi-stage build — Stage 1: Node 18 builds frontend, Stage 2: Python 3.11-slim runs backend + serves built frontend from `static/`. Backend auto-mounts `static/` as SPA when `static/index.html` exists.
+**Dockerfile** (project root): Multi-stage build — Stage 1: Node 20 builds frontend, Stage 2: Python 3.11-slim runs backend + serves built frontend from `static/`. Backend auto-mounts `static/` as SPA when `static/index.html` exists.

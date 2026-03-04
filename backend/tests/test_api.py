@@ -1,4 +1,4 @@
-"""End-to-end API tests for the Travel Companion V2 backend.
+"""End-to-end API tests for the Regular Everyday Traveller backend.
 
 All external services (LLM, Google APIs) are mocked via dependency overrides
 defined in conftest.py. The database is an in-memory SQLite instance that is

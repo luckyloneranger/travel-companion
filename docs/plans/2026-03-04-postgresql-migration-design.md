@@ -23,7 +23,7 @@ Remove SQLite entirely. PostgreSQL everywhere: local dev (Docker), production (A
 
 ### 1. Settings (`app/config/settings.py`)
 
-Change `database_url` default from `sqlite+aiosqlite:///./trips.db` to `postgresql+asyncpg://postgres:postgres@localhost:5432/travelcompanion`.
+Change `database_url` default from `sqlite+aiosqlite:///./trips.db` to `postgresql+asyncpg://postgres:postgres@localhost:5432/ret`.
 
 ### 2. Engine (`app/db/engine.py`)
 

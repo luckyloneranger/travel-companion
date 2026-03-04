@@ -65,7 +65,7 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: travelcompanion
+      POSTGRES_DB: ret
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -89,7 +89,7 @@ Expected: PostgreSQL container starts, healthy
 
 **Step 3: Verify connection**
 
-Run: `docker compose exec db psql -U postgres -d travelcompanion -c "SELECT version();"`
+Run: `docker compose exec db psql -U postgres -d ret -c "SELECT version();"`
 Expected: Shows PostgreSQL 16.x version string
 
 **Step 4: Commit**
@@ -117,7 +117,7 @@ database_url: str = "sqlite+aiosqlite:///./trips.db"
 to:
 
 ```python
-database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/travelcompanion"
+database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ret"
 ```
 
 **Step 2: Commit**
@@ -153,7 +153,7 @@ sqlalchemy.url = driver://user:pass@localhost/dbname
 Replace with:
 
 ```
-sqlalchemy.url = postgresql+asyncpg://postgres:postgres@localhost:5432/travelcompanion
+sqlalchemy.url = postgresql+asyncpg://postgres:postgres@localhost:5432/ret
 ```
 
 **Step 3: Configure alembic/env.py**
@@ -237,7 +237,7 @@ Expected: Tables created in PostgreSQL (docker compose db must be running)
 
 **Step 6: Verify tables exist**
 
-Run: `docker compose exec db psql -U postgres -d travelcompanion -c "\dt"`
+Run: `docker compose exec db psql -U postgres -d ret -c "\dt"`
 Expected: Shows users, trips, trip_shares, alembic_version tables
 
 **Step 7: Commit**
@@ -368,7 +368,7 @@ git commit -m "refactor: clean up engine.py for PostgreSQL-only"
 
 The Dockerfile just runs `pip install -r requirements.txt` — since aiosqlite is already removed from requirements.txt, no Dockerfile changes needed. Verify the build still works.
 
-Run: `docker build -t travel-companion .`
+Run: `docker build -t ret .`
 Expected: Build succeeds
 
 **Step 2: Commit (if any changes needed)**
@@ -427,7 +427,7 @@ Expected: Clean (no frontend changes, but verify nothing broke)
 
 **Step 3: Docker build**
 
-Run: `docker build -t travel-companion .`
+Run: `docker build -t ret .`
 Expected: Build succeeds
 
 **Step 4: End-to-end smoke test**

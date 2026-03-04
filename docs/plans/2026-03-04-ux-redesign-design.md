@@ -2,7 +2,7 @@
 
 ## Context
 
-Travel Companion AI is preparing for public launch. The current UX has functional foundations (streaming, maps, chat editing, budget tracking, OAuth, sharing) but suffers from discoverability issues, information overload, and lack of guided flow. Users don't know what to do next, can't see costs until late in the flow, and find features like chat editing and tips hidden behind unintuitive interactions.
+Regular Everyday Traveller AI is preparing for public launch. The current UX has functional foundations (streaming, maps, chat editing, budget tracking, OAuth, sharing) but suffers from discoverability issues, information overload, and lack of guided flow. Users don't know what to do next, can't see costs until late in the flow, and find features like chat editing and tips hidden behind unintuitive interactions.
 
 This redesign transforms the app from a phase-based single-page form into a **guided wizard flow** with a dashboard preview, timeline day plans, and improved trust signals throughout.
 
@@ -129,7 +129,7 @@ Chat sidebar remains but gets these additions:
 
 ### 6. Cross-Cutting
 
-- **Header:** shows trip name during preview/day-plans ("Travel Companion · 10 Days in Japan"), "Saved" indicator
+- **Header:** shows trip name during preview/day-plans ("Regular Everyday Traveller · 10 Days in Japan"), "Saved" indicator
 - **Landing page:** quick-start templates above form, tagline "AI plans your perfect multi-city trip in minutes"
 - **Shared trip view:** same dashboard + timeline layout, with "Plan your own trip" CTA
 - **Mobile:** wizard steps as swipeable screens, day nav as horizontal scroll pills, compact timeline, expandable map section

@@ -1,4 +1,4 @@
-# Travel Companion
+# Regular Everyday Traveller
 
 AI-powered multi-city travel planner. Uses LLMs for creative planning decisions and Google APIs for real-time data — routes, distances, opening hours, weather, and transport options.
 
@@ -132,7 +132,7 @@ apt-get install libpango-1.0-0 libglib2.0-0
 | `JWT_SECRET_KEY` | Secret key for JWT token signing |
 | `CORS_ORIGINS` | Allowed origins (default: `http://localhost:5173`) |
 | `COOKIE_DOMAIN` | Cookie domain for cross-subdomain auth (e.g., `.example.com`) |
-| `DATABASE_URL` | PostgreSQL connection string (default: `postgresql+asyncpg://postgres:postgres@localhost:5432/travelcompanion`) |
+| `DATABASE_URL` | PostgreSQL connection string (default: `postgresql+asyncpg://postgres:postgres@localhost:5432/ret`) |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -244,7 +244,7 @@ Supports multiple deployment modes via dual auth (cookie + Bearer token):
 | Mode | Auth Method | Setup |
 |------|-------------|-------|
 | **Dev** | Cookie via Vite proxy | Default — no config needed |
-| **Single container** | Cookie (same-origin) | `docker build -t travel-companion .` then run with env vars |
+| **Single container** | Cookie (same-origin) | `docker build -t ret .` then run with env vars |
 | **Split deploy (same domain)** | Cookie (cross-subdomain) | Set `COOKIE_DOMAIN=.example.com` |
 | **Split deploy (different domains)** | Bearer token | Set `VITE_API_BASE_URL`, `CORS_ORIGINS` |
 | **Mobile app** | Bearer token | Use `Authorization: Bearer` header |
@@ -252,8 +252,8 @@ Supports multiple deployment modes via dual auth (cookie + Bearer token):
 ### Single Container (Docker)
 
 ```bash
-docker build -t travel-companion .
-docker run -p 8000:8000 --env-file backend/.env travel-companion
+docker build -t ret .
+docker run -p 8000:8000 --env-file backend/.env ret
 ```
 
 The multi-stage Dockerfile builds the frontend (Node 20) and serves it alongside the backend (Python 3.11). The backend auto-serves the built frontend from `static/` when present. Requires `DATABASE_URL` pointing to a PostgreSQL instance.

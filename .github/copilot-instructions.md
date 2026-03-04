@@ -1,4 +1,4 @@
-# Travel Companion V2 - AI Agent Guidelines
+# Regular Everyday Traveller - AI Agent Guidelines
 
 ## Architecture
 

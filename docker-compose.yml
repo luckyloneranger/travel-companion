@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: travelcompanion
+      POSTGRES_DB: ret
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:

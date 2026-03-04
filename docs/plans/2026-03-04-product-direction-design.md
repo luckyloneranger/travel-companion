@@ -1,11 +1,11 @@
-# Travel Companion — Product Direction & Phase 1 Design
+# Regular Everyday Traveller — Product Direction & Phase 1 Design
 
 **Date:** 2026-03-04
 **Status:** Approved
 
 ## Vision
 
-Travel Companion evolves from a solo AI trip planner into a **platform** for trip planning — starting with individual travelers, expanding to friend groups, and eventually serving travel agencies/advisors as a B2B tool.
+Regular Everyday Traveller evolves from a solo AI trip planner into a **platform** for trip planning — starting with individual travelers, expanding to friend groups, and eventually serving travel agencies/advisors as a B2B tool.
 
 ## Current State
 

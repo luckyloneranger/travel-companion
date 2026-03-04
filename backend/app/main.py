@@ -40,18 +40,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from app.db.engine import close_db, init_db
 
     await init_db(settings)
-    logger.info("Travel Companion V2 started")
+    logger.info("Regular Everyday Traveller started")
     yield
     await close_db()
     await close_http_client()
-    logger.info("Travel Companion V2 stopped")
+    logger.info("Regular Everyday Traveller stopped")
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
 
     application = FastAPI(
-        title="Travel Companion AI",
+        title="Regular Everyday Traveller",
         version="2.0.0",
         lifespan=lifespan,
     )
