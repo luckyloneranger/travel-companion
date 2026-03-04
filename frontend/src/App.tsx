@@ -123,7 +123,10 @@ function App() {
 
               {phase === 'planning' && (
                 <div key="planning" className="animate-fade-in-up">
-                  <PlanningDashboard onCancel={handleCancelPlanning} />
+                  <PlanningDashboard
+                    onCancel={handleCancelPlanning}
+                    mode={journey ? 'dayplans' : 'journey'}
+                  />
                 </div>
               )}
 

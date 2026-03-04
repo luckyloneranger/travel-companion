@@ -4,10 +4,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, CheckCircle, Wrench, X, Clock, Loader2,
+  CalendarDays,
 } from 'lucide-react';
 
 interface PlanningDashboardProps {
   onCancel: () => void;
+  mode?: 'journey' | 'dayplans';
 }
 
 const PHASE_CONFIG: Record<string, { icon: typeof Loader2; label: string; description: string; color: string }> = {
@@ -49,7 +51,7 @@ const PHASE_CONFIG: Record<string, { icon: typeof Loader2; label: string; descri
   },
 };
 
-const PIPELINE_STEPS = ['scouting', 'enriching', 'reviewing', 'improving'];
+const JOURNEY_STEPS = ['scouting', 'enriching', 'reviewing', 'improving'];
 
 function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -57,12 +59,16 @@ function formatElapsed(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export function PlanningDashboard({ onCancel }: PlanningDashboardProps) {
+export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashboardProps) {
   const { progress } = useUIStore();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [activityLog, setActivityLog] = useState<string[]>([]);
+  const [completedCities, setCompletedCities] = useState<string[]>([]);
+  const [currentCity, setCurrentCity] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
   const prevMessageRef = useRef<string>('');
+
+  const isDayPlans = mode === 'dayplans';
 
   // Elapsed timer
   useEffect(() => {
@@ -70,25 +76,45 @@ export function PlanningDashboard({ onCancel }: PlanningDashboardProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Append progress messages to activity log
+  // Append progress messages to activity log + track cities
   useEffect(() => {
-    if (progress?.message && progress.message !== prevMessageRef.current) {
+    if (!progress) return;
+
+    if (progress.message && progress.message !== prevMessageRef.current) {
       prevMessageRef.current = progress.message;
       setActivityLog((prev) => [...prev, progress.message]);
     }
-  }, [progress?.message]);
+
+    // Track city progress for day plans mode
+    if (isDayPlans && progress.data) {
+      const data = progress.data as Record<string, unknown>;
+      const cityName = data.city as string | undefined;
+      if (progress.phase === 'city_start' && cityName) {
+        setCurrentCity(cityName);
+      }
+      if (progress.phase === 'city_complete' && cityName) {
+        setCompletedCities((prev) =>
+          prev.includes(cityName) ? prev : [...prev, cityName],
+        );
+        setCurrentCity(null);
+      }
+    }
+  }, [progress, isDayPlans]);
 
   // Scroll log to bottom
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activityLog]);
 
-  const phase = progress?.phase || 'scouting';
-  const config = PHASE_CONFIG[phase] || PHASE_CONFIG.scouting;
+  const phase = progress?.phase || (isDayPlans ? 'city_start' : 'scouting');
+  const config = PHASE_CONFIG[phase] || PHASE_CONFIG[isDayPlans ? 'city_start' : 'scouting'];
   const Icon = config.icon;
 
-  // Determine which pipeline steps are done
-  const currentStepIdx = PIPELINE_STEPS.indexOf(phase);
+  // Journey mode: determine which pipeline steps are done
+  const currentStepIdx = JOURNEY_STEPS.indexOf(phase);
+
+  const title = isDayPlans ? 'Generating day plans...' : 'Planning your journey...';
+  const timeEstimate = isDayPlans ? 'Usually takes 1-3 minutes' : 'Usually takes 2-4 minutes';
 
   return (
     <Card className="max-w-xl mx-auto mt-8">
@@ -96,48 +122,74 @@ export function PlanningDashboard({ onCancel }: PlanningDashboardProps) {
         {/* Header */}
         <div className="text-center">
           <h2 className="text-xl font-display font-semibold text-text-primary">
-            Planning your journey...
+            {title}
           </h2>
           <p className="text-xs text-text-muted mt-1 flex items-center justify-center gap-1.5">
             <Clock className="h-3 w-3" />
-            {formatElapsed(elapsedSeconds)} elapsed · Usually takes 2-4 minutes
+            {formatElapsed(elapsedSeconds)} elapsed · {timeEstimate}
           </p>
         </div>
 
-        {/* Pipeline stepper */}
-        <div className="flex items-center justify-between gap-1">
-          {PIPELINE_STEPS.map((step, idx) => {
-            const stepConfig = PHASE_CONFIG[step];
-            const StepIcon = stepConfig.icon;
-            const isDone = idx < currentStepIdx;
-            const isActive = step === phase;
+        {/* Pipeline stepper (journey mode) */}
+        {!isDayPlans && (
+          <div className="flex items-center justify-between gap-1">
+            {JOURNEY_STEPS.map((step, idx) => {
+              const stepConfig = PHASE_CONFIG[step];
+              const StepIcon = stepConfig.icon;
+              const isDone = idx < currentStepIdx;
+              const isActive = step === phase;
 
-            return (
-              <div key={step} className="flex-1 flex flex-col items-center gap-1">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition-colors ${
-                    isDone
-                      ? 'bg-green-500 text-white'
-                      : isActive
-                        ? `bg-primary-100 dark:bg-primary-900/40 ${stepConfig.color}`
-                        : 'bg-surface-muted text-text-muted'
-                  }`}
-                >
-                  {isDone ? (
-                    <CheckCircle className="h-4 w-4" />
-                  ) : isActive ? (
-                    <StepIcon className="h-4 w-4 animate-pulse" />
-                  ) : (
-                    <StepIcon className="h-4 w-4" />
-                  )}
+              return (
+                <div key={step} className="flex-1 flex flex-col items-center gap-1">
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-xs transition-colors ${
+                      isDone
+                        ? 'bg-green-500 text-white'
+                        : isActive
+                          ? `bg-primary-100 dark:bg-primary-900/40 ${stepConfig.color}`
+                          : 'bg-surface-muted text-text-muted'
+                    }`}
+                  >
+                    {isDone ? (
+                      <CheckCircle className="h-4 w-4" />
+                    ) : isActive ? (
+                      <StepIcon className="h-4 w-4 animate-pulse" />
+                    ) : (
+                      <StepIcon className="h-4 w-4" />
+                    )}
+                  </div>
+                  <span className={`text-xs ${isActive ? 'font-medium text-text-primary' : 'text-text-muted'}`}>
+                    {stepConfig.label}
+                  </span>
                 </div>
-                <span className={`text-xs ${isActive ? 'font-medium text-text-primary' : 'text-text-muted'}`}>
-                  {stepConfig.label}
+              );
+            })}
+          </div>
+        )}
+
+        {/* City progress (day plans mode) */}
+        {isDayPlans && (completedCities.length > 0 || currentCity) && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-medium text-text-muted">City Progress</h3>
+            <div className="flex flex-wrap gap-2">
+              {completedCities.map((city) => (
+                <span
+                  key={city}
+                  className="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900/30 px-2.5 py-1 text-xs font-medium text-green-700 dark:text-green-300"
+                >
+                  <CheckCircle className="h-3 w-3" />
+                  {city}
                 </span>
-              </div>
-            );
-          })}
-        </div>
+              ))}
+              {currentCity && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 dark:bg-primary-900/30 px-2.5 py-1 text-xs font-medium text-primary-700 dark:text-primary-300">
+                  <CalendarDays className="h-3 w-3 animate-pulse" />
+                  {currentCity}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Current status */}
         <div className="text-center space-y-2">
@@ -157,7 +209,7 @@ export function PlanningDashboard({ onCancel }: PlanningDashboardProps) {
               aria-valuenow={progress.progress}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label={`Planning progress: ${progress.progress}% complete`}
+              aria-label={`${isDayPlans ? 'Day plan' : 'Planning'} progress: ${progress.progress}% complete`}
             >
               <div
                 className="bg-primary-500 h-2 rounded-full transition-all duration-500"
