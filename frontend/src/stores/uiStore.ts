@@ -30,6 +30,10 @@ interface UIState {
   openChat: (context?: 'journey' | 'day_plans') => void;
   closeChat: () => void;
 
+  // Wizard
+  wizardStep: number;
+  setWizardStep: (step: number) => void;
+
   // Reset
   resetUI: () => void;
 }
@@ -73,6 +77,9 @@ export const useUIStore = create<UIState>((set) => ({
     set({ isChatOpen: true, chatContext: context }),
   closeChat: () => set({ isChatOpen: false }),
 
+  wizardStep: 1,
+  setWizardStep: (step) => set({ wizardStep: step }),
+
   resetUI: () => {
     set({
       phase: 'input',
@@ -82,6 +89,7 @@ export const useUIStore = create<UIState>((set) => ({
       showJourneyMap: false,
       dayMapVisible: {},
       isChatOpen: false,
+      wizardStep: 1,
     });
     sessionStorage.removeItem('tc_phase');
     sessionStorage.removeItem('tc_tripId');
