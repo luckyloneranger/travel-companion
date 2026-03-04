@@ -82,3 +82,6 @@ screenshots/
 
 # Debug logs
 *-debug.log
+
+# Git worktrees
+.worktrees/
