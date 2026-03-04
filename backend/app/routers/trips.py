@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/trips", tags=["trips"])
 
 
+async def _check_trip_ownership(repo: TripRepository, trip_id: str, user_id: str):
+    """Verify the user owns the trip. Allows access to ownerless legacy trips."""
+    owner = await repo.get_trip_user_id(trip_id)
+    if owner is not None and owner != user_id:
+        raise HTTPException(404, "Trip not found")
+
+
 @router.post("/plan/stream")
 async def plan_trip_stream(
     request: TripRequest,
@@ -60,11 +67,14 @@ async def generate_day_plans_stream(
     trip_id: str,
     orchestrator: DayPlanOrchestrator = Depends(get_day_plan_orchestrator),
     repo: TripRepository = Depends(get_trip_repository),
+    user: dict | None = Depends(get_current_user),
 ):
     """Stream day plan generation for a saved trip."""
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
+    if user:
+        await _check_trip_ownership(repo, trip_id, user["sub"])
 
     async def event_generator():
         try:
@@ -89,10 +99,13 @@ async def chat_edit(
     request: ChatEditRequest,
     chat: ChatService = Depends(get_chat_service),
     repo: TripRepository = Depends(get_trip_repository),
+    user: dict | None = Depends(get_current_user),
 ) -> ChatEditResponse:
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
+    if user:
+        await _check_trip_ownership(repo, trip_id, user["sub"])
 
     if request.context == "day_plans" and trip.day_plans:
         response = await chat.edit_day_plans(request.message, trip.day_plans, trip.journey, trip.request)
@@ -116,15 +129,30 @@ async def list_trips(
 
 
 @router.get("/{trip_id}")
-async def get_trip(trip_id: str, repo: TripRepository = Depends(get_trip_repository)) -> TripResponse:
+async def get_trip(
+    trip_id: str,
+    repo: TripRepository = Depends(get_trip_repository),
+    user: dict | None = Depends(get_current_user),
+) -> TripResponse:
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
+    owner = await repo.get_trip_user_id(trip_id)
+    # Allow if: no owner (legacy), user is owner, or trip is shared
+    if owner is not None and (not user or owner != user.get("sub")):
+        share_token = await repo.get_share_token(trip_id)
+        if not share_token:
+            raise HTTPException(404, "Trip not found")
     return trip
 
 
 @router.delete("/{trip_id}")
-async def delete_trip(trip_id: str, repo: TripRepository = Depends(get_trip_repository)):
+async def delete_trip(
+    trip_id: str,
+    repo: TripRepository = Depends(get_trip_repository),
+    user: dict = Depends(require_user),
+):
+    await _check_trip_ownership(repo, trip_id, user["sub"])
     deleted = await repo.delete_trip(trip_id)
     if not deleted:
         raise HTTPException(404, "Trip not found")
@@ -137,10 +165,13 @@ async def generate_tips(
     activities: list[dict],
     tips_service: TipsService = Depends(get_tips_service),
     repo: TripRepository = Depends(get_trip_repository),
+    user: dict | None = Depends(get_current_user),
 ):
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
+    if user:
+        await _check_trip_ownership(repo, trip_id, user["sub"])
     return await tips_service.generate_tips(activities, trip.request.destination)
 
 
@@ -154,6 +185,7 @@ async def share_trip(
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
+    await _check_trip_ownership(repo, trip_id, user["sub"])
 
     # Check if already shared
     existing = await repo.get_share_token(trip_id)
@@ -171,6 +203,7 @@ async def unshare_trip(
     user: dict = Depends(require_user),
 ):
     """Revoke sharing for a trip."""
+    await _check_trip_ownership(repo, trip_id, user["sub"])
     deleted = await repo.delete_share(trip_id)
     if not deleted:
         raise HTTPException(404, "No share found")

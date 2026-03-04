@@ -50,8 +50,12 @@ async def login(provider: str, request: Request):
     if not client_id:
         raise HTTPException(400, f"{provider} OAuth not configured")
 
-    # Redirect URI points to our own backend callback endpoint
-    redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
+    # In development, use app_url (frontend) to route through Vite proxy
+    # so cookies are set on the same origin. In production, use the backend URL.
+    if settings.is_development:
+        redirect_uri = f"{settings.app_url}/api/auth/callback/{provider}"
+    else:
+        redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
 
     client = AsyncOAuth2Client(
         client_id=client_id,
@@ -62,6 +66,7 @@ async def login(provider: str, request: Request):
     uri, state = client.create_authorization_url(
         config["authorize_url"],
         scope=config["scopes"],
+        prompt="select_account",
     )
 
     # Store state in cookie for CSRF protection
@@ -81,7 +86,11 @@ async def callback(provider: str, request: Request, response: Response):
 
     client_id = getattr(settings, f"{provider}_oauth_client_id")
     client_secret = getattr(settings, f"{provider}_oauth_client_secret")
-    redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
+
+    if settings.is_development:
+        redirect_uri = f"{settings.app_url}/api/auth/callback/{provider}"
+    else:
+        redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
 
     client = AsyncOAuth2Client(
         client_id=client_id,
@@ -93,6 +102,12 @@ async def callback(provider: str, request: Request, response: Response):
     code = request.query_params.get("code")
     if not code:
         raise HTTPException(400, "Missing authorization code")
+
+    # Validate CSRF state
+    stored_state = request.cookies.get("oauth_state")
+    callback_state = request.query_params.get("state")
+    if not stored_state or stored_state != callback_state:
+        raise HTTPException(403, "Invalid OAuth state — possible CSRF attack")
 
     try:
         token = await client.fetch_token(

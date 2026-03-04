@@ -180,5 +180,13 @@ class TestPlanTripStream:
 class TestDeleteTrip:
     async def test_delete_not_found(self, client: AsyncClient):
         """Deleting a non-existent trip should return 404."""
-        response = await client.delete("/api/trips/nonexistent-id")
+        response = await client.delete(
+            "/api/trips/nonexistent-id",
+            headers={"x-test-user": "true"},
+        )
         assert response.status_code == 404
+
+    async def test_delete_requires_auth(self, client: AsyncClient):
+        """Deleting a trip without auth should return 401."""
+        response = await client.delete("/api/trips/nonexistent-id")
+        assert response.status_code == 401

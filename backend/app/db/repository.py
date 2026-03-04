@@ -127,6 +127,13 @@ class TripRepository:
         await self.session.commit()
         return result.rowcount > 0
 
+    async def get_trip_user_id(self, trip_id: str) -> str | None:
+        """Get the user_id for a trip. Returns None if trip doesn't exist or has no owner."""
+        result = await self.session.execute(
+            select(Trip.user_id).where(Trip.id == trip_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_share_token(self, trip_id: str) -> str | None:
         """Get existing share token for a trip, if any."""
         result = await self.session.execute(

@@ -44,6 +44,7 @@ export function JourneyPreview({
   const { journey, tripId } = useTripStore();
   const { showJourneyMap, toggleJourneyMap } = useUIStore();
   const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   const handleCopyItinerary = useCallback(() => {
     if (!journey) return;
@@ -81,15 +82,19 @@ export function JourneyPreview({
   }, [journey]);
 
   const handleShare = useCallback(async () => {
-    if (!tripId) return;
+    if (!tripId) {
+      console.error('Share failed: no tripId');
+      return;
+    }
     try {
       const result = await api.shareTrip(tripId);
       const fullUrl = `${window.location.origin}/shared/${result.token}`;
-      await navigator.clipboard.writeText(fullUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setShareUrl(fullUrl);
     } catch (err) {
       console.error('Share failed:', err);
+      useUIStore.getState().setError(
+        err instanceof Error ? `Share failed: ${err.message}` : 'Share failed'
+      );
     }
   }, [tripId]);
 
@@ -99,6 +104,7 @@ export function JourneyPreview({
       await api.exportPdf(tripId);
     } catch (err) {
       console.error('PDF export failed:', err);
+      useUIStore.getState().setError('PDF export failed. Please try again.');
     }
   }, [tripId]);
 
@@ -108,6 +114,7 @@ export function JourneyPreview({
       await api.exportCalendar(tripId);
     } catch (err) {
       console.error('Calendar export failed:', err);
+      useUIStore.getState().setError('Calendar export failed. Please try again.');
     }
   }, [tripId]);
 
@@ -225,7 +232,7 @@ export function JourneyPreview({
             </Button>
             <Button variant="outline" size="sm" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
-              Share
+              {shareUrl ? 'Shared!' : 'Share'}
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPdf}>
               <FileDown className="h-4 w-4" />
@@ -240,6 +247,31 @@ export function JourneyPreview({
               New Trip
             </Button>
           </div>
+
+          {/* Share URL */}
+          {shareUrl && (
+            <div className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted px-3 py-2">
+              <input
+                type="text"
+                readOnly
+                value={shareUrl}
+                className="flex-1 bg-transparent text-xs text-text-secondary outline-none"
+                onFocus={(e) => e.target.select()}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareUrl).catch(() => {
+                    window.prompt('Copy this link:', shareUrl);
+                  });
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copy
+              </Button>
+            </div>
+          )}
 
           {/* Map */}
           {showJourneyMap && (

@@ -27,6 +27,7 @@ async function* streamSSE(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
+    credentials: 'include',
   });
 
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -79,6 +80,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, context }),
+      credentials: 'include',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<ChatEditResponse>;
@@ -87,13 +89,13 @@ export const api = {
   // ── CRUD ───────────────────────────────────────────────
 
   listTrips: async (): Promise<TripSummary[]> => {
-    const res = await fetch(`${API_BASE}/api/trips`);
+    const res = await fetch(`${API_BASE}/api/trips`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TripSummary[]>;
   },
 
   getTrip: async (id: string): Promise<TripResponse> => {
-    const res = await fetch(`${API_BASE}/api/trips/${id}`);
+    const res = await fetch(`${API_BASE}/api/trips/${id}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TripResponse>;
   },
@@ -101,6 +103,7 @@ export const api = {
   deleteTrip: async (id: string): Promise<void> => {
     const res = await fetch(`${API_BASE}/api/trips/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
   },
@@ -115,7 +118,7 @@ export const api = {
     const params = new URLSearchParams({ query });
     if (lat !== undefined) params.set('lat', String(lat));
     if (lng !== undefined) params.set('lng', String(lng));
-    const res = await fetch(`${API_BASE}/api/places/search?${params}`);
+    const res = await fetch(`${API_BASE}/api/places/search?${params}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<Place[]>;
   },
@@ -130,6 +133,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(activities),
+      credentials: 'include',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TipsResponse>;

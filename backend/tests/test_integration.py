@@ -23,7 +23,10 @@ class TestTripApiLifecycle:
     @pytest.mark.asyncio
     async def test_delete_nonexistent(self, client: AsyncClient):
         """Delete for non-existent trip returns 404."""
-        response = await client.delete("/api/trips/does-not-exist")
+        response = await client.delete(
+            "/api/trips/does-not-exist",
+            headers={"x-test-user": "true"},
+        )
         assert response.status_code == 404
 
     @pytest.mark.asyncio
