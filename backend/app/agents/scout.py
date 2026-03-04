@@ -136,7 +136,10 @@ class ScoutAgent:
             accommodation = None
             acc_data = city_data.get("accommodation")
             if acc_data and isinstance(acc_data, dict) and acc_data.get("name"):
-                accommodation = Accommodation(name=acc_data["name"])
+                accommodation = Accommodation(
+                    name=acc_data["name"],
+                    estimated_nightly_usd=acc_data.get("estimated_nightly_usd"),
+                )
 
             cities.append(
                 CityStop(
@@ -166,6 +169,8 @@ class ScoutAgent:
                     duration_hours=leg_data.get("duration_hours", 0),
                     distance_km=leg_data.get("distance_km"),
                     notes=leg_data.get("notes", ""),
+                    fare=leg_data.get("estimated_cost") or leg_data.get("fare"),
+                    fare_usd=leg_data.get("fare_usd"),
                     booking_tip=leg_data.get("booking_tip"),
                 )
             )
