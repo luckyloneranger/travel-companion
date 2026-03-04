@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useState } from 'react';
 import {
   MapPin, Calendar, Navigation, ArrowRight, Sparkles,
-  MessageSquare, PlusCircle, Copy, Check, Share2,
+  MessageSquare, Copy, Check, Share2,
   FileDown, CalendarPlus, ChevronDown, Car, Train, Bus, Plane, Ship,
   Loader2, RefreshCw,
 } from 'lucide-react';
@@ -20,7 +20,6 @@ interface JourneyDashboardProps {
   onGenerateDayPlans: () => void;
   onCancelDayPlans: () => void;
   onOpenChat: () => void;
-  onNewTrip: () => void;
 }
 
 const TRANSPORT_ICONS: Record<string, typeof Car> = {
@@ -34,7 +33,7 @@ function formatDuration(hours: number): string {
   return m > 0 ? `${h}h${m}m` : `${h}h`;
 }
 
-export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenChat, onNewTrip }: JourneyDashboardProps) {
+export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenChat }: JourneyDashboardProps) {
   const { journey, tripId, dayPlans, costBreakdown, tips } = useTripStore();
   const dayPlansGenerating = useUIStore((s) => s.dayPlansGenerating);
   const [copied, setCopied] = useState(false);
@@ -252,10 +251,6 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 </div>
               )}
             </div>
-            <Button variant="ghost" size="sm" onClick={onNewTrip}>
-              <PlusCircle className="h-4 w-4" />
-              New Trip
-            </Button>
           </div>
 
           {/* Share URL */}

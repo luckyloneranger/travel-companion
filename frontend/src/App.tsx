@@ -15,8 +15,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { AlertCircle } from 'lucide-react';
 
 function App() {
-  const { phase, isLoading, error, setError, resetUI } = useUIStore();
-  const { journey, reset: resetTrip } = useTripStore();
+  const { phase, isLoading, error, setError } = useUIStore();
+  const { journey } = useTripStore();
   const { fetchUser } = useAuthStore();
   const { startPlanning, cancelPlanning } = useStreamingPlan();
   const { startGenerating, cancelGenerating } = useStreamingDayPlans();
@@ -49,11 +49,6 @@ function App() {
   const handleOpenChat = useCallback(() => {
     useUIStore.getState().openChat('journey');
   }, []);
-
-  const handleNewTrip = useCallback(() => {
-    resetTrip();
-    resetUI();
-  }, [resetTrip, resetUI]);
 
   // Browser back/forward button navigation
   useEffect(() => {
@@ -129,7 +124,6 @@ function App() {
                     onGenerateDayPlans={handleGenerateDayPlans}
                     onCancelDayPlans={cancelGenerating}
                     onOpenChat={handleOpenChat}
-                    onNewTrip={handleNewTrip}
                   />
                 </div>
               )}
