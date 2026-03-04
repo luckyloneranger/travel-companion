@@ -5,6 +5,7 @@ import type {
   TripRequest,
   TripResponse,
   TripSummary,
+  User,
 } from '@/types';
 
 export interface TipsResponse {
@@ -26,6 +27,7 @@ async function* streamSSE(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
+    credentials: 'include',
   });
 
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -78,6 +80,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, context }),
+      credentials: 'include',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<ChatEditResponse>;
@@ -86,13 +89,13 @@ export const api = {
   // ── CRUD ───────────────────────────────────────────────
 
   listTrips: async (): Promise<TripSummary[]> => {
-    const res = await fetch(`${API_BASE}/api/trips`);
+    const res = await fetch(`${API_BASE}/api/trips`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TripSummary[]>;
   },
 
   getTrip: async (id: string): Promise<TripResponse> => {
-    const res = await fetch(`${API_BASE}/api/trips/${id}`);
+    const res = await fetch(`${API_BASE}/api/trips/${id}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TripResponse>;
   },
@@ -100,6 +103,7 @@ export const api = {
   deleteTrip: async (id: string): Promise<void> => {
     const res = await fetch(`${API_BASE}/api/trips/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
   },
@@ -114,7 +118,7 @@ export const api = {
     const params = new URLSearchParams({ query });
     if (lat !== undefined) params.set('lat', String(lat));
     if (lng !== undefined) params.set('lng', String(lng));
-    const res = await fetch(`${API_BASE}/api/places/search?${params}`);
+    const res = await fetch(`${API_BASE}/api/places/search?${params}`, { credentials: 'include' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<Place[]>;
   },
@@ -129,8 +133,71 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(activities),
+      credentials: 'include',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TipsResponse>;
+  },
+
+  // ── Auth ─────────────────────────────────────────────────
+
+  getMe: async (): Promise<{ user: User | null }> => {
+    const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
+    if (!res.ok) return { user: null };
+    return res.json() as Promise<{ user: User | null }>;
+  },
+
+  logout: async (): Promise<void> => {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  },
+
+  // ── Sharing ──────────────────────────────────────────────
+
+  shareTrip: async (tripId: string): Promise<{ token: string; url: string }> => {
+    const res = await fetch(`${API_BASE}/api/trips/${tripId}/share`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json() as Promise<{ token: string; url: string }>;
+  },
+
+  getSharedTrip: async (token: string): Promise<TripResponse> => {
+    const res = await fetch(`${API_BASE}/api/shared/${token}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json() as Promise<TripResponse>;
+  },
+
+  // ── Export ───────────────────────────────────────────────
+
+  exportPdf: async (tripId: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/api/trips/${tripId}/export/pdf`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trip-${tripId}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  exportCalendar: async (tripId: string): Promise<void> => {
+    const res = await fetch(`${API_BASE}/api/trips/${tripId}/export/calendar`, {
+      credentials: 'include',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trip-${tripId}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
   },
 };

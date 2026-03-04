@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import App from './App';
@@ -11,9 +12,11 @@ function Root() {
   return (
     <React.StrictMode>
       <ErrorBoundary>
-        <APIProvider apiKey={MAPS_API_KEY}>
-          <App />
-        </APIProvider>
+        <BrowserRouter>
+          <APIProvider apiKey={MAPS_API_KEY}>
+            <App />
+          </APIProvider>
+        </BrowserRouter>
       </ErrorBoundary>
     </React.StrictMode>
   );

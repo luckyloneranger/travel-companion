@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
+from fastapi import Request
 
 # ── Set environment variables BEFORE any app imports ────────────────────
 os.environ.update(
@@ -47,6 +48,7 @@ from app.config import Settings
 from app.db.models import Base
 from app.db.repository import TripRepository
 from app.dependencies import (
+    get_current_user,
     get_db_session,
     get_directions_service,
     get_http,
@@ -56,6 +58,7 @@ from app.dependencies import (
     get_routes_service,
     get_settings,
     get_trip_repository,
+    require_user,
 )
 from app.main import create_app
 from app.services.llm.base import LLMService
@@ -136,6 +139,27 @@ async def _override_get_trip_repository():
         yield TripRepository(session)
 
 
+# ── Mock auth ─────────────────────────────────────────────────────────
+
+_MOCK_USER = {"sub": "test-user-id", "email": "test@example.com", "name": "Test User"}
+
+
+async def _override_get_current_user(request: Request) -> dict | None:
+    """Return mock user only when the test sends an X-Test-User header."""
+    if request.headers.get("x-test-user"):
+        return _MOCK_USER
+    return None
+
+
+async def _override_require_user(request: Request) -> dict:
+    """Require the X-Test-User header; raise 401 otherwise (like real auth)."""
+    user = await _override_get_current_user(request)
+    if not user:
+        from fastapi import HTTPException as _H
+        raise _H(401, "Not authenticated")
+    return user
+
+
 # ── Application fixture ───────────────────────────────────────────────
 
 
@@ -153,6 +177,8 @@ async def app():
     application.dependency_overrides[get_directions_service] = lambda: AsyncMock()
     application.dependency_overrides[get_db_session] = _override_get_db_session
     application.dependency_overrides[get_trip_repository] = _override_get_trip_repository
+    application.dependency_overrides[get_current_user] = _override_get_current_user
+    application.dependency_overrides[require_user] = _override_require_user
 
     yield application
 
