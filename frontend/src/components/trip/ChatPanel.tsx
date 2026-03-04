@@ -13,12 +13,27 @@ interface ChatMessage {
   changes?: string[];
 }
 
+const JOURNEY_SUGGESTIONS = [
+  'Add a beach day',
+  'Swap two cities',
+  'Make it more budget-friendly',
+  'Add 2 more days',
+];
+
+const DAY_PLAN_SUGGESTIONS = [
+  'Replace dinner restaurant',
+  'Add a museum in the morning',
+  'Make today more relaxed',
+  'Move an activity to tomorrow',
+];
+
 export function ChatPanel() {
   const { isChatOpen, chatContext, closeChat } = useUIStore();
   const { tripId, updateJourney, updateDayPlans } = useTripStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom on new messages
@@ -29,25 +44,27 @@ export function ChatPanel() {
   // Reset messages when chat opens
   useEffect(() => {
     if (isChatOpen) {
+      setShowSuggestions(true);
       setMessages([{
         role: 'assistant',
         content: chatContext === 'journey'
-          ? 'How would you like to modify your journey? You can ask me to change cities, adjust days, swap transport, etc.'
-          : 'How would you like to modify your day plans? You can ask me to add activities, change restaurants, adjust timing, etc.',
+          ? 'How would you like to modify your journey? I can add/remove cities, adjust days, change transport, swap activities, and modify budget.'
+          : 'How would you like to modify your day plans? I can add activities, change restaurants, adjust timing, move activities between days, and more.',
       }]);
     }
   }, [isChatOpen, chatContext]);
 
-  const handleSend = async () => {
-    if (!input.trim() || !tripId || isSending) return;
+  const handleSend = async (messageOverride?: string) => {
+    const messageToSend = (messageOverride || input).trim();
+    if (!messageToSend || !tripId || isSending) return;
 
-    const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setShowSuggestions(false);
+    setMessages(prev => [...prev, { role: 'user', content: messageToSend }]);
     setIsSending(true);
 
     try {
-      const response = await api.editTrip(tripId, userMessage, chatContext === 'day_plans' ? 'day_plans' : '');
+      const response = await api.editTrip(tripId, messageToSend, chatContext === 'day_plans' ? 'day_plans' : '');
 
       setMessages(prev => [...prev, {
         role: 'assistant',
@@ -112,6 +129,21 @@ export function ChatPanel() {
               )}
             </div>
           ))}
+          {/* Suggestion chips */}
+          {showSuggestions && messages.length === 1 && (
+            <div className="flex flex-wrap gap-2 px-2">
+              {(chatContext === 'journey' ? JOURNEY_SUGGESTIONS : DAY_PLAN_SUGGESTIONS).map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => handleSend(suggestion)}
+                  className="rounded-full border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 px-3 py-1.5 text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -125,7 +157,7 @@ export function ChatPanel() {
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
             disabled={isSending}
           />
-          <Button onClick={handleSend} disabled={isSending || !input.trim()} size="icon" aria-label="Send message">
+          <Button onClick={() => handleSend()} disabled={isSending || !input.trim()} size="icon" aria-label="Send message">
             {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>

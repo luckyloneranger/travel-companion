@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
-import { CityCard } from '@/components/trip/CityCard';
-import { DayCard } from '@/components/trip/DayCard';
+import { CompactCityCard } from '@/components/trip/CompactCityCard';
+import { DayNav } from '@/components/trip/DayNav';
+import { DayTimeline } from '@/components/trip/DayTimeline';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, MapPin, Calendar, Navigation, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sparkles, MapPin, Calendar, Navigation, Loader2, Rocket } from 'lucide-react';
 import { api } from '@/services/api';
 import type { TripResponse } from '@/types';
 
@@ -14,6 +16,7 @@ export function SharedTrip() {
   const [trip, setTrip] = useState<TripResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeDay, setActiveDay] = useState(1);
 
   useEffect(() => {
     if (!token) return;
@@ -54,15 +57,7 @@ export function SharedTrip() {
   }
 
   const j = trip.journey;
-  const dayPlansByCity = trip.day_plans
-    ? trip.day_plans.reduce<Record<string, typeof trip.day_plans>>((acc, plan) => {
-        if (!plan) return acc;
-        const city = plan.city_name;
-        if (!acc[city]) acc[city] = [];
-        acc[city]!.push(plan);
-        return acc;
-      }, {})
-    : {};
+  const activePlan = trip.day_plans?.find((dp) => dp.day_number === activeDay);
 
   return (
     <>
@@ -104,31 +99,31 @@ export function SharedTrip() {
           </div>
 
           {/* Cities */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {j.cities.map((city, i) => {
               const departureLeg = j.travel_legs.find((leg) => leg.from_city === city.name);
-              return <CityCard key={`city-${i}`} city={city} index={i} departureLeg={departureLeg} />;
+              return <CompactCityCard key={`city-${i}`} city={city} index={i} departureLeg={departureLeg} />;
             })}
           </div>
 
           {/* Day plans */}
           {trip.day_plans && trip.day_plans.length > 0 && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <h2 className="text-lg font-display font-bold text-text-primary">Day Plans</h2>
-              {Object.entries(dayPlansByCity).map(([cityName, plans]) => (
-                <div key={cityName} className="space-y-3">
-                  <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider px-1">
-                    {cityName}
-                  </h3>
-                  <div className="space-y-4">
-                    {plans!.map((plan) => (
-                      <DayCard key={plan.day_number} dayPlan={plan} />
-                    ))}
-                  </div>
-                </div>
-              ))}
+              <DayNav dayPlans={trip.day_plans} activeDay={activeDay} onDayClick={setActiveDay} />
+              {activePlan && <DayTimeline dayPlan={activePlan} tips={{}} />}
             </div>
           )}
+
+          {/* CTA */}
+          <div className="text-center pt-4 border-t border-border-default">
+            <Link to="/">
+              <Button className="bg-primary-600 hover:bg-primary-700 text-white">
+                <Rocket className="h-4 w-4" />
+                Plan your own trip
+              </Button>
+            </Link>
+          </div>
         </div>
       </PageContainer>
     </>
