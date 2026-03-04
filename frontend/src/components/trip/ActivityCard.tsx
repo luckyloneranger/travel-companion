@@ -1,4 +1,4 @@
-import { MapPin, Clock, Star, Hotel, Navigation, Lightbulb, ExternalLink, CloudRain } from 'lucide-react';
+import { MapPin, Clock, Star, Hotel, Navigation, Lightbulb, ExternalLink, CloudRain, DollarSign } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useTripStore } from '@/stores/tripStore';
 import type { Activity } from '@/types';
@@ -122,6 +122,15 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
               <Badge variant="outline" className="text-xs capitalize">
                 {activity.place.category}
               </Badge>
+              {activity.price_tier && activity.price_tier !== 'free' && (
+                <span className="text-xs text-text-muted font-medium">
+                  {'$'.repeat(
+                    activity.price_tier === 'budget' ? 1 :
+                    activity.price_tier === 'moderate' ? 2 :
+                    activity.price_tier === 'expensive' ? 3 : 4
+                  )}
+                </span>
+              )}
             </div>
           </div>
 
@@ -145,6 +154,17 @@ export function ActivityCard({ activity, index }: ActivityCardProps) {
             <p className="text-xs text-text-secondary mt-1.5 leading-relaxed">
               {activity.notes}
             </p>
+          )}
+
+          {/* Cost estimate */}
+          {activity.estimated_cost_usd != null && activity.estimated_cost_usd > 0 && (
+            <div className="flex items-center gap-1 text-xs text-text-muted mt-1">
+              <DollarSign className="h-3 w-3" />
+              <span>~${activity.estimated_cost_usd.toFixed(0)}</span>
+              {activity.estimated_cost_local && (
+                <span className="text-text-muted">({activity.estimated_cost_local})</span>
+              )}
+            </div>
           )}
 
           {/* Tip */}
