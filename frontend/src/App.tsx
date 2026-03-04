@@ -7,6 +7,7 @@ import { InputForm } from '@/components/trip/InputForm';
 import { PlanProgress } from '@/components/trip/PlanProgress';
 import { JourneyPreview } from '@/components/trip/JourneyPreview';
 import { DayCard } from '@/components/trip/DayCard';
+import { BudgetSummary } from '@/components/trip/BudgetSummary';
 import { SharedTrip } from '@/pages/SharedTrip';
 import { useStreamingPlan } from '@/hooks/useStreamingPlan';
 import { useStreamingDayPlans } from '@/hooks/useStreamingDayPlans';
@@ -18,7 +19,7 @@ import { ArrowLeft, MessageSquare, PlusCircle, AlertCircle } from 'lucide-react'
 
 function App() {
   const { phase, isLoading, error, setError, setPhase, resetUI } = useUIStore();
-  const { journey, dayPlans, reset: resetTrip } = useTripStore();
+  const { journey, dayPlans, costBreakdown, reset: resetTrip } = useTripStore();
   const { fetchUser } = useAuthStore();
   const { startPlanning, cancelPlanning } = useStreamingPlan();
   const { startGenerating, cancelGenerating } = useStreamingDayPlans();
@@ -162,6 +163,10 @@ function App() {
                       </Button>
                     </div>
                   </div>
+
+                  {costBreakdown && (
+                    <BudgetSummary costBreakdown={costBreakdown} totalDays={dayPlans.length} />
+                  )}
 
                   {/* Day plans grouped by city */}
                   {Object.entries(dayPlansByCity).map(([cityName, plans]) => (

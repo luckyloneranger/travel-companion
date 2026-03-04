@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { JourneyPlan, DayPlan, TripSummary } from '@/types';
+import type { JourneyPlan, DayPlan, TripSummary, CostBreakdown } from '@/types';
 import { api, type TipsResponse } from '@/services/api';
 
 interface TripState {
@@ -10,6 +10,7 @@ interface TripState {
   savedTrips: TripSummary[];
   tips: Record<string, string>;
   tipsLoading: boolean;
+  costBreakdown: CostBreakdown | null;
 
   // Actions
   setJourney: (journey: JourneyPlan, tripId?: string) => void;
@@ -32,12 +33,31 @@ export const useTripStore = create<TripState>((set, get) => ({
   savedTrips: [],
   tips: {},
   tipsLoading: false,
+  costBreakdown: null,
 
   setJourney: (journey, tripId) => set({ journey, tripId: tripId ?? null }),
-  setDayPlans: (plans) => set({ dayPlans: plans }),
+  setDayPlans: (plans) => {
+    // Compute cost breakdown from plans
+    let total = 0, dining = 0, activities = 0;
+    for (const dp of plans) {
+      for (const a of dp.activities) {
+        if (a.estimated_cost_usd) {
+          total += a.estimated_cost_usd;
+          const cat = (a.place.category || '').toLowerCase();
+          if (cat.includes('restaurant') || cat.includes('cafe') || cat.includes('bakery') || cat.includes('food') || cat.includes('bistro')) {
+            dining += a.estimated_cost_usd;
+          } else {
+            activities += a.estimated_cost_usd;
+          }
+        }
+      }
+    }
+    const breakdown = total > 0 ? { activities_usd: activities, dining_usd: dining, total_usd: total } : null;
+    set({ dayPlans: plans, costBreakdown: breakdown });
+  },
   updateJourney: (journey) => set({ journey }),
   updateDayPlans: (plans) => set({ dayPlans: plans }),
-  reset: () => set({ journey: null, dayPlans: null, tripId: null, tips: {} }),
+  reset: () => set({ journey: null, dayPlans: null, tripId: null, tips: {}, costBreakdown: null }),
 
   loadTrips: async () => {
     try {
@@ -55,6 +75,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         journey: trip.journey,
         dayPlans: trip.day_plans,
         tripId: trip.id,
+        costBreakdown: trip.cost_breakdown ?? null,
       });
     } catch (e) {
       console.error('Failed to load trip:', e);
