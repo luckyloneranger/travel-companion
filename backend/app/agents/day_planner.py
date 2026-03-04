@@ -45,6 +45,7 @@ class DayPlannerAgent:
         pace: str,
         budget: str = "moderate",
         daily_budget_usd: float | None = None,
+        must_include: list[str] | None = None,
     ) -> AIPlan:
         """Given discovered place candidates, select and group into themed days.
 
@@ -56,6 +57,7 @@ class DayPlannerAgent:
             pace: One of "relaxed", "moderate", "packed".
             budget: Budget tier — "budget", "moderate", or "luxury".
             daily_budget_usd: Optional daily budget target in USD.
+            must_include: Optional list of place names that MUST appear in the plan.
 
         Returns:
             AIPlan with selected_place_ids, day_groups (theme + place_ids),
@@ -65,6 +67,7 @@ class DayPlannerAgent:
         user_prompt = self._build_user_prompt(
             candidates, city_name, num_days, interests, pace,
             budget=budget, daily_budget_usd=daily_budget_usd,
+            must_include=must_include,
         )
 
         logger.info(
@@ -189,6 +192,7 @@ class DayPlannerAgent:
         pace: str,
         budget: str = "moderate",
         daily_budget_usd: float | None = None,
+        must_include: list[str] | None = None,
     ) -> str:
         """Format the user prompt template with candidate data."""
         guide = _PACE_GUIDE.get(pace, _PACE_GUIDE["moderate"])
@@ -256,6 +260,26 @@ class DayPlannerAgent:
             else "No specific daily budget set"
         )
 
+        # Build must-include section if user specified required places
+        must_include_section = ""
+        if must_include:
+            # Try to match must_include names to candidate place_ids
+            matched: list[str] = []
+            for mi in must_include:
+                mi_lower = mi.lower()
+                for c in candidates:
+                    if mi_lower in c.name.lower() or c.name.lower() in mi_lower:
+                        matched.append(f"- {mi} (place_id: {c.place_id})")
+                        break
+                else:
+                    matched.append(f"- {mi} (find closest match from candidates)")
+            must_include_section = (
+                "\n## MUST-INCLUDE PLACES\n"
+                "The user REQUIRES these places to appear in the itinerary. "
+                "You MUST include them in one of the day groups:\n"
+                + "\n".join(matched)
+            )
+
         return day_plan_prompts.load("planning_user").format(
             num_days=num_days,
             destination=city_name,
@@ -271,6 +295,7 @@ class DayPlannerAgent:
             budget_tier=budget,
             daily_budget_line=daily_budget_line,
             city_name=city_name,
+            must_include_section=must_include_section,
         )
 
     def _parse_plan(self, data: dict, expected_days: int) -> AIPlan:

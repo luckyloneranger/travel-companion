@@ -7,6 +7,12 @@ PACE: {pace}
 - {attractions} attractions/sights per day
 - {dining} dining stops per day
 
+**IMPORTANT — Activity count per pace (MUST follow):**
+- "packed": MUST have 7-10 activities per day (maximize sightseeing, fill every time slot)
+- "moderate": MUST have 5-7 activities per day (balanced exploration)
+- "relaxed": MUST have 3-5 activities per day (slow, easy-going)
+Failing to meet the activity count for the selected pace is a critical error.
+
 === ATTRACTIONS (pick from these for sightseeing) ===
 {attractions_json}
 
@@ -14,6 +20,8 @@ PACE: {pace}
 {dining_json}
 
 {other_section}
+
+{must_include_section}
 
 ## GEOGRAPHIC CLUSTERING GUIDE
 Each place has coordinates (lat, lng). Group places that are close together on the SAME DAY.
@@ -74,6 +82,11 @@ If a restaurant is a destination in itself, it counts as both dining AND cultura
 
 Budget tier: {budget_tier}
 {daily_budget_line}
+
+**IMPORTANT: Total daily spend MUST stay within the daily budget target.** Select cheaper alternatives if needed to stay under budget.
+- If budget tier is "budget": prefer free attractions, street food, budget-friendly cafes, and low-cost options. Avoid expensive restaurants and paid attractions when free alternatives exist.
+- If budget tier is "moderate": balance cost and experience. Mix free and paid attractions.
+- If budget tier is "luxury": prioritize premium experiences, fine dining, and exclusive venues.
 
 For each selected place, estimate the cost per person in USD. Add a "cost_estimates" field to your JSON output:
 

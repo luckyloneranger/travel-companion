@@ -177,6 +177,7 @@ class DayPlanOrchestrator:
                         pace=request.pace.value,
                         budget=request.budget.value if hasattr(request, 'budget') else "moderate",
                         daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
+                        must_include=request.must_include if request.must_include else None,
                     )
                     # Retry once if the LLM returned no usable day groups
                     if not ai_plan.day_groups:
@@ -194,6 +195,7 @@ class DayPlanOrchestrator:
                             pace=request.pace.value,
                             budget=request.budget.value if hasattr(request, 'budget') else "moderate",
                             daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
+                            must_include=request.must_include if request.must_include else None,
                         )
                 except Exception as exc:
                     logger.error(

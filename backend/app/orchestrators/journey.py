@@ -109,7 +109,9 @@ class JourneyOrchestrator:
                 logger.info(
                     "[Orchestrator] Enriching plan (iteration %d)", iteration
                 )
-                plan = await self.enricher.enrich_plan(plan)
+                plan = await self.enricher.enrich_plan(
+                    plan, budget_tier=request.budget.value
+                )
 
                 # Review
                 yield ProgressEvent(

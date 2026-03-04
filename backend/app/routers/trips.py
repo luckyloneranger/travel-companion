@@ -15,6 +15,7 @@ from app.dependencies import (
     require_user,
 )
 from app.models.chat import ChatEditRequest, ChatEditResponse
+from app.models.journey import JourneyPlan
 from app.models.trip import TripRequest, TripResponse, TripSummary
 from app.orchestrators.day_plan import DayPlanOrchestrator
 from app.orchestrators.journey import JourneyOrchestrator
@@ -70,6 +71,52 @@ def _compute_cost_breakdown(trip: TripResponse) -> dict[str, float] | None:
         result["budget_usd"] = trip.request.budget_usd
         result["budget_remaining_usd"] = round(trip.request.budget_usd - total, 2)
     return result
+
+
+def _merge_enriched_data(original: JourneyPlan, updated: JourneyPlan) -> JourneyPlan:
+    """Preserve enriched data (accommodation, fares, locations) from original plan.
+
+    When a chat edit returns a new JourneyPlan from the LLM, it typically lacks
+    the Google-enriched fields (place_id, photo_url, fare_usd, polyline, etc.).
+    This merges those fields back from the original plan so they are not lost.
+    """
+    # Build lookup of original cities by name
+    original_cities = {c.name.lower(): c for c in original.cities}
+
+    for city in updated.cities:
+        orig = original_cities.get(city.name.lower())
+        if orig:
+            # Preserve enriched accommodation if LLM didn't provide full details
+            if orig.accommodation and (not city.accommodation or not city.accommodation.place_id):
+                city.accommodation = orig.accommodation
+            # Preserve location if not set
+            if not city.location and orig.location:
+                city.location = orig.location
+                city.place_id = orig.place_id
+
+    # Preserve enriched travel leg data
+    original_legs = {(l.from_city.lower(), l.to_city.lower()): l for l in original.travel_legs}
+    for leg in updated.travel_legs:
+        orig_leg = original_legs.get((leg.from_city.lower(), leg.to_city.lower()))
+        if orig_leg:
+            if not leg.fare_usd and orig_leg.fare_usd:
+                leg.fare_usd = orig_leg.fare_usd
+            if not leg.fare and orig_leg.fare:
+                leg.fare = orig_leg.fare
+            if not leg.distance_km and orig_leg.distance_km:
+                leg.distance_km = orig_leg.distance_km
+            if not leg.polyline and orig_leg.polyline:
+                leg.polyline = orig_leg.polyline
+
+    # Preserve review score and totals
+    if not updated.review_score and original.review_score:
+        updated.review_score = original.review_score
+    if not updated.total_distance_km and original.total_distance_km:
+        updated.total_distance_km = original.total_distance_km
+    if not updated.total_travel_hours and original.total_travel_hours:
+        updated.total_travel_hours = original.total_travel_hours
+
+    return updated
 
 
 async def _check_trip_ownership(repo: TripRepository, trip_id: str, user_id: str):
@@ -160,7 +207,12 @@ async def chat_edit(
     else:
         response = await chat.edit_journey(request.message, trip.journey, trip.request)
         if response.updated_journey:
+            response.updated_journey = _merge_enriched_data(trip.journey, response.updated_journey)
             await repo.update_journey(trip_id, response.updated_journey)
+            # Clear stale day plans since journey structure changed
+            await repo.update_day_plans(trip_id, [], quality_score=None)
+            response.changes_made = response.changes_made or []
+            response.changes_made.append("Day plans cleared — regenerate to reflect changes")
 
     return response
 

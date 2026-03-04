@@ -30,6 +30,13 @@ _PRICE_LEVEL_TO_NIGHTLY_USD: dict[int, float] = {
     4: 300,
 }
 
+# Budget-aware nightly estimates when price_level is unavailable or defaulted
+_BUDGET_TIER_NIGHTLY: dict[str, dict[int, float]] = {
+    "budget": {0: 0, 1: 15, 2: 30, 3: 60, 4: 100},
+    "moderate": {0: 0, 1: 30, 2: 80, 3: 150, 4: 300},
+    "luxury": {0: 0, 1: 80, 2: 150, 3: 300, 4: 600},
+}
+
 
 def _estimate_fare_usd(mode: str, distance_km: float | None) -> float:
     """Rough fare estimate based on transport mode and distance.
@@ -74,7 +81,7 @@ class EnricherAgent:
         self.directions = directions
         self._origin_cache: dict[str, Location] = {}
 
-    async def enrich_plan(self, plan: JourneyPlan) -> JourneyPlan:
+    async def enrich_plan(self, plan: JourneyPlan, budget_tier: str = "moderate") -> JourneyPlan:
         """Enrich a journey plan with real Google API data.
 
         Geocodes all cities, enriches accommodation, fetches real transport
@@ -83,6 +90,9 @@ class EnricherAgent:
         Args:
             plan: JourneyPlan from Scout or Planner (cities may lack
                   coordinates and real transport data).
+            budget_tier: One of "budget", "moderate", "luxury". Used for
+                         accommodation cost heuristics when price_level
+                         is unavailable.
 
         Returns:
             The same JourneyPlan, mutated in-place with enriched data and
@@ -94,7 +104,7 @@ class EnricherAgent:
         await self._geocode_cities(plan)
 
         # Phase 2: Enrich accommodations in parallel.
-        await self._enrich_accommodations(plan)
+        await self._enrich_accommodations(plan, budget_tier=budget_tier)
 
         # Phase 3: Enrich all travel legs with real transport data.
         total_travel_hours = 0.0
@@ -137,12 +147,14 @@ class EnricherAgent:
     async def _enrich_city(self, city: CityStop) -> None:
         """Geocode a single city and set its location and place_id.
 
-        Tries the city name as-is first, then falls back to appending
-        the country (e.g. "Phuket Island" → "Phuket Island Thailand").
+        Tries the country-qualified name first (e.g. "Barcelona Spain")
+        to avoid resolving to same-named cities in other countries, then
+        falls back to the city name alone.
         """
-        queries = [city.name]
+        queries: list[str] = []
         if city.country:
-            queries.append(f"{city.name} {city.country}")
+            queries.append(f"{city.name}, {city.country}")
+        queries.append(city.name)
 
         for query in queries:
             try:
@@ -168,21 +180,22 @@ class EnricherAgent:
 
     # ── Accommodation enrichment ─────────────────────────────────────────
 
-    async def _enrich_accommodations(self, plan: JourneyPlan) -> None:
+    async def _enrich_accommodations(self, plan: JourneyPlan, budget_tier: str = "moderate") -> None:
         """Enrich accommodation data for each city using Google Places."""
         tasks = []
         for city in plan.cities:
             if city.accommodation and city.accommodation.name:
-                tasks.append(self._enrich_accommodation(city))
+                tasks.append(self._enrich_accommodation(city, budget_tier=budget_tier))
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def _enrich_accommodation(self, city: CityStop) -> None:
+    async def _enrich_accommodation(self, city: CityStop, budget_tier: str = "moderate") -> None:
         """Search for a city's accommodation via Places lodging search.
 
         Tries the LLM-suggested name first, then falls back to a generic
         search by city name if the specific hotel isn't found.
+        Uses budget_tier to select appropriate price heuristics.
         """
         if not city.accommodation or not city.accommodation.name:
             return
@@ -218,11 +231,12 @@ class EnricherAgent:
                 )
 
             if result:
-                # Prefer LLM's cost estimate if available, otherwise use price_level heuristic
+                # Prefer LLM's cost estimate if available, otherwise use budget-aware price heuristic
                 llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
+                price_map = _BUDGET_TIER_NIGHTLY.get(budget_tier, _BUDGET_TIER_NIGHTLY["moderate"])
                 estimated_nightly = (
                     llm_nightly
-                    or _PRICE_LEVEL_TO_NIGHTLY_USD.get(result.price_level or 2, 80)
+                    or price_map.get(result.price_level or 2, 80)
                 )
                 city.accommodation = Accommodation(
                     name=result.name,
@@ -249,9 +263,10 @@ class EnricherAgent:
                     city.accommodation.name,
                     city.name,
                 )
-                # Still estimate nightly cost from default moderate tier
+                # Still estimate nightly cost from budget-aware tier
                 if city.accommodation and city.accommodation.estimated_nightly_usd is None:
-                    city.accommodation.estimated_nightly_usd = _PRICE_LEVEL_TO_NIGHTLY_USD.get(
+                    price_map = _BUDGET_TIER_NIGHTLY.get(budget_tier, _BUDGET_TIER_NIGHTLY["moderate"])
+                    city.accommodation.estimated_nightly_usd = price_map.get(
                         city.accommodation.price_level or 2, 80
                     )
         except Exception as e:
@@ -262,7 +277,8 @@ class EnricherAgent:
             )
             # Ensure fallback cost even on error
             if city.accommodation and city.accommodation.estimated_nightly_usd is None:
-                city.accommodation.estimated_nightly_usd = 80  # moderate default
+                fallback_map = _BUDGET_TIER_NIGHTLY.get(budget_tier, _BUDGET_TIER_NIGHTLY["moderate"])
+                city.accommodation.estimated_nightly_usd = fallback_map.get(2, 80)
 
     # ── Travel leg enrichment ────────────────────────────────────────────
 
