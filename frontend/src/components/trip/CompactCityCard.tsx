@@ -214,19 +214,19 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
             className="relative w-[90vw] max-w-3xl h-[70vh] rounded-xl overflow-hidden bg-surface shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="absolute top-3 left-4 z-10 rounded-lg bg-surface/90 backdrop-blur-sm px-3 py-1.5 shadow-sm">
-              <span className="text-sm font-semibold text-text-primary">
+            <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between gap-2">
+              <span className="rounded-lg bg-surface/90 backdrop-blur-sm px-3 py-1.5 shadow-sm text-sm font-semibold text-text-primary">
                 Day {mapDayPlan.day_number}: {mapDayPlan.theme}
               </span>
+              <button
+                type="button"
+                onClick={() => setMapDayPlan(null)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 backdrop-blur-sm shadow-sm hover:bg-surface transition-colors shrink-0"
+                aria-label="Close map"
+              >
+                <X className="h-4 w-4 text-text-primary" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setMapDayPlan(null)}
-              className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface/90 backdrop-blur-sm shadow-sm hover:bg-surface transition-colors"
-              aria-label="Close map"
-            >
-              <X className="h-4 w-4 text-text-primary" />
-            </button>
             <Suspense fallback={<div className="h-full w-full bg-surface-muted animate-pulse" />}>
               <DayMap dayPlan={mapDayPlan} />
             </Suspense>
