@@ -9,6 +9,7 @@ from app.dependencies import (
     get_chat_service,
     get_current_user,
     get_day_plan_orchestrator,
+    get_enricher,
     get_journey_orchestrator,
     get_tips_service,
     get_trip_repository,
@@ -17,6 +18,7 @@ from app.dependencies import (
 from app.models.chat import ChatEditRequest, ChatEditResponse
 from app.models.journey import JourneyPlan
 from app.models.trip import TripRequest, TripResponse, TripSummary
+from app.agents.enricher import EnricherAgent
 from app.orchestrators.day_plan import DayPlanOrchestrator
 from app.orchestrators.journey import JourneyOrchestrator
 from app.services.chat import ChatService
@@ -192,6 +194,7 @@ async def chat_edit(
     request: ChatEditRequest,
     chat: ChatService = Depends(get_chat_service),
     repo: TripRepository = Depends(get_trip_repository),
+    enricher: EnricherAgent = Depends(get_enricher),
     user: dict | None = Depends(get_current_user),
 ) -> ChatEditResponse:
     trip = await repo.get_trip(trip_id)
@@ -208,6 +211,14 @@ async def chat_edit(
         response = await chat.edit_journey(request.message, trip.journey, trip.request)
         if response.updated_journey:
             response.updated_journey = _merge_enriched_data(trip.journey, response.updated_journey)
+            # Re-enrich new/changed cities and legs with Google API data
+            try:
+                budget_tier = trip.request.budget.value if hasattr(trip.request, 'budget') else "moderate"
+                response.updated_journey = await enricher.enrich_plan(
+                    response.updated_journey, budget_tier=budget_tier
+                )
+            except Exception as exc:
+                logger.warning("Re-enrichment after chat edit failed: %s", exc)
             await repo.update_journey(trip_id, response.updated_journey)
             # Clear stale day plans since journey structure changed
             await repo.update_day_plans(trip_id, [], quality_score=None)

@@ -15,6 +15,7 @@ from app.services.google.weather import GoogleWeatherService
 from app.services.llm.base import LLMService
 from app.services.llm.factory import create_llm_service
 from app.services.tips import TipsService
+from app.agents.enricher import EnricherAgent
 
 
 def get_settings() -> Settings:
@@ -81,6 +82,14 @@ def get_chat_service(
 
 def get_tips_service(llm=Depends(get_llm_service)) -> TipsService:
     return TipsService(llm)
+
+
+def get_enricher(
+    places=Depends(get_places_service),
+    routes=Depends(get_routes_service),
+    directions=Depends(get_directions_service),
+) -> EnricherAgent:
+    return EnricherAgent(places, routes, directions)
 
 
 async def get_db_session(settings: Settings = Depends(_get_settings)):
