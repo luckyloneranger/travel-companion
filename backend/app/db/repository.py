@@ -1,5 +1,6 @@
 import json
 import logging
+import secrets
 import uuid
 from datetime import datetime, timezone
 
@@ -10,7 +11,7 @@ from app.models.day_plan import DayPlan
 from app.models.journey import JourneyPlan
 from app.models.trip import TripRequest, TripResponse, TripSummary
 
-from .models import Trip
+from .models import Trip, TripShare
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,44 @@ class TripRepository:
         )
         await self.session.commit()
         return result.rowcount > 0
+
+    async def create_share(self, trip_id: str) -> str:
+        """Create a share token for a trip. Returns the token."""
+        share_id = str(uuid.uuid4())
+        token = secrets.token_urlsafe(9)  # ~12 chars
+        share = TripShare(
+            id=share_id,
+            trip_id=trip_id,
+            share_token=token,
+        )
+        self.session.add(share)
+        await self.session.commit()
+        return token
+
+    async def get_trip_by_share_token(self, token: str) -> TripResponse | None:
+        """Get a trip by its share token. Returns TripResponse or None."""
+        result = await self.session.execute(
+            select(TripShare).where(TripShare.share_token == token)
+        )
+        share = result.scalar_one_or_none()
+        if not share:
+            return None
+        return await self.get_trip(share.trip_id)
+
+    async def delete_share(self, trip_id: str) -> bool:
+        """Revoke sharing for a trip."""
+        result = await self.session.execute(
+            delete(TripShare).where(TripShare.trip_id == trip_id)
+        )
+        await self.session.commit()
+        return result.rowcount > 0
+
+    async def get_share_token(self, trip_id: str) -> str | None:
+        """Get existing share token for a trip, if any."""
+        result = await self.session.execute(
+            select(TripShare.share_token).where(TripShare.trip_id == trip_id)
+        )
+        return result.scalar_one_or_none()
 
     def _to_response(self, trip: Trip) -> TripResponse:
         """Convert ORM model to API response."""

@@ -12,6 +12,7 @@ from app.dependencies import (
     get_journey_orchestrator,
     get_tips_service,
     get_trip_repository,
+    require_user,
 )
 from app.models.chat import ChatEditRequest, ChatEditResponse
 from app.models.trip import TripRequest, TripResponse, TripSummary
@@ -141,3 +142,53 @@ async def generate_tips(
     if not trip:
         raise HTTPException(404, "Trip not found")
     return await tips_service.generate_tips(activities, trip.request.destination)
+
+
+@router.post("/{trip_id}/share")
+async def share_trip(
+    trip_id: str,
+    repo: TripRepository = Depends(get_trip_repository),
+    user: dict = Depends(require_user),
+):
+    """Create a shareable link for a trip."""
+    trip = await repo.get_trip(trip_id)
+    if not trip:
+        raise HTTPException(404, "Trip not found")
+
+    # Check if already shared
+    existing = await repo.get_share_token(trip_id)
+    if existing:
+        return {"token": existing, "url": f"/shared/{existing}"}
+
+    token = await repo.create_share(trip_id)
+    return {"token": token, "url": f"/shared/{token}"}
+
+
+@router.delete("/{trip_id}/share")
+async def unshare_trip(
+    trip_id: str,
+    repo: TripRepository = Depends(get_trip_repository),
+    user: dict = Depends(require_user),
+):
+    """Revoke sharing for a trip."""
+    deleted = await repo.delete_share(trip_id)
+    if not deleted:
+        raise HTTPException(404, "No share found")
+    return {"status": "unshared"}
+
+
+# ── Shared trip access (no auth required) ─────────────────────────────
+
+shared_router = APIRouter(tags=["shared"])
+
+
+@shared_router.get("/api/shared/{token}")
+async def get_shared_trip(
+    token: str,
+    repo: TripRepository = Depends(get_trip_repository),
+):
+    """Get a shared trip by its token. No auth required."""
+    trip = await repo.get_trip_by_share_token(token)
+    if not trip:
+        raise HTTPException(404, "Shared trip not found")
+    return trip
