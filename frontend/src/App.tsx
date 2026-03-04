@@ -6,20 +6,18 @@ import { ChatPanel } from '@/components/trip/ChatPanel';
 import { WizardForm } from '@/components/trip/WizardForm';
 import { PlanningDashboard } from '@/components/trip/PlanningDashboard';
 import { JourneyDashboard } from '@/components/trip/JourneyDashboard';
-import { DayCard } from '@/components/trip/DayCard';
-import { BudgetSummary } from '@/components/trip/BudgetSummary';
+import { DayPlansView } from '@/components/trip/DayPlansView';
 import { SharedTrip } from '@/pages/SharedTrip';
 import { useStreamingPlan } from '@/hooks/useStreamingPlan';
 import { useStreamingDayPlans } from '@/hooks/useStreamingDayPlans';
 import { useUIStore } from '@/stores/uiStore';
 import { useTripStore } from '@/stores/tripStore';
 import { useAuthStore } from '@/stores/authStore';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageSquare, PlusCircle, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 function App() {
-  const { phase, isLoading, error, setError, setPhase, resetUI } = useUIStore();
-  const { journey, dayPlans, costBreakdown, reset: resetTrip } = useTripStore();
+  const { phase, isLoading, error, setError, resetUI } = useUIStore();
+  const { journey, dayPlans, reset: resetTrip } = useTripStore();
   const { fetchUser } = useAuthStore();
   const { startPlanning, cancelPlanning } = useStreamingPlan();
   const { startGenerating, cancelGenerating } = useStreamingDayPlans();
@@ -52,14 +50,6 @@ function App() {
     useUIStore.getState().openChat('journey');
   }, []);
 
-  const handleOpenDayPlanChat = useCallback(() => {
-    useUIStore.getState().openChat('day_plans');
-  }, []);
-
-  const handleBackToPreview = useCallback(() => {
-    setPhase('preview');
-  }, [setPhase]);
-
   const handleNewTrip = useCallback(() => {
     resetTrip();
     resetUI();
@@ -91,23 +81,12 @@ function App() {
 
   // Determine which cancel handler to use based on context
   const handleCancelPlanning = useCallback(() => {
-    // If we came from preview (day plan generation), go back to preview
     if (journey) {
       cancelGenerating();
     } else {
       cancelPlanning();
     }
   }, [journey, cancelGenerating, cancelPlanning]);
-
-  // Group day plans by city
-  const dayPlansByCity = dayPlans
-    ? dayPlans.reduce<Record<string, typeof dayPlans>>((acc, plan) => {
-        const city = plan.city_name;
-        if (!acc[city]) acc[city] = [];
-        acc[city].push(plan);
-        return acc;
-      }, {})
-    : {};
 
   return (
     <div className="min-h-screen bg-surface-dim">
@@ -159,57 +138,8 @@ function App() {
               )}
 
               {phase === 'day-plans' && dayPlans && dayPlans.length > 0 && (
-                <div key="day-plans" className="animate-fade-in-up space-y-6">
-                  {/* Day plans header */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleBackToPreview}
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Overview
-                      </Button>
-                      <div>
-                        <h2 className="text-lg font-display font-bold text-text-primary">
-                          Day Plans
-                        </h2>
-                        <p className="text-xs text-text-muted">
-                          {dayPlans.length} {dayPlans.length === 1 ? 'day' : 'days'} &middot;{' '}
-                          {dayPlans.reduce((sum, d) => sum + d.activities.length, 0)} activities
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={handleOpenDayPlanChat}>
-                        <MessageSquare className="h-4 w-4" />
-                        Edit via Chat
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={handleNewTrip}>
-                        <PlusCircle className="h-4 w-4" />
-                        New Trip
-                      </Button>
-                    </div>
-                  </div>
-
-                  {costBreakdown && (
-                    <BudgetSummary costBreakdown={costBreakdown} totalDays={dayPlans.length} />
-                  )}
-
-                  {/* Day plans grouped by city */}
-                  {Object.entries(dayPlansByCity).map(([cityName, plans]) => (
-                    <div key={cityName} className="space-y-3">
-                      <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider px-1">
-                        {cityName}
-                      </h3>
-                      <div className="space-y-4">
-                        {plans.map((plan) => (
-                          <DayCard key={plan.day_number} dayPlan={plan} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                <div key="day-plans" className="animate-fade-in-up">
+                  <DayPlansView />
                 </div>
               )}
             </PageContainer>
