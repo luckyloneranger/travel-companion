@@ -87,3 +87,4 @@ screenshots/
 # Git worktrees
 .worktrees/
 .env.production
+.vercel
