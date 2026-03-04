@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { MapPin, Star, Sparkles, ChevronDown, Clock, Navigation, ArrowRight, Car, Train, Bus, Plane, Ship } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DayTimeline } from '@/components/trip/DayTimeline';
+import { DayMap } from '@/components/maps';
 import type { CityStop, TravelLeg, DayPlan } from '@/types';
 
 interface CompactCityCardProps {
@@ -186,6 +187,12 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                       )}
                     </div>
                     <DayTimeline dayPlan={dp} tips={tips} />
+                    {/* Day map */}
+                    <Suspense fallback={<div className="h-48 rounded-lg bg-surface-muted animate-pulse" />}>
+                      <div className="h-48 rounded-lg overflow-hidden border border-border-default">
+                        <DayMap dayPlan={dp} />
+                      </div>
+                    </Suspense>
                   </div>
                 ))}
               </div>
