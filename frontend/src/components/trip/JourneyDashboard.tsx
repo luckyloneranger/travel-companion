@@ -50,7 +50,13 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
       }
     }
     for (const leg of journey.travel_legs) {
-      if (leg.fare_usd) total += leg.fare_usd;
+      if (leg.fare_usd) {
+        total += leg.fare_usd;
+      } else if (leg.fare) {
+        // Parse numeric value from fare string like "$30", "~$45", "€25"
+        const match = leg.fare.match(/[\d.]+/);
+        if (match) total += parseFloat(match[0]);
+      }
     }
     return Math.round(total);
   })();

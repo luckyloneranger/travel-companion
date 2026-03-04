@@ -34,6 +34,9 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
     }
     if (departureLeg?.fare_usd) {
       cost += departureLeg.fare_usd;
+    } else if (departureLeg?.fare) {
+      const match = departureLeg.fare.match(/[\d.]+/);
+      if (match) cost += parseFloat(match[0]);
     }
     return cost > 0 ? cost : null;
   })();

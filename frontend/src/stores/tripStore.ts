@@ -77,6 +77,9 @@ export const useTripStore = create<TripState>((set, get) => ({
       for (const leg of journey.travel_legs) {
         if (leg.fare_usd) {
           transport += leg.fare_usd;
+        } else if (leg.fare) {
+          const match = leg.fare.match(/[\d.]+/);
+          if (match) transport += parseFloat(match[0]);
         }
       }
     }
