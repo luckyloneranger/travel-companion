@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ChatPanel } from '@/components/trip/ChatPanel';
-import { InputForm } from '@/components/trip/InputForm';
+import { WizardForm } from '@/components/trip/WizardForm';
 import { PlanProgress } from '@/components/trip/PlanProgress';
 import { JourneyPreview } from '@/components/trip/JourneyPreview';
 import { DayCard } from '@/components/trip/DayCard';
@@ -138,7 +138,7 @@ function App() {
 
               {phase === 'input' && (
                 <div key="input" className="animate-fade-in-up">
-                  <InputForm onSubmit={startPlanning} isLoading={isLoading} />
+                  <WizardForm onSubmit={startPlanning} isLoading={isLoading} />
                 </div>
               )}
 
