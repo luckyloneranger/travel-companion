@@ -22,40 +22,6 @@ logger = logging.getLogger(__name__)
 
 # ── Cost estimation heuristics ────────────────────────────────────────
 
-_PRICE_LEVEL_TO_NIGHTLY_USD: dict[int, float] = {
-    0: 0,
-    1: 30,
-    2: 80,
-    3: 150,
-    4: 300,
-}
-
-# Budget-aware nightly estimates when price_level is unavailable or defaulted
-_BUDGET_TIER_NIGHTLY: dict[str, dict[int, float]] = {
-    "budget": {0: 0, 1: 15, 2: 30, 3: 60, 4: 100},
-    "moderate": {0: 0, 1: 30, 2: 80, 3: 150, 4: 300},
-    "luxury": {0: 0, 1: 80, 2: 150, 3: 300, 4: 600},
-}
-
-
-def _estimate_fare_usd(mode: str, distance_km: float | None) -> float:
-    """Rough fare estimate based on transport mode and distance.
-
-    Returns a USD estimate using average per-km cost factors.
-    """
-    if not distance_km:
-        return 0
-    rates = {
-        "flight": 0.15,
-        "train": 0.10,
-        "bus": 0.05,
-        "ferry": 0.12,
-        "drive": 0.08,
-    }
-    rate = rates.get(mode, 0)
-    return round(distance_km * rate, 2)
-
-
 class EnricherAgent:
     """Enriches journey plans with Google API data.
 
@@ -85,18 +51,15 @@ class EnricherAgent:
         """Enrich a journey plan with real Google API data.
 
         Geocodes all cities, enriches accommodation, fetches real transport
-        data, and updates plan totals.
+        data, and updates plan totals. LLM-provided cost estimates
+        (estimated_nightly_usd, fare_usd) are preserved.
 
         Args:
-            plan: JourneyPlan from Scout or Planner (cities may lack
-                  coordinates and real transport data).
-            budget_tier: One of "budget", "moderate", "luxury". Used for
-                         accommodation cost heuristics when price_level
-                         is unavailable.
+            plan: JourneyPlan from Scout or Planner.
+            budget_tier: One of "budget", "moderate", "luxury" (informational only).
 
         Returns:
-            The same JourneyPlan, mutated in-place with enriched data and
-            updated total_distance_km / total_travel_hours.
+            The same JourneyPlan, mutated in-place with enriched data.
         """
         logger.info("[Enricher] Enriching plan: %s", plan.route or "unknown route")
 
@@ -231,13 +194,8 @@ class EnricherAgent:
                 )
 
             if result:
-                # Prefer LLM's cost estimate if available, otherwise use budget-aware price heuristic
+                # Preserve LLM's cost estimate from the Scout agent
                 llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
-                price_map = _BUDGET_TIER_NIGHTLY.get(budget_tier, _BUDGET_TIER_NIGHTLY["moderate"])
-                estimated_nightly = (
-                    llm_nightly
-                    or price_map.get(result.price_level or 2, 80)
-                )
                 city.accommodation = Accommodation(
                     name=result.name,
                     address=result.address,
@@ -245,7 +203,7 @@ class EnricherAgent:
                     place_id=result.place_id,
                     rating=result.rating,
                     price_level=result.price_level,
-                    estimated_nightly_usd=estimated_nightly,
+                    estimated_nightly_usd=llm_nightly,
                     photo_url=(
                         self.places.get_photo_url(result.photo_reference)
                         if result.photo_reference
@@ -263,22 +221,14 @@ class EnricherAgent:
                     city.accommodation.name,
                     city.name,
                 )
-                # Still estimate nightly cost from budget-aware tier
-                if city.accommodation and city.accommodation.estimated_nightly_usd is None:
-                    price_map = _BUDGET_TIER_NIGHTLY.get(budget_tier, _BUDGET_TIER_NIGHTLY["moderate"])
-                    city.accommodation.estimated_nightly_usd = price_map.get(
-                        city.accommodation.price_level or 2, 80
-                    )
+                # LLM's estimate is already on city.accommodation — nothing to do
         except Exception as e:
             logger.warning(
                 "[Enricher] Accommodation enrichment failed for %s: %s",
                 city.name,
                 e,
             )
-            # Ensure fallback cost even on error
-            if city.accommodation and city.accommodation.estimated_nightly_usd is None:
-                fallback_map = _BUDGET_TIER_NIGHTLY.get(budget_tier, _BUDGET_TIER_NIGHTLY["moderate"])
-                city.accommodation.estimated_nightly_usd = fallback_map.get(2, 80)
+            # LLM's estimate is already on city.accommodation — nothing to do
 
     # ── Travel leg enrichment ────────────────────────────────────────────
 
@@ -315,15 +265,7 @@ class EnricherAgent:
                 destination_name=leg.to_city,
             )
             self._update_leg_with_real_data(leg, options)
-            # Estimate fare in USD — prefer LLM estimate, fall back to heuristic
-            if leg.fare_usd is None:
-                distance = leg.distance_km
-                if distance is None and origin_loc and dest_loc:
-                    from app.algorithms.tsp import haversine_distance
-                    distance = haversine_distance(origin_loc, dest_loc) / 1000
-                leg.fare_usd = _estimate_fare_usd(
-                    leg.mode.value, distance
-                )
+            # LLM's fare_usd from Scout is already on the leg — no overwrite needed
         except Exception as e:
             logger.warning(
                 "[Enricher] Failed to get transport for %s -> %s: %s",
