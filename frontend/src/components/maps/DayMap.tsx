@@ -57,6 +57,7 @@ export function DayMap({ dayPlan }: DayMapProps) {
       defaultZoom={13}
       gestureHandling="greedy"
       disableDefaultUI={false}
+      fullscreenControl={false}
       style={{ width: '100%', height: '100%' }}
     >
       {/* Numbered activity markers */}
