@@ -13,7 +13,6 @@ import { TripMap } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import { api } from '@/services/api';
-import type { TransportMode } from '@/types';
 
 interface JourneyDashboardProps {
   onGenerateDayPlans: () => void;

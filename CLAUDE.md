@@ -95,7 +95,7 @@ user = day_plan_prompts.load("planning_user")
 
 **Zustand Stores** -- frontend state management via three stores:
 - `tripStore.ts` -- journey plan, day plans, saved trips CRUD, cost breakdown
-- `uiStore.ts` -- phase management (input -> planning -> preview -> day-plans), progress tracking, map/chat toggles, browser history integration
+- `uiStore.ts` -- phase management (input -> planning -> preview -> day-plans), wizard step tracking, progress tracking, map/chat toggles, browser history integration
 - `authStore.ts` -- user authentication state, periodic token refresh
 
 **Request Tracing** -- `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs. `RequestLoggingFilter` injects `request_id` into log records.

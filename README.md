@@ -29,12 +29,13 @@ Discover places → AI plans days (with time constraints) → TSP optimizes rout
 ## Features
 
 - **Multi-city journey planning** with quality-scored iterative refinement
-- **Per-day itineraries** with themed days, meal timing, and pace control
+- **Guided wizard input** — 5-step form with quick-start templates, visual interest/pace/budget cards
+- **Per-day itineraries** with timeline view, themed days, meal timing, and pace control
 - **Smart transport selection** — walks short distances, drives or takes transit for longer legs (based on real Google travel times)
 - **Weather integration** — daily forecasts on day plans, warnings for outdoor activities in bad weather
 - **Budget tracking** — LLM-estimated costs per activity, daily aggregation, accommodation and transport costs from journey plan
 - **Interactive maps** — journey-level city map + per-day activity maps with route polylines
-- **Chat editing** — modify journeys and day plans via natural language (asks clarifying questions for vague requests)
+- **Chat editing** — modify journeys and day plans via natural language with suggestion chips (asks clarifying questions for vague requests)
 - **User accounts** — OAuth login via Google or GitHub, trip ownership
 - **Trip sharing** — shareable links for read-only access
 - **Export** — PDF itinerary and .ics calendar export
@@ -205,9 +206,12 @@ travel-companion/
 │   └── prompts/                    # Markdown templates (journey, day_plan, chat, tips)
 ├── backend/tests/                  # 163 tests (API, agents, algorithms, services, weather)
 ├── frontend/src/
-│   ├── App.tsx                     # Main app with phase-based routing + browser history
+│   ├── App.tsx                     # Main app with phase routing, wizard → dashboard → timeline
 │   ├── components/
-│   │   ├── trip/                   # InputForm, JourneyPreview, CityCard, DayCard, BudgetSummary, ChatPanel, etc.
+│   │   ├── trip/                   # WizardForm, WizardStepper, TemplateGallery, PlanningDashboard,
+│   │   │                          # JourneyDashboard, CompactCityCard, DayPlansView, DayNav,
+│   │   │                          # DayTimeline, BudgetSummary, ChatPanel
+│   │   │   └── wizard/            # WizardStepWhere/When/Style/Budget/Review
 │   │   ├── maps/                   # TripMap, DayMap (Google Maps)
 │   │   ├── layout/                 # Header, PageContainer
 │   │   └── ui/                     # shadcn/ui primitives
