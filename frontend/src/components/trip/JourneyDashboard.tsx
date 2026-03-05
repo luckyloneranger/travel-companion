@@ -40,6 +40,8 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isExporting, setIsExporting] = useState<string | null>(null);
 
   // Use complete cost breakdown when day plans exist, otherwise estimate from journey data
   const estimatedTotal = (() => {
@@ -90,24 +92,31 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
   const handleShare = useCallback(async () => {
     if (!tripId) return;
+    setIsSharing(true);
     try {
       const result = await api.shareTrip(tripId);
       setShareUrl(`${window.location.origin}/shared/${result.token}`);
     } catch (err) {
       useUIStore.getState().setError(err instanceof Error ? `Share failed: ${err.message}` : 'Share failed');
+    } finally {
+      setIsSharing(false);
     }
   }, [tripId]);
 
   const handleExportPdf = useCallback(async () => {
     if (!tripId) return;
+    setIsExporting('pdf');
     try { await api.exportPdf(tripId); }
     catch { useUIStore.getState().setError('PDF export failed.'); }
+    finally { setIsExporting(null); }
   }, [tripId]);
 
   const handleExportCalendar = useCallback(async () => {
     if (!tripId) return;
+    setIsExporting('calendar');
     try { await api.exportCalendar(tripId); }
     catch { useUIStore.getState().setError('Calendar export failed.'); }
+    finally { setIsExporting(null); }
   }, [tripId]);
 
   if (!journey) return null;
@@ -237,9 +246,9 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Copied!' : 'Copy'}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleShare}>
-              <Share2 className="h-4 w-4" />
-              {shareUrl ? 'Shared!' : 'Share'}
+            <Button variant="outline" size="sm" onClick={handleShare} disabled={isSharing}>
+              {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+              {isSharing ? 'Sharing...' : shareUrl ? 'Shared!' : 'Share'}
             </Button>
             <div className="relative">
               <Button variant="outline" size="sm" onClick={() => setShowExport(!showExport)}>
@@ -248,12 +257,12 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 <ChevronDown className={`h-3 w-3 transition-transform ${showExport ? 'rotate-180' : ''}`} />
               </Button>
               {showExport && (
-                <div className="absolute top-full left-0 mt-1 z-10 rounded-md border border-border-default bg-surface shadow-lg py-1 min-w-[120px]">
-                  <button onClick={() => { handleExportPdf(); setShowExport(false); }} className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-muted flex items-center gap-2">
-                    <FileDown className="h-3.5 w-3.5" /> PDF
+                <div className="absolute top-full right-0 mt-1 z-10 rounded-md border border-border-default bg-surface shadow-lg py-1 min-w-[120px]">
+                  <button onClick={() => { handleExportPdf(); setShowExport(false); }} disabled={isExporting === 'pdf'} className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-muted flex items-center gap-2 disabled:opacity-50">
+                    {isExporting === 'pdf' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />} PDF
                   </button>
-                  <button onClick={() => { handleExportCalendar(); setShowExport(false); }} className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-muted flex items-center gap-2">
-                    <CalendarPlus className="h-3.5 w-3.5" /> Calendar
+                  <button onClick={() => { handleExportCalendar(); setShowExport(false); }} disabled={isExporting === 'calendar'} className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-muted flex items-center gap-2 disabled:opacity-50">
+                    {isExporting === 'calendar' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="h-3.5 w-3.5" />} Calendar
                   </button>
                 </div>
               )}
@@ -274,7 +283,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
       {/* Map — auto-visible */}
       <Suspense fallback={<div className="h-80 rounded-lg bg-surface-muted animate-pulse" />}>
-        <div className="h-80 rounded-lg overflow-hidden border border-border-default">
+        <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default">
           <TripMap journey={journey} />
         </div>
       </Suspense>

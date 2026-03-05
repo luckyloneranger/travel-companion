@@ -98,7 +98,7 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
           {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
             <div className="flex gap-1.5 overflow-x-auto">
               {activity.place.photo_urls.map((url, i) => (
-                <img key={i} src={url} alt={`${activity.place.name} photo ${i + 1}`} loading="lazy" className="h-20 w-24 rounded-md object-cover shrink-0" />
+                <img key={i} src={url} alt={`${activity.place.name} photo ${i + 1}`} loading="lazy" className="h-16 w-20 sm:h-20 sm:w-24 rounded-md object-cover shrink-0" />
               ))}
             </div>
           )}

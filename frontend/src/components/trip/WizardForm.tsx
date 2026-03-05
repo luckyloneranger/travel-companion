@@ -122,15 +122,19 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
     [loadTrip, setPhase],
   );
 
+  const [isDeletingInFlight, setIsDeletingInFlight] = useState(false);
+
   const handleDeleteTrip = useCallback(
     async (e: React.MouseEvent, tripId: string) => {
       e.stopPropagation();
       if (deletingId === tripId) {
+        setIsDeletingInFlight(true);
         try {
           await deleteTrip(tripId);
         } catch {
           // Error already surfaced via uiStore
         }
+        setIsDeletingInFlight(false);
         setDeletingId(null);
       } else {
         setDeletingId(tripId);
@@ -280,9 +284,12 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
                       }`}
                       onClick={(e) => handleDeleteTrip(e, trip.id)}
                       onBlur={() => setDeletingId(null)}
+                      disabled={isDeletingInFlight && deletingId === trip.id}
                       title={deletingId === trip.id ? 'Click again to confirm delete' : 'Delete trip'}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {isDeletingInFlight && deletingId === trip.id
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <Trash2 className="h-4 w-4" />}
                     </Button>
                   </div>
                 </CardContent>
