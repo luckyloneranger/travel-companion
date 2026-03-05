@@ -548,3 +548,61 @@ class TestPlannerDimensionScores:
         result = agent._format_issues(review)
         assert "No specific issues" in result
         assert "Dimension" not in result
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Distance matrix mode selection
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestDistanceMatrixModeSelection:
+    """Test _pick_best_mode_from_matrix mode selection logic."""
+
+    def test_prefers_walk_under_20min(self):
+        matrices = [
+            {"rows": [{"elements": [{"duration_seconds": 900}]}]},   # WALK: 15min
+            {"rows": [{"elements": [{"duration_seconds": 600}]}]},   # DRIVE: 10min
+            {"rows": [{"elements": [{"duration_seconds": 1200}]}]},  # TRANSIT: 20min
+        ]
+        result = DayPlanOrchestrator._pick_best_mode_from_matrix(matrices, 0)
+        assert result == TravelMode.WALK
+
+    def test_prefers_walk_within_1_5x_fastest(self):
+        matrices = [
+            {"rows": [{"elements": [{"duration_seconds": 1800}]}]},  # WALK: 30min
+            {"rows": [{"elements": [{"duration_seconds": 1500}]}]},  # DRIVE: 25min
+            Exception("transit failed"),
+        ]
+        result = DayPlanOrchestrator._pick_best_mode_from_matrix(matrices, 0)
+        assert result == TravelMode.WALK  # 30 <= 25 * 1.5 = 37.5
+
+    def test_prefers_drive_when_walk_too_slow(self):
+        matrices = [
+            {"rows": [{"elements": [{"duration_seconds": 3600}]}]},  # WALK: 60min
+            {"rows": [{"elements": [{"duration_seconds": 900}]}]},   # DRIVE: 15min
+            {"rows": [{"elements": [{"duration_seconds": 1200}]}]},  # TRANSIT: 20min
+        ]
+        result = DayPlanOrchestrator._pick_best_mode_from_matrix(matrices, 0)
+        assert result == TravelMode.DRIVE
+
+    def test_handles_all_failures(self):
+        matrices = [Exception("fail"), Exception("fail"), Exception("fail")]
+        result = DayPlanOrchestrator._pick_best_mode_from_matrix(matrices, 0)
+        assert result == TravelMode.WALK  # fallback
+
+    def test_handles_second_leg(self):
+        """Test reading the diagonal for leg index > 0."""
+        matrices = [
+            {"rows": [
+                {"elements": [{"duration_seconds": 500}, {"duration_seconds": 9999}]},
+                {"elements": [{"duration_seconds": 9999}, {"duration_seconds": 800}]},
+            ]},
+            {"rows": [
+                {"elements": [{"duration_seconds": 400}, {"duration_seconds": 9999}]},
+                {"elements": [{"duration_seconds": 9999}, {"duration_seconds": 700}]},
+            ]},
+            Exception("transit failed"),
+        ]
+        # Leg 1: walk=800, drive=700. 800 <= 700*1.5=1050, so walk
+        result = DayPlanOrchestrator._pick_best_mode_from_matrix(matrices, 1)
+        assert result == TravelMode.WALK

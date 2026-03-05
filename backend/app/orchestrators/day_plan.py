@@ -541,7 +541,7 @@ class DayPlanOrchestrator:
                         )
 
                     # e. Compute routes between consecutive activities
-                    activities = await self._compute_activity_routes(
+                    activities = await self._compute_routes_via_matrix(
                         activities
                     )
 
@@ -846,6 +846,85 @@ class DayPlanOrchestrator:
 
         return activities
 
+    async def _compute_routes_via_matrix(
+        self,
+        activities: list[Activity],
+    ) -> list[Activity]:
+        """Compute routes using distance matrix for mode selection + individual calls for polylines.
+
+        Phase 1: 3 matrix calls (WALK, DRIVE, TRANSIT) to get distance/duration for all legs.
+        Phase 2: Pick best mode per leg, then fetch polyline with 1 compute_route call per leg.
+
+        This uses ~8 API calls per day instead of ~15 (47% reduction).
+        """
+        if len(activities) < 2:
+            return activities
+
+        locations = [a.place.location for a in activities]
+        origins = locations[:-1]
+        destinations = locations[1:]
+        n_legs = len(origins)
+
+        # Phase 1: 3 matrix calls in parallel
+        matrices = await asyncio.gather(
+            self.routes.get_distance_matrix(origins, destinations, TravelMode.WALK),
+            self.routes.get_distance_matrix(origins, destinations, TravelMode.DRIVE),
+            self.routes.get_distance_matrix(origins, destinations, TravelMode.TRANSIT),
+            return_exceptions=True,
+        )
+
+        # Phase 2: Pick best mode per leg, fetch polyline for selected mode only
+        tasks: list[asyncio.Task | None] = []
+        selected_modes: list[TravelMode] = []
+
+        for i in range(n_legs):
+            cache_key = (
+                round(origins[i].lat, 5), round(origins[i].lng, 5),
+                round(destinations[i].lat, 5), round(destinations[i].lng, 5),
+            )
+            if cache_key in self._route_cache:
+                tasks.append(None)
+                selected_modes.append(TravelMode.WALK)  # placeholder, won't be used
+            else:
+                best_mode = self._pick_best_mode_from_matrix(matrices, i)
+                selected_modes.append(best_mode)
+                tasks.append(
+                    asyncio.ensure_future(
+                        self.routes.compute_route(origins[i], destinations[i], best_mode)
+                    )
+                )
+
+        # Gather polyline fetches
+        actual_tasks = [t for t in tasks if t is not None]
+        if actual_tasks:
+            fetched = await asyncio.gather(*actual_tasks, return_exceptions=True)
+        else:
+            fetched = []
+
+        fetch_idx = 0
+        for i in range(n_legs):
+            cache_key = (
+                round(origins[i].lat, 5), round(origins[i].lng, 5),
+                round(destinations[i].lat, 5), round(destinations[i].lng, 5),
+            )
+            if cache_key in self._route_cache:
+                activities[i].route_to_next = self._route_cache[cache_key]
+            else:
+                if fetch_idx < len(fetched):
+                    result = fetched[fetch_idx]
+                    fetch_idx += 1
+                    if isinstance(result, Exception):
+                        logger.warning(
+                            "[DayPlanOrchestrator] Route fetch failed for leg %d: %s",
+                            i, result,
+                        )
+                        activities[i].route_to_next = self.routes._fallback_route(TravelMode.WALK)
+                    else:
+                        self._route_cache[cache_key] = result
+                        activities[i].route_to_next = result
+
+        return activities
+
     async def _compute_best_route_for_leg(
         self,
         origin: Location,
@@ -904,6 +983,49 @@ class DayPlanOrchestrator:
 
         # Return the fastest overall
         return min(candidates, key=lambda r: r.duration_seconds)
+
+    @staticmethod
+    def _pick_best_mode_from_matrix(
+        matrices: list,
+        leg_index: int,
+    ) -> TravelMode:
+        """Pick best travel mode for a leg using matrix distance/duration data.
+
+        Uses same heuristics as _pick_best_route: prefer walk if short or
+        close to fastest alternative.
+        """
+        modes = [TravelMode.WALK, TravelMode.DRIVE, TravelMode.TRANSIT]
+        candidates: list[tuple[TravelMode, int]] = []
+
+        for mode, matrix_result in zip(modes, matrices):
+            if isinstance(matrix_result, Exception):
+                continue
+            try:
+                rows = matrix_result.get("rows", [])
+                if leg_index < len(rows):
+                    elements = rows[leg_index].get("elements", [])
+                    if elements and leg_index < len(elements):
+                        elem = elements[leg_index]  # diagonal: origin[i] -> destination[i]
+                        dur = elem.get("duration_seconds", 99999)
+                        candidates.append((mode, dur))
+            except (KeyError, IndexError, TypeError):
+                continue
+
+        if not candidates:
+            return TravelMode.WALK
+
+        # Same logic as _pick_best_route
+        walk = next(((m, d) for m, d in candidates if m == TravelMode.WALK), None)
+        others = [(m, d) for m, d in candidates if m != TravelMode.WALK]
+        fastest_other = min(others, key=lambda x: x[1]) if others else None
+
+        if walk:
+            if walk[1] <= 1200:  # 20 min
+                return TravelMode.WALK
+            if fastest_other and walk[1] <= fastest_other[1] * 1.5:
+                return TravelMode.WALK
+
+        return min(candidates, key=lambda x: x[1])[0]
 
     # ── Weather warnings ─────────────────────────────────────────────
 
