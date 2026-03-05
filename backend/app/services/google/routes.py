@@ -164,13 +164,21 @@ class GoogleRoutesService:
         self,
         origin: Location,
         destination: Location,
+        walk_threshold_seconds: int = 1200,
     ) -> Route:
         """Compute routes for WALK and DRIVE in parallel, return the best one.
 
         Selection logic:
-        - If walk <= 20 min, prefer walk (healthier, no parking hassle).
+        - If walk <= *walk_threshold_seconds*, prefer walk (healthier, no parking hassle).
         - If walk <= 1.5x drive time, prefer walk (close enough).
         - Otherwise, use the faster mode (drive).
+
+        Args:
+            origin: Start location.
+            destination: End location.
+            walk_threshold_seconds: Maximum walk duration (in seconds) that
+                is unconditionally preferred over driving. Defaults to 1200
+                (20 minutes).
 
         Falls back to walk-only on errors.
         """
@@ -200,7 +208,7 @@ class GoogleRoutesService:
 
         # Prefer walking for short trips (<=20 min) or when it's
         # not much slower than driving (<=1.5x).
-        if walk_secs <= 1200:  # 20 minutes
+        if walk_secs <= walk_threshold_seconds:
             return walk_route
         if drive_secs > 0 and walk_secs <= drive_secs * 1.5:
             return walk_route

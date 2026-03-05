@@ -113,13 +113,22 @@ class BaseEvaluator(ABC):
 # 1. Meal Timing Evaluator
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Ideal meal time windows
+# Default meal time windows (can be overridden via context["meal_windows"])
 _LUNCH_WINDOW = (time(12, 0), time(14, 30))
 _DINNER_WINDOW = (time(18, 30), time(21, 0))
 
 # Acceptable (but not ideal) windows
 _LUNCH_ACCEPTABLE = (time(11, 0), time(15, 30))
 _DINNER_ACCEPTABLE = (time(17, 30), time(22, 0))
+
+# Place types (from Google Places API) that are NOT dining
+_NON_DINING_PLACE_TYPES: set[str] = {
+    "place_of_worship", "hindu_temple", "church", "mosque", "synagogue",
+    "museum", "art_gallery", "historical_landmark", "monument",
+    "palace", "castle", "fort", "park", "garden", "zoo", "aquarium",
+    "tourist_attraction", "stadium", "library", "university",
+    "national_park", "cemetery", "memorial", "shrine",
+}
 
 # Categories that indicate dining
 _DINING_CATEGORIES: set[str] = {"dining", "restaurant", "cafe", "food"}
@@ -153,11 +162,18 @@ class MealTimingEvaluator(BaseEvaluator):
                 name=self.name, score=0, grade="F", issues=["No days in itinerary"]
             )
 
+        # Allow context to override default meal windows
+        ctx = context or {}
+        lunch_window = ctx.get("lunch_window", _LUNCH_WINDOW)
+        lunch_acceptable = ctx.get("lunch_acceptable", _LUNCH_ACCEPTABLE)
+        dinner_window = ctx.get("dinner_window", _DINNER_WINDOW)
+        dinner_acceptable = ctx.get("dinner_acceptable", _DINNER_ACCEPTABLE)
+
         total_checks = 0
         passed_checks = 0
 
         for day in day_plans:
-            day_result = self._evaluate_day(day)
+            day_result = self._evaluate_day(day, lunch_acceptable, dinner_acceptable)
             total_checks += day_result["total_checks"]
             passed_checks += day_result["passed_checks"]
             issues.extend(day_result["issues"])
@@ -169,7 +185,12 @@ class MealTimingEvaluator(BaseEvaluator):
 
     # ------------------------------------------------------------------ helpers
 
-    def _evaluate_day(self, day: DayPlan) -> dict:
+    def _evaluate_day(
+        self,
+        day: DayPlan,
+        lunch_acceptable: tuple[time, time] = _LUNCH_ACCEPTABLE,
+        dinner_acceptable: tuple[time, time] = _DINNER_ACCEPTABLE,
+    ) -> dict:
         result: dict[str, Any] = {
             "total_checks": 0,
             "passed_checks": 0,
@@ -184,7 +205,7 @@ class MealTimingEvaluator(BaseEvaluator):
 
         # Check 1: Has lunch?
         result["total_checks"] += 1
-        lunch = self._find_meal_in_window(dining, _LUNCH_ACCEPTABLE)
+        lunch = self._find_meal_in_window(dining, lunch_acceptable)
         if lunch:
             result["passed_checks"] += 1
         else:
@@ -194,7 +215,7 @@ class MealTimingEvaluator(BaseEvaluator):
 
         # Check 2: Has dinner?
         result["total_checks"] += 1
-        dinner = self._find_meal_in_window(dining, _DINNER_ACCEPTABLE)
+        dinner = self._find_meal_in_window(dining, dinner_acceptable)
         if dinner:
             result["passed_checks"] += 1
         else:
@@ -224,15 +245,11 @@ class MealTimingEvaluator(BaseEvaluator):
                     f"Day {day.day_number}: Dinner at position {dinner_idx + 1} (should be near end)"
                 )
 
-        # Check 5: No dining misclassification
-        non_restaurant_kw = {
-            "temple", "mandir", "masjid", "mosque", "church", "iskcon",
-            "museum", "palace", "fort", "memorial", "gurudwara", "shrine",
-        }
+        # Check 5: No dining misclassification (use Google Places types)
         for a in dining:
             result["total_checks"] += 1
-            name_lower = a.place.name.lower()
-            if any(kw in name_lower for kw in non_restaurant_kw):
+            place_types = {t.lower() for t in (a.place.types if hasattr(a.place, 'types') and a.place.types else [])}
+            if place_types & _NON_DINING_PLACE_TYPES:
                 result["issues"].append(
                     f"Day {day.day_number}: '{a.place.name}' appears to be "
                     "a non-restaurant classified as dining"
@@ -263,10 +280,13 @@ class MealTimingEvaluator(BaseEvaluator):
 # 2. Geographic Clustering Evaluator
 # ═══════════════════════════════════════════════════════════════════════════════
 
-MAX_CONSECUTIVE_DISTANCE_KM = 5.0
-IDEAL_CONSECUTIVE_DISTANCE_KM = 2.0
-MAX_DAILY_TRAVEL_KM = 30.0
-IDEAL_DAILY_TRAVEL_KM = 15.0
+# Default distance thresholds (overridable via context["city_scale"])
+_DISTANCE_SCALES: dict[str, dict[str, float]] = {
+    "compact": {"max_gap": 3.0, "ideal_gap": 1.5, "max_daily": 15.0, "ideal_daily": 8.0},
+    "medium": {"max_gap": 5.0, "ideal_gap": 2.0, "max_daily": 30.0, "ideal_daily": 15.0},
+    "sprawling": {"max_gap": 10.0, "ideal_gap": 4.0, "max_daily": 50.0, "ideal_daily": 25.0},
+}
+_DEFAULT_SCALE = _DISTANCE_SCALES["medium"]
 
 
 class GeographicClusteringEvaluator(BaseEvaluator):
@@ -296,9 +316,16 @@ class GeographicClusteringEvaluator(BaseEvaluator):
                 name=self.name, score=100, grade="A+", issues=[]
             )
 
+        # Allow context to override distance thresholds per city scale
+        scale_name = (context or {}).get("city_scale")
+        if not scale_name:
+            # Auto-detect city scale from coordinate spread
+            scale_name = self._detect_city_scale(day_plans)
+        scale = _DISTANCE_SCALES.get(scale_name, _DEFAULT_SCALE)
+
         day_scores: list[float] = []
         for day in day_plans:
-            ds, day_issues = self._evaluate_day(day)
+            ds, day_issues = self._evaluate_day(day, scale)
             day_scores.append(ds)
             issues.extend(day_issues)
 
@@ -307,17 +334,22 @@ class GeographicClusteringEvaluator(BaseEvaluator):
             name=self.name, score=score, grade=_grade_from_score(score), issues=issues
         )
 
-    def _evaluate_day(self, day: DayPlan) -> tuple[float, list[str]]:
+    def _evaluate_day(self, day: DayPlan, scale: dict[str, float] | None = None) -> tuple[float, list[str]]:
         issues: list[str] = []
         if len(day.activities) < 2:
             return 100.0, issues
+
+        s = scale or _DEFAULT_SCALE
+        max_gap_km = s["max_gap"]
+        ideal_gap_km = s["ideal_gap"]
+        max_daily_km = s["max_daily"]
+        ideal_daily_km = s["ideal_daily"]
 
         locations = [
             (a.place.location.lat, a.place.location.lng) for a in day.activities
         ]
         distances: list[float] = []
         total_distance = 0.0
-        max_gap = 0.0
 
         for i in range(len(locations) - 1):
             d = _haversine_km(
@@ -326,8 +358,7 @@ class GeographicClusteringEvaluator(BaseEvaluator):
             )
             distances.append(d)
             total_distance += d
-            max_gap = max(max_gap, d)
-            if d > MAX_CONSECUTIVE_DISTANCE_KM:
+            if d > max_gap_km:
                 issues.append(
                     f"Day {day.day_number}: {d:.1f}km gap between "
                     f"'{day.activities[i].place.name}' and "
@@ -344,19 +375,40 @@ class GeographicClusteringEvaluator(BaseEvaluator):
         # Penalty calculation
         penalty = 0.0
         for d in distances:
-            if d > MAX_CONSECUTIVE_DISTANCE_KM:
+            if d > max_gap_km:
                 penalty += 15
-            elif d > IDEAL_CONSECUTIVE_DISTANCE_KM:
-                penalty += (d - IDEAL_CONSECUTIVE_DISTANCE_KM) * 3
+            elif d > ideal_gap_km:
+                penalty += (d - ideal_gap_km) * 3
 
-        if total_distance > MAX_DAILY_TRAVEL_KM:
+        if total_distance > max_daily_km:
             penalty += 20
-        elif total_distance > IDEAL_DAILY_TRAVEL_KM:
-            penalty += (total_distance - IDEAL_DAILY_TRAVEL_KM) * 1.5
+        elif total_distance > ideal_daily_km:
+            penalty += (total_distance - ideal_daily_km) * 1.5
 
         penalty += backtracking * 10
 
         return max(0.0, 100.0 - penalty), issues
+
+    @staticmethod
+    def _detect_city_scale(day_plans: list[DayPlan]) -> str:
+        """Auto-detect city scale from the spread of activity coordinates."""
+        lats: list[float] = []
+        lngs: list[float] = []
+        for day in day_plans:
+            for a in day.activities:
+                if a.place.location.lat and a.place.location.lng:
+                    lats.append(a.place.location.lat)
+                    lngs.append(a.place.location.lng)
+        if len(lats) < 3:
+            return "medium"
+        lat_spread = max(lats) - min(lats)
+        lng_spread = max(lngs) - min(lngs)
+        spread = max(lat_spread, lng_spread)
+        if spread < 0.02:
+            return "compact"
+        if spread > 0.06:
+            return "sprawling"
+        return "medium"
 
     @staticmethod
     def _detect_backtracking(
@@ -364,7 +416,7 @@ class GeographicClusteringEvaluator(BaseEvaluator):
     ) -> int:
         if len(locations) < 3:
             return 0
-        threshold_km = 1.5
+        threshold_km = 1.0
         count = 0
         for i in range(len(locations) - 2):
             lat1, lng1 = locations[i]
@@ -376,7 +428,7 @@ class GeographicClusteringEvaluator(BaseEvaluator):
                 continue
             d_start_end = _haversine_km(lat1, lng1, lat3, lng3)
             total_travel = d1 + d2
-            if total_travel > 0 and d_start_end / total_travel < 0.3:
+            if total_travel > 0 and d_start_end / total_travel < 0.25:
                 count += 1
         return count
 
@@ -385,10 +437,10 @@ class GeographicClusteringEvaluator(BaseEvaluator):
 # 3. Travel Efficiency Evaluator
 # ═══════════════════════════════════════════════════════════════════════════════
 
-MAX_TRAVEL_MINUTES = 45
-IDEAL_TRAVEL_MINUTES = 20
-MAX_DAILY_TRAVEL_MINUTES = 120
-IDEAL_DAILY_TRAVEL_MINUTES = 60
+MAX_TRAVEL_MINUTES = 60
+IDEAL_TRAVEL_MINUTES = 25
+MAX_DAILY_TRAVEL_MINUTES = 150
+IDEAL_DAILY_TRAVEL_MINUTES = 75
 
 
 class TravelEfficiencyEvaluator(BaseEvaluator):
@@ -418,9 +470,16 @@ class TravelEfficiencyEvaluator(BaseEvaluator):
                 name=self.name, score=100, grade="A+", issues=[]
             )
 
+        # Allow context to override travel time thresholds
+        ctx = context or {}
+        max_travel = ctx.get("max_travel_minutes", MAX_TRAVEL_MINUTES)
+        ideal_travel = ctx.get("ideal_travel_minutes", IDEAL_TRAVEL_MINUTES)
+        max_daily = ctx.get("max_daily_travel_minutes", MAX_DAILY_TRAVEL_MINUTES)
+        ideal_daily = ctx.get("ideal_daily_travel_minutes", IDEAL_DAILY_TRAVEL_MINUTES)
+
         day_scores: list[float] = []
         for day in day_plans:
-            ds, day_issues = self._evaluate_day(day)
+            ds, day_issues = self._evaluate_day(day, max_travel, ideal_travel, max_daily, ideal_daily)
             day_scores.append(ds)
             issues.extend(day_issues)
 
@@ -429,35 +488,42 @@ class TravelEfficiencyEvaluator(BaseEvaluator):
             name=self.name, score=score, grade=_grade_from_score(score), issues=issues
         )
 
-    def _evaluate_day(self, day: DayPlan) -> tuple[float, list[str]]:
+    def _evaluate_day(
+        self,
+        day: DayPlan,
+        max_travel: int = MAX_TRAVEL_MINUTES,
+        ideal_travel: int = IDEAL_TRAVEL_MINUTES,
+        max_daily: int = MAX_DAILY_TRAVEL_MINUTES,
+        ideal_daily: int = IDEAL_DAILY_TRAVEL_MINUTES,
+    ) -> tuple[float, list[str]]:
         issues: list[str] = []
         if len(day.activities) < 2:
             return 100.0, issues
 
         total_travel = 0
-        max_travel = 0
+        longest_leg = 0
         penalty = 0.0
 
         for i, activity in enumerate(day.activities[:-1]):
             if activity.route_to_next:
                 travel_min = activity.route_to_next.duration_seconds // 60
                 total_travel += travel_min
-                max_travel = max(max_travel, travel_min)
+                longest_leg = max(longest_leg, travel_min)
 
-                if travel_min > MAX_TRAVEL_MINUTES:
+                if travel_min > max_travel:
                     penalty += 20
                     issues.append(
                         f"Day {day.day_number}: {travel_min}min travel from "
                         f"'{activity.place.name}' to "
                         f"'{day.activities[i + 1].place.name}'"
                     )
-                elif travel_min > IDEAL_TRAVEL_MINUTES:
-                    penalty += (travel_min - IDEAL_TRAVEL_MINUTES) * 0.5
+                elif travel_min > ideal_travel:
+                    penalty += (travel_min - ideal_travel) * 0.5
 
-        if total_travel > MAX_DAILY_TRAVEL_MINUTES:
+        if total_travel > max_daily:
             penalty += 25
-        elif total_travel > IDEAL_DAILY_TRAVEL_MINUTES:
-            penalty += (total_travel - IDEAL_DAILY_TRAVEL_MINUTES) * 0.3
+        elif total_travel > ideal_daily:
+            penalty += (total_travel - ideal_daily) * 0.3
 
         return max(0.0, 100.0 - penalty), issues
 
@@ -522,7 +588,7 @@ class VarietyEvaluator(BaseEvaluator):
         if total_activities > 0:
             for category, count in category_counts.items():
                 pct = (count / total_activities) * 100
-                if pct > 40 and count > 3:
+                if pct > 50 and count > 4:
                     issues.append(
                         f"Over-concentration: {category} makes up {pct:.0f}% of activities"
                     )
@@ -753,24 +819,29 @@ class OpeningHoursEvaluator(BaseEvaluator):
 # 6. Theme Alignment Evaluator
 # ═══════════════════════════════════════════════════════════════════════════════
 
-THEME_KEYWORDS: dict[str, set[str]] = {
-    "heritage": {"museum", "palace", "fort", "historical", "heritage", "monument", "landmark", "attraction"},
-    "old city": {"heritage", "bazaar", "market", "historical", "landmark", "gate", "mosque", "temple", "attraction"},
-    "riverfront": {"river", "lake", "park", "garden", "waterfront", "bridge", "nature"},
-    "ashram": {"ashram", "memorial", "museum", "culture"},
-    "science": {"museum", "science", "planetarium", "exhibition", "culture"},
-    "temple": {"temple", "mandir", "religious", "shrine", "worship", "attraction"},
-    "spiritual": {"temple", "mosque", "church", "religious", "spiritual", "shrine"},
-    "museum": {"museum", "gallery", "exhibition", "culture"},
-    "nature": {"park", "garden", "lake", "nature", "zoo", "forest"},
-    "food": {"restaurant", "dining", "cafe", "food", "market"},
-    "culture": {"museum", "culture", "heritage", "art", "gallery", "theater"},
-    "architecture": {"palace", "fort", "monument", "museum", "landmark", "historical", "attraction"},
-    "park": {"park", "garden", "nature", "zoo"},
-    "family": {"park", "zoo", "amusement", "museum", "entertainment"},
-    "market": {"market", "bazaar", "shopping"},
-    "fort": {"fort", "palace", "historical", "attraction", "landmark"},
-    "gate": {"gate", "historical", "landmark", "attraction"},
+# Common category terms that signal theme-relevant content.
+# Used as a fallback when dynamic extraction finds no keywords.
+_THEME_CATEGORY_POOL: set[str] = {
+    "museum", "palace", "fort", "temple", "shrine", "mosque", "church",
+    "park", "garden", "nature", "lake", "river", "beach", "zoo",
+    "restaurant", "cafe", "dining", "food", "market", "shopping",
+    "monument", "landmark", "historical", "heritage", "culture", "art",
+    "gallery", "theater", "entertainment", "amusement", "waterfall",
+    "attraction", "religious", "spiritual", "science", "aquarium",
+    "opera", "boulevard", "plaza", "square", "bridge", "tower",
+    "viewpoint", "scenic", "coastal", "harbour", "port",
+}
+
+# Bridges broad theme concepts to related place categories where
+# substring matching alone would fail (e.g. "heritage" → "fort").
+_THEME_CONCEPT_EXPANSIONS: dict[str, set[str]] = {
+    "heritage": {"fort", "palace", "monument", "historical", "museum"},
+    "culture": {"museum", "gallery", "temple", "church", "shrine", "theater"},
+    "nature": {"park", "garden", "lake", "river", "beach", "waterfall", "scenic"},
+    "adventure": {"park", "nature", "scenic", "beach", "waterfall"},
+    "spiritual": {"temple", "shrine", "mosque", "church", "religious"},
+    "nightlife": {"bar", "club", "entertainment"},
+    "culinary": {"restaurant", "cafe", "market", "food", "dining"},
 }
 
 
@@ -836,7 +907,7 @@ class ThemeAlignmentEvaluator(BaseEvaluator):
                 matching += 1
 
         alignment = (matching / len(non_dining)) * 100
-        if alignment < 50:
+        if alignment < 40:
             issues.append(
                 f"Day {day.day_number}: Only {matching}/{len(non_dining)} "
                 f"activities match theme '{day.theme}'"
@@ -846,13 +917,26 @@ class ThemeAlignmentEvaluator(BaseEvaluator):
 
     @staticmethod
     def _extract_expected_categories(theme: str) -> set[str]:
-        expected: set[str] = set()
-        for keyword, categories in THEME_KEYWORDS.items():
-            if keyword in theme:
-                expected.update(categories)
-        for word in re.findall(r"\b\w+\b", theme):
-            if word in THEME_KEYWORDS:
-                expected.update(THEME_KEYWORDS[word])
+        """Dynamically extract expected place categories from theme text.
+
+        Instead of relying on a hardcoded keyword dict, extracts meaningful
+        words from the theme and matches them against a broad category pool.
+        This works for any theme the LLM generates, in any language or style.
+        """
+        theme_words = set(re.findall(r"\b\w+\b", theme.lower()))
+        # Direct matches: theme words that are themselves category terms
+        expected = theme_words & _THEME_CATEGORY_POOL
+        # Also include words from the theme that partially match categories
+        for word in theme_words:
+            if len(word) < 3:
+                continue
+            for cat in _THEME_CATEGORY_POOL:
+                if word in cat or cat in word:
+                    expected.add(cat)
+        # Expand broad concepts to related categories
+        for word in theme_words:
+            if word in _THEME_CONCEPT_EXPANSIONS:
+                expected.update(_THEME_CONCEPT_EXPANSIONS[word])
         return expected
 
 
@@ -860,41 +944,30 @@ class ThemeAlignmentEvaluator(BaseEvaluator):
 # 7. Duration Appropriateness Evaluator
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Generous guardrail ranges. LLM-estimated durations take priority.
 RECOMMENDED_DURATIONS: dict[str, tuple[int, int]] = {
-    "museum": (90, 180),
-    "culture": (60, 150),
-    "art_gallery": (60, 120),
-    "temple": (30, 90),
-    "religious": (30, 60),
-    "attraction": (45, 120),
-    "park": (45, 90),
-    "garden": (30, 60),
-    "nature": (45, 90),
-    "zoo": (120, 240),
-    "monument": (30, 60),
-    "landmark": (30, 60),
-    "tourist_attraction": (45, 90),
-    "dining": (45, 90),
-    "restaurant": (45, 90),
-    "cafe": (30, 60),
-    "fort": (90, 180),
-    "palace": (60, 150),
-    "default": (45, 90),
+    "museum": (60, 240),
+    "culture": (45, 180),
+    "art_gallery": (45, 150),
+    "temple": (20, 120),
+    "religious": (20, 90),
+    "attraction": (30, 150),
+    "park": (30, 120),
+    "garden": (20, 90),
+    "nature": (30, 120),
+    "zoo": (90, 300),
+    "monument": (15, 90),
+    "landmark": (15, 90),
+    "tourist_attraction": (30, 120),
+    "dining": (30, 120),
+    "restaurant": (30, 120),
+    "cafe": (20, 75),
+    "fort": (60, 240),
+    "palace": (45, 180),
+    "default": (30, 120),
 }
 
-FAMOUS_PLACES_DURATIONS: dict[str, tuple[int, int]] = {
-    "salar jung museum": (150, 240),
-    "golconda fort": (120, 180),
-    "chowmahalla palace": (90, 150),
-    "science city": (120, 180),
-    "taj mahal": (120, 180),
-    "qutub minar": (60, 90),
-    "red fort": (90, 150),
-    "sabarmati ashram": (60, 90),
-    "calico museum": (90, 150),
-    "ajanta caves": (180, 300),
-    "ellora caves": (180, 300),
-}
+
 
 
 class DurationAppropriatenessEvaluator(BaseEvaluator):
@@ -988,12 +1061,8 @@ class DurationAppropriatenessEvaluator(BaseEvaluator):
 
     @staticmethod
     def _get_recommended(activity: Activity) -> tuple[int, int]:
-        name_lower = activity.place.name.lower()
         cat = activity.place.category.lower() if activity.place.category else ""
-
-        for place_name, dur in FAMOUS_PLACES_DURATIONS.items():
-            if place_name in name_lower:
-                return dur
+        name_lower = activity.place.name.lower()
 
         if cat in RECOMMENDED_DURATIONS:
             return RECOMMENDED_DURATIONS[cat]

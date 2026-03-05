@@ -14,55 +14,13 @@ from app.models.common import Pace
 from app.config.planning import PACE_CONFIGS, DINING_TYPES as _DINING_TYPES_SET
 from app.models.day_plan import Activity, Place, Route
 from app.models.internal import DayGroup, PlaceCandidate
+from app.config.planning import DURATION_BY_TYPE
 
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Inline duration defaults (avoid importing from config for now)
-# ---------------------------------------------------------------------------
-DURATION_BY_CATEGORY: dict[str, int] = {
-    # Museums and galleries
-    "museum": 120,
-    "art_gallery": 60,
-    "culture": 90,
-    # Religious / historical
-    "temple": 45,
-    "church": 30,
-    "hindu_temple": 45,
-    "mosque": 45,
-    "place_of_worship": 30,
-    "historical_landmark": 45,
-    "monument": 30,
-    "palace": 60,
-    "castle": 60,
-    "fort": 60,
-    # Nature and outdoors
-    "park": 60,
-    "garden": 45,
-    "zoo": 120,
-    "aquarium": 90,
-    "national_park": 120,
-    "beach": 90,
-    "nature": 60,
-    # Entertainment
-    "amusement_park": 180,
-    "tourist_attraction": 45,
-    "entertainment": 90,
-    # Dining
-    "restaurant": 75,
-    "cafe": 45,
-    "bar": 60,
-    "bakery": 20,
-    "food": 60,
-    "dining": 75,
-    # Shopping
-    "shopping": 60,
-    "market": 60,
-    "mall": 90,
-    # Default
-    "default": 45,
-}
+# Use the single consolidated duration map from config
+DURATION_BY_CATEGORY = DURATION_BY_TYPE
 
 PACE_MULTIPLIERS: dict[Pace, float] = {
     p: PACE_CONFIGS[p.value].duration_multiplier for p in Pace
@@ -81,7 +39,13 @@ _MEAL_TYPES: set[str] = _DINING_TYPES_SET
 
 @dataclass
 class ScheduleConfig:
-    """Configuration for schedule building."""
+    """Configuration for schedule building.
+
+    Meal windows default to common international times but can be
+    overridden per-city for culture-appropriate scheduling.
+    Meal windows cover ~80 countries across 10 regional profiles.
+    LLM-provided meal windows take priority via from_context().
+    """
 
     day_start: time = field(default_factory=lambda: time(9, 0))
     day_end: time = field(default_factory=lambda: time(21, 0))
@@ -94,6 +58,184 @@ class ScheduleConfig:
     buffer_minutes: int = 15
     min_activity_duration: int = 30
     max_meal_wait_minutes: int = 90
+
+    @classmethod
+    def for_region(cls, country: str) -> "ScheduleConfig":
+        """Return a ScheduleConfig with meal windows adapted to local culture.
+
+        Uses broad regional patterns rather than a per-country database.
+        The LLM day planner already suggests culture-appropriate meal
+        times; this ensures the scheduler doesn't penalize them.
+        """
+        c = country.lower().strip()
+
+        # Late-dining cultures (Spain, Portugal, Argentina, Greece, Italy)
+        if c in ("spain", "portugal", "argentina", "greece", "italy"):
+            return cls(
+                lunch_window_start=time(13, 30),
+                lunch_window_end=time(15, 30),
+                dinner_window_start=time(20, 0),
+                dinner_window_end=time(22, 30),
+                lunch_target=time(14, 0),
+                dinner_target=time(21, 0),
+            )
+
+        # Early-dining cultures (Japan, Korea, parts of SE Asia)
+        if c in ("japan", "south korea", "korea", "taiwan"):
+            return cls(
+                lunch_window_start=time(11, 30),
+                lunch_window_end=time(13, 30),
+                dinner_window_start=time(17, 30),
+                dinner_window_end=time(20, 0),
+                lunch_target=time(12, 0),
+                dinner_target=time(18, 30),
+            )
+
+        # South Asian patterns (India, Sri Lanka, Nepal)
+        if c in ("india", "sri lanka", "nepal", "bangladesh", "pakistan"):
+            return cls(
+                lunch_window_start=time(12, 30),
+                lunch_window_end=time(14, 30),
+                dinner_window_start=time(19, 30),
+                dinner_window_end=time(21, 30),
+                lunch_target=time(13, 0),
+                dinner_target=time(20, 0),
+            )
+
+        # Middle Eastern patterns (late lunch, late dinner)
+        if c in ("turkey", "iran", "iraq", "lebanon", "syria", "jordan",
+                 "saudi arabia", "uae", "united arab emirates", "qatar",
+                 "bahrain", "kuwait", "oman", "egypt"):
+            return cls(
+                lunch_window_start=time(13, 0),
+                lunch_window_end=time(15, 0),
+                dinner_window_start=time(19, 0),
+                dinner_window_end=time(22, 0),
+                lunch_target=time(13, 30),
+                dinner_target=time(20, 0),
+            )
+
+        # China and Vietnam (early and structured meals)
+        if c in ("china", "vietnam", "hong kong", "macau"):
+            return cls(
+                lunch_window_start=time(11, 30),
+                lunch_window_end=time(13, 0),
+                dinner_window_start=time(17, 30),
+                dinner_window_end=time(19, 30),
+                lunch_target=time(12, 0),
+                dinner_target=time(18, 0),
+            )
+
+        # Southeast Asian patterns (flexible, many snack meals)
+        if c in ("thailand", "malaysia", "indonesia", "philippines",
+                 "singapore", "myanmar", "cambodia", "laos"):
+            return cls(
+                lunch_window_start=time(11, 30),
+                lunch_window_end=time(13, 30),
+                dinner_window_start=time(18, 0),
+                dinner_window_end=time(20, 30),
+                lunch_target=time(12, 0),
+                dinner_target=time(18, 30),
+            )
+
+        # Northern/Central European (early dinner)
+        if c in ("germany", "austria", "switzerland", "netherlands",
+                 "belgium", "denmark", "sweden", "norway", "finland",
+                 "iceland", "poland", "czech republic", "czechia",
+                 "hungary", "slovakia"):
+            return cls(
+                lunch_window_start=time(12, 0),
+                lunch_window_end=time(13, 30),
+                dinner_window_start=time(18, 0),
+                dinner_window_end=time(20, 0),
+                lunch_target=time(12, 30),
+                dinner_target=time(18, 30),
+            )
+
+        # Eastern European patterns
+        if c in ("russia", "ukraine", "romania", "bulgaria", "serbia",
+                 "croatia", "slovenia", "bosnia", "montenegro", "albania",
+                 "north macedonia", "georgia", "armenia", "azerbaijan"):
+            return cls(
+                lunch_window_start=time(12, 30),
+                lunch_window_end=time(14, 0),
+                dinner_window_start=time(19, 0),
+                dinner_window_end=time(21, 0),
+                lunch_target=time(13, 0),
+                dinner_target=time(19, 30),
+            )
+
+        # Latin American patterns (late meals, similar to Spain)
+        if c in ("mexico", "colombia", "peru", "chile", "brazil",
+                 "ecuador", "bolivia", "venezuela", "uruguay", "paraguay",
+                 "costa rica", "panama", "cuba", "dominican republic"):
+            return cls(
+                lunch_window_start=time(13, 0),
+                lunch_window_end=time(15, 0),
+                dinner_window_start=time(19, 30),
+                dinner_window_end=time(22, 0),
+                lunch_target=time(13, 30),
+                dinner_target=time(20, 30),
+            )
+
+        # African patterns (varied, moderate defaults)
+        if c in ("south africa", "kenya", "tanzania", "morocco",
+                 "tunisia", "ethiopia", "ghana", "nigeria", "senegal",
+                 "uganda", "rwanda", "mozambique", "namibia", "botswana"):
+            return cls(
+                lunch_window_start=time(12, 0),
+                lunch_window_end=time(14, 0),
+                dinner_window_start=time(18, 30),
+                dinner_window_end=time(21, 0),
+                lunch_target=time(12, 30),
+                dinner_target=time(19, 0),
+            )
+
+        # Australia / New Zealand (early dinner)
+        if c in ("australia", "new zealand"):
+            return cls(
+                lunch_window_start=time(12, 0),
+                lunch_window_end=time(13, 30),
+                dinner_window_start=time(18, 0),
+                dinner_window_end=time(20, 0),
+                lunch_target=time(12, 30),
+                dinner_target=time(18, 30),
+            )
+
+        # Default international windows
+        return cls()
+
+    @classmethod
+    def from_context(
+        cls,
+        country: str,
+        meal_windows: dict[str, str] | None = None,
+    ) -> "ScheduleConfig":
+        """Create a ScheduleConfig from optional LLM-provided meal windows.
+
+        If the LLM day planner suggests meal windows, those take priority
+        over hardcoded regional defaults. Falls back to for_region().
+
+        Args:
+            country: Country name for regional defaults.
+            meal_windows: Optional dict with keys like 'lunch_start',
+                'lunch_end', 'dinner_start', 'dinner_end' in HH:MM format.
+        """
+        base = cls.for_region(country)
+        if not meal_windows:
+            return base
+        try:
+            if "lunch_start" in meal_windows:
+                base.lunch_window_start = _parse_time_str(meal_windows["lunch_start"])
+            if "lunch_end" in meal_windows:
+                base.lunch_window_end = _parse_time_str(meal_windows["lunch_end"])
+            if "dinner_start" in meal_windows:
+                base.dinner_window_start = _parse_time_str(meal_windows["dinner_start"])
+            if "dinner_end" in meal_windows:
+                base.dinner_window_end = _parse_time_str(meal_windows["dinner_end"])
+        except (ValueError, IndexError):
+            pass  # Fall back to regional defaults on parse error
+        return base
 
 
 def _price_level_to_tier(price_level: int | None) -> str | None:
@@ -130,13 +272,13 @@ class ScheduleBuilder:
         day_start_time: time | None = None,
         day_end_time: time | None = None,
         cost_estimates: dict[str, float] | None = None,
+        country: str | None = None,
     ) -> list[Activity]:
         """
         Build a time-slotted schedule for a day's activities.
 
-        Meals are scheduled at appropriate times:
-        - Lunch: 12:00-14:00 (target 12:30)
-        - Dinner: 18:00-21:00 (target 18:30)
+        Meals are scheduled at culture-appropriate times based on *country*.
+        If no country is provided, default international windows are used.
 
         If a meal activity arrives before its window, we wait.
 
@@ -162,13 +304,18 @@ class ScheduleBuilder:
         if not places:
             return []
 
+        # Apply culture-aware meal windows if country is provided
+        config = self.config
+        if country:
+            config = ScheduleConfig.for_region(country)
+
         routes = routes or []
         durations = durations or {}
         the_date = schedule_date or date.today()
 
         schedule: list[Activity] = []
-        effective_start = day_start_time or self.config.day_start
-        effective_end = day_end_time or self.config.day_end
+        effective_start = day_start_time or config.day_start
+        effective_end = day_end_time or config.day_end
         current_time = datetime.combine(the_date, effective_start)
         day_end = datetime.combine(the_date, effective_end)
 
@@ -206,31 +353,31 @@ class ScheduleBuilder:
                     meals_scheduled == 2
                     or (
                         meals_scheduled == 1
-                        and current_time_only >= self.config.dinner_window_start
+                        and current_time_only >= config.dinner_window_start
                     )
                 )
 
                 if is_lunch_slot and not has_lunch:
                     if (
                         has_prior_activities
-                        and current_time_only < self.config.lunch_window_start
+                        and current_time_only < config.lunch_window_start
                     ):
                         target = datetime.combine(
-                            the_date, self.config.lunch_target
+                            the_date, config.lunch_target
                         )
                         wait_mins = (target - current_time).total_seconds() / 60
-                        if wait_mins <= self.config.max_meal_wait_minutes:
+                        if wait_mins <= config.max_meal_wait_minutes:
                             current_time = target
                         # else: schedule immediately, don't create large gap
                     has_lunch = True
 
                 elif is_dinner_slot and not has_dinner:
-                    if current_time_only < self.config.dinner_window_start:
+                    if current_time_only < config.dinner_window_start:
                         target = datetime.combine(
-                            the_date, self.config.dinner_target
+                            the_date, config.dinner_target
                         )
                         wait_mins = (target - current_time).total_seconds() / 60
-                        if wait_mins <= self.config.max_meal_wait_minutes:
+                        if wait_mins <= config.max_meal_wait_minutes:
                             current_time = target
                         # else: schedule immediately, don't create large gap
                     has_dinner = True
@@ -292,7 +439,7 @@ class ScheduleBuilder:
                 travel_minutes = routes[i].duration_seconds // 60
 
             current_time = end_time + timedelta(
-                minutes=travel_minutes + self.config.buffer_minutes
+                minutes=travel_minutes + config.buffer_minutes
             )
 
         # Validate meal count

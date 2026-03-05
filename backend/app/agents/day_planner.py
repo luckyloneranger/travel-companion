@@ -22,6 +22,59 @@ from app.config.planning import DAY_PLANNER_PACE_GUIDE as _PACE_GUIDE, DINING_TY
 _DINING_TYPES: set[str] = DINING_TYPES
 
 
+def _build_meal_time_guidance(country: str) -> str:
+    """Build meal timing guidance for the LLM based on destination country.
+
+    Follows the regional_transport.py pattern — provides context for the
+    LLM rather than hardcoded meal times in prompts.
+    """
+    c = country.lower().strip() if country else ""
+
+    if c in ("spain", "portugal", "argentina", "greece", "italy"):
+        return (
+            f"In {country}, locals eat lunch late (1:30-3:30 PM) and dinner very late "
+            "(9:00-11:00 PM). Schedule meals accordingly — tourists often adapt to "
+            "local dining hours for the best experience and availability."
+        )
+    if c in ("japan", "south korea", "korea", "taiwan", "china", "vietnam"):
+        return (
+            f"In {country}, meals are typically early: lunch around 11:30 AM-1:00 PM "
+            "and dinner 5:30-7:30 PM. Many restaurants close between meals."
+        )
+    if c in ("india", "sri lanka", "nepal", "bangladesh", "pakistan"):
+        return (
+            f"In {country}, lunch is typically 12:30-2:30 PM and dinner 7:30-9:30 PM. "
+            "Street food is available throughout the day."
+        )
+    if c in ("turkey", "iran", "lebanon", "jordan", "egypt",
+             "saudi arabia", "uae", "united arab emirates"):
+        return (
+            f"In {country}, lunch is typically 1:00-3:00 PM and dinner 7:30-10:00 PM. "
+            "Many restaurants are busiest after 8 PM."
+        )
+    if c in ("mexico", "colombia", "peru", "chile", "brazil"):
+        return (
+            f"In {country}, lunch (comida) is the main meal, typically 1:00-3:00 PM. "
+            "Dinner is lighter and later, around 8:00-10:00 PM."
+        )
+    if c in ("germany", "austria", "switzerland", "netherlands", "belgium",
+             "denmark", "sweden", "norway", "finland"):
+        return (
+            f"In {country}, lunch is around 12:00-1:30 PM and dinner is early, "
+            "typically 6:00-8:00 PM. Many restaurants stop serving by 9 PM."
+        )
+    if c in ("thailand", "malaysia", "indonesia", "singapore", "philippines"):
+        return (
+            f"In {country}, meal times are flexible. Street food and hawker stalls "
+            "serve throughout the day. Sit-down lunch is around noon, dinner 6:00-8:00 PM."
+        )
+    # Default generic guidance
+    return (
+        "Schedule lunch in the early afternoon and dinner in the evening, following "
+        "local dining customs for this destination."
+    )
+
+
 def _is_dining(candidate: PlaceCandidate) -> bool:
     """Check whether a candidate is a dining place."""
     return bool(set(candidate.types) & _DINING_TYPES)
@@ -45,6 +98,7 @@ class DayPlannerAgent:
         must_include: list[str] | None = None,
         time_constraints: list[dict] | None = None,
         travelers_description: str = "1 adult",
+        country: str = "",
     ) -> AIPlan:
         """Given discovered place candidates, select and group into themed days.
 
@@ -69,6 +123,7 @@ class DayPlannerAgent:
             budget=budget, daily_budget_usd=daily_budget_usd,
             must_include=must_include, time_constraints=time_constraints,
             travelers_description=travelers_description,
+            country=country,
         )
 
         logger.info(
@@ -200,9 +255,11 @@ class DayPlannerAgent:
         must_include: list[str] | None = None,
         time_constraints: list[dict] | None = None,
         travelers_description: str = "1 adult",
+        country: str = "",
     ) -> str:
         """Format the user prompt template with candidate data."""
         guide = _PACE_GUIDE.get(pace, _PACE_GUIDE["moderate"])
+        meal_time_guidance = _build_meal_time_guidance(country)
 
         # Separate attractions from dining places
         attractions: list[dict] = []
@@ -236,33 +293,10 @@ class DayPlannerAgent:
 
             if _is_dining(c):
                 dining.append(entry)
-            elif any(
-                t in c.types
-                for t in (
-                    "tourist_attraction",
-                    "museum",
-                    "park",
-                    "historical_landmark",
-                    "monument",
-                    "art_gallery",
-                    "church",
-                    "temple",
-                    "hindu_temple",
-                    "mosque",
-                    "palace",
-                    "castle",
-                    "fort",
-                    "zoo",
-                    "aquarium",
-                    "amusement_park",
-                    "national_park",
-                    "garden",
-                    "beach",
-                )
-            ):
-                attractions.append(entry)
             else:
-                other.append(entry)
+                # All non-dining places are potential attractions — let the
+                # LLM decide which are sightseeing vs other based on context
+                attractions.append(entry)
 
         other_section = ""
         if other:
@@ -330,6 +364,7 @@ class DayPlannerAgent:
             must_include_section=must_include_section,
             time_constraints_section=time_constraints_section,
             travelers_description=travelers_description,
+            meal_time_guidance=meal_time_guidance,
         )
 
     def _validate_ai_plan(self, plan: AIPlan, valid_ids: set[str]) -> None:

@@ -19,6 +19,7 @@ from app.models.journey import JourneyPlan
 from app.models.trip import TripRequest, TripResponse, TripSummary
 from app.agents.enricher import EnricherAgent
 from app.core.rate_limit import get_plan_limiter, get_day_plan_limiter, get_chat_limiter, get_tips_limiter
+from app.services.llm.exceptions import LLMValidationError
 from app.orchestrators.day_plan import DayPlanOrchestrator
 from app.orchestrators.journey import JourneyOrchestrator
 from app.services.chat import ChatService
@@ -32,16 +33,17 @@ router = APIRouter(prefix="/api/trips", tags=["trips"])
 def _compute_cost_breakdown(trip: TripResponse) -> dict[str, float] | None:
     """Compute cost breakdown from day plans, accommodation, and transport."""
     dining = activities_cost = 0.0
-    dining_categories = {"restaurant", "cafe", "bakery", "food", "dining", "bar",
-                         "french_restaurant", "italian_restaurant", "sushi_restaurant",
-                         "tea_house", "bistro", "falafel_restaurant"}
+    # Detect dining by substring rather than exact match — catches all
+    # regional cuisine types (french_restaurant, sushi_restaurant, etc.)
+    _DINING_SUBSTRINGS = ("restaurant", "cafe", "food", "bakery", "bar",
+                          "dining", "bistro", "brasserie", "tavern", "pub")
 
     if trip.day_plans:
         for dp in trip.day_plans:
             for a in dp.activities:
                 if a.estimated_cost_usd:
                     cat = (a.place.category or "").lower()
-                    if cat in dining_categories or "restaurant" in cat or "cafe" in cat:
+                    if any(s in cat for s in _DINING_SUBSTRINGS):
                         dining += a.estimated_cost_usd
                     else:
                         activities_cost += a.estimated_cost_usd
@@ -210,32 +212,39 @@ async def chat_edit(
         raise HTTPException(404, "Trip not found")
     await _check_trip_ownership(repo, trip_id, user["sub"])
 
-    if request.context == "day_plans":
-        if not trip.day_plans:
-            return ChatEditResponse(
-                reply="No day plans to edit yet. Generate day plans first, then you can edit them.",
-                changes_made=[],
-            )
-        response = await chat.edit_day_plans(request.message, trip.day_plans, trip.journey, trip.request)
-        if response.updated_day_plans:
-            await repo.update_day_plans(trip_id, response.updated_day_plans)
-    else:
-        response = await chat.edit_journey(request.message, trip.journey, trip.request)
-        if response.updated_journey:
-            response.updated_journey = _merge_enriched_data(trip.journey, response.updated_journey)
-            # Re-enrich new/changed cities and legs with Google API data
-            try:
-                budget_tier = trip.request.budget.value if hasattr(trip.request, 'budget') else "moderate"
-                response.updated_journey = await enricher.enrich_plan(
-                    response.updated_journey, budget_tier=budget_tier
+    try:
+        if request.context == "day_plans":
+            if not trip.day_plans:
+                return ChatEditResponse(
+                    reply="No day plans to edit yet. Generate day plans first, then you can edit them.",
+                    changes_made=[],
                 )
-            except Exception as exc:
-                logger.warning("Re-enrichment after chat edit failed: %s", exc)
-            await repo.update_journey(trip_id, response.updated_journey)
-            # Clear stale day plans since journey structure changed
-            await repo.update_day_plans(trip_id, [], quality_score=None)
-            response.changes_made = response.changes_made or []
-            response.changes_made.append("Day plans cleared — regenerate to reflect changes")
+            response = await chat.edit_day_plans(request.message, trip.day_plans, trip.journey, trip.request)
+            if response.updated_day_plans:
+                await repo.update_day_plans(trip_id, response.updated_day_plans)
+        else:
+            response = await chat.edit_journey(request.message, trip.journey, trip.request)
+            if response.updated_journey:
+                response.updated_journey = _merge_enriched_data(trip.journey, response.updated_journey)
+                # Re-enrich new/changed cities and legs with Google API data
+                try:
+                    budget_tier = trip.request.budget.value if hasattr(trip.request, 'budget') else "moderate"
+                    response.updated_journey = await enricher.enrich_plan(
+                        response.updated_journey, budget_tier=budget_tier
+                    )
+                except Exception as exc:
+                    logger.warning("Re-enrichment after chat edit failed: %s", exc)
+                await repo.update_journey(trip_id, response.updated_journey)
+                # Clear stale day plans since journey structure changed
+                await repo.update_day_plans(trip_id, [], quality_score=None)
+                response.changes_made = response.changes_made or []
+                response.changes_made.append("Day plans cleared — regenerate to reflect changes")
+    except LLMValidationError as exc:
+        logger.warning("Chat edit LLM validation failed: %s", exc)
+        raise HTTPException(502, f"AI failed to produce a valid response. Please try again.")
+    except Exception as exc:
+        logger.exception("Chat edit failed for trip %s", trip_id)
+        raise HTTPException(502, "Chat edit failed due to an AI service error. Please try again.")
 
     return response
 

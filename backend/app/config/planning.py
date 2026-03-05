@@ -25,10 +25,10 @@ WEATHER_API_TIMEOUT: float = 10.0
 # ---------------------------------------------------------------------------
 # LLM defaults
 # ---------------------------------------------------------------------------
-LLM_DEFAULT_MAX_TOKENS: int = 8000
+LLM_DEFAULT_MAX_TOKENS: int = 64000
 LLM_DEFAULT_TEMPERATURE: float = 0.7
 LLM_SCOUT_TEMPERATURE: float = 0.8
-LLM_REVIEWER_MAX_TOKENS: int = 4000
+LLM_REVIEWER_MAX_TOKENS: int = 64000
 LLM_REVIEWER_TEMPERATURE: float = 0.3
 
 # ---------------------------------------------------------------------------
@@ -37,6 +37,24 @@ LLM_REVIEWER_TEMPERATURE: float = 0.3
 PLACES_MIN_RATING: float = 3.5
 PLACES_MIN_RATINGS_COUNT: int = 30
 PLACES_DISCOVERY_RADIUS_KM: float = 5.0
+
+
+def get_adaptive_place_filters(result_count: int = 0) -> dict[str, float | int]:
+    """Return place quality filters adapted to discovery result density.
+
+    When few results are found, thresholds are lowered to include hidden
+    gems and emerging destinations. When many results exist, thresholds
+    are tightened to surface the best options.
+    """
+    if result_count > 0 and result_count < 15:
+        return {"min_rating": 3.0, "min_ratings_count": 10, "radius_km": 8.0}
+    if result_count > 100:
+        return {"min_rating": 4.0, "min_ratings_count": 50, "radius_km": 3.0}
+    return {
+        "min_rating": PLACES_MIN_RATING,
+        "min_ratings_count": PLACES_MIN_RATINGS_COUNT,
+        "radius_km": PLACES_DISCOVERY_RADIUS_KM,
+    }
 
 # ---------------------------------------------------------------------------
 # Dining type identifiers (shared by scheduler, day_planner, places)
@@ -62,6 +80,9 @@ class PaceConfig:
     description: str
 
 
+# Base pace configurations. The LLM day planner can override activity counts
+# and durations via its response. These serve as defaults for the scheduler
+# when LLM estimates are not available.
 PACE_CONFIGS: dict[str, PaceConfig] = {
     "relaxed": PaceConfig(
         activities_per_day=4,
@@ -81,8 +102,11 @@ PACE_CONFIGS: dict[str, PaceConfig] = {
 }
 
 
-# Map Google Place types to default visit duration in minutes
-DURATION_BY_TYPE: dict[str, int] = {
+# Last-resort fallback durations only. Priority order:
+# 1. LLM-estimated duration (suggested_duration_minutes on PlaceCandidate)
+# 2. Google Places API suggested duration
+# 3. This fallback table
+_FALLBACK_DURATION_BY_TYPE: dict[str, int] = {
     # Museums and galleries
     "museum": 90,
     "art_gallery": 60,
@@ -137,9 +161,16 @@ DURATION_BY_TYPE: dict[str, int] = {
     "default": 45,
 }
 
+# Backward-compatible alias — other modules import DURATION_BY_TYPE directly.
+DURATION_BY_TYPE = _FALLBACK_DURATION_BY_TYPE
 
-# Map user interests to Google Places types for search
-# Only uses types from Google Places API (Table A)
+
+# Seed mapping for Google Places API discovery queries. Not an exhaustive
+# taxonomy — the LLM day planner considers ALL discovered places regardless
+# of how they were initially found via these type mappings.
+# Map user interests to Google Places types for search.
+# Only uses types from Google Places API (Table A).
+# This is the single source of truth — also imported by places.py.
 INTEREST_TO_TYPES: dict[str, list[str]] = {
     # Arts and culture
     "art": ["art_gallery", "museum", "cultural_center"],
@@ -170,6 +201,7 @@ INTEREST_TO_TYPES: dict[str, list[str]] = {
     # Food and dining
     "food": ["restaurant", "cafe", "bakery", "bar", "meal_takeaway"],
     "local_experience": ["market", "cafe", "restaurant", "grocery_store"],
+    "local": ["market", "cafe", "restaurant"],
     "nightlife": ["night_club", "bar", "casino", "movie_theater", "bowling_alley"],
     # Nature and outdoors
     "nature": ["park", "national_park", "zoo", "aquarium", "campground", "marina"],
@@ -235,20 +267,39 @@ FALLBACK_DISTANCE_METERS: int = 1000
 FALLBACK_DURATION_SECONDS: int = 720  # 12 minutes
 
 
+def compute_haversine_fallback(
+    origin_lat: float, origin_lng: float,
+    dest_lat: float, dest_lng: float,
+) -> tuple[int, int]:
+    """Estimate distance (meters) and walk duration (seconds) from coordinates.
+
+    Uses haversine distance with a 4 km/h walking speed assumption.
+    Returns (distance_meters, duration_seconds). Falls back to fixed
+    defaults when coordinates are zero/missing.
+    """
+    import math
+    if not (origin_lat and origin_lng and dest_lat and dest_lng):
+        return FALLBACK_DISTANCE_METERS, FALLBACK_DURATION_SECONDS
+
+    R = 6_371_000  # Earth radius in meters
+    lat1, lat2 = math.radians(origin_lat), math.radians(dest_lat)
+    dlat = math.radians(dest_lat - origin_lat)
+    dlng = math.radians(dest_lng - origin_lng)
+    a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlng / 2) ** 2
+    distance_m = int(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
+    # Assume 4 km/h walking speed
+    duration_s = int(distance_m / (4000 / 3600))
+    return distance_m, duration_s
+
+
 def get_duration_for_type(place_types: list[str]) -> int:
     """Get estimated visit duration for a place based on its types.
 
-    Iterates through the place's types and returns the duration for the
-    first matching type found in DURATION_BY_TYPE.
-
-    Args:
-        place_types: List of Google Places API type strings.
-
-    Returns:
-        Duration in minutes.
+    This is a last-resort fallback. Prefer LLM-estimated durations or
+    Google Places suggested_duration_minutes when available.
     """
     for place_type in place_types:
         type_lower = place_type.lower()
-        if type_lower in DURATION_BY_TYPE:
-            return DURATION_BY_TYPE[type_lower]
-    return DURATION_BY_TYPE["default"]
+        if type_lower in _FALLBACK_DURATION_BY_TYPE:
+            return _FALLBACK_DURATION_BY_TYPE[type_lower]
+    return _FALLBACK_DURATION_BY_TYPE["default"]

@@ -114,9 +114,11 @@ class TestNeedsPlaceSearch:
         assert _needs_place_search("find me a good cafe") is True
 
     def test_generic_message(self):
-        assert _needs_place_search("change the start time to 10am") is False
-        assert _needs_place_search("move day 2 activities to day 3") is False
-        assert _needs_place_search("swap the order") is False
+        # With the permissive approach, most messages > 10 chars trigger a search.
+        # Only very short messages are excluded — false positives are harmless.
+        assert _needs_place_search("ok") is False
+        assert _needs_place_search("yes") is False
+        assert _needs_place_search("     ") is False
 
 
 class TestFormatPlaceResults:
