@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import type { JourneyPlan, DayPlan, TripSummary, CostBreakdown, Travelers } from '@/types';
 import { api, type TipsResponse } from '@/services/api';
 
+function isAuthError(e: unknown): boolean {
+  return e instanceof Error && e.message === '__auth_required__';
+}
+
 interface TripState {
   // Data
   journey: JourneyPlan | null;
@@ -116,6 +120,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       const trips = await api.listTrips();
       set({ savedTrips: trips });
     } catch (e) {
+      if (isAuthError(e)) return;
       console.error('Failed to load trips:', e);
       const { useUIStore } = await import('./uiStore');
       useUIStore.getState().setError('Failed to load saved trips. Please try again.');
@@ -133,6 +138,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         costBreakdown: trip.cost_breakdown ?? null,
       });
     } catch (e) {
+      if (isAuthError(e)) throw e;
       console.error('Failed to load trip:', e);
       const { useUIStore } = await import('./uiStore');
       useUIStore.getState().setError('Failed to load trip. Please try again.');
@@ -150,6 +156,7 @@ export const useTripStore = create<TripState>((set, get) => ({
           : {}),
       }));
     } catch (e) {
+      if (isAuthError(e)) throw e;
       console.error('Failed to delete trip:', e);
       const { useUIStore } = await import('./uiStore');
       useUIStore.getState().setError('Failed to delete trip. Please try again.');
@@ -165,6 +172,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       const result: TipsResponse = await api.generateTips(tripId, activities);
       set((state) => ({ tips: { ...state.tips, ...result.tips } }));
     } catch (e) {
+      if (isAuthError(e)) return;
       console.error('Failed to fetch tips:', e);
       const { useUIStore } = await import('./uiStore');
       useUIStore.getState().setError('Failed to load tips. Please try again.');

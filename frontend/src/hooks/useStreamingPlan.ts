@@ -61,11 +61,15 @@ export function useStreamingPlan() {
     } catch (err) {
       if (!controller.signal.aborted) {
         const message = err instanceof Error ? err.message : 'Planning failed';
-        const userMessage = message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch') || message.startsWith('HTTP')
-          ? 'Connection lost. Please try again.'
-          : message;
-        setError(userMessage);
-        setPhase('input');
+        if (message === '__auth_required__') {
+          setPhase('input');
+        } else {
+          const userMessage = message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch') || message.startsWith('HTTP')
+            ? 'Connection lost. Please try again.'
+            : message;
+          setError(userMessage);
+          setPhase('input');
+        }
       }
     } finally {
       clearStallTimer();

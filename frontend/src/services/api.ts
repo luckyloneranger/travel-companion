@@ -28,8 +28,9 @@ async function handle401(res: Response): Promise<void> {
     const { useAuthStore } = await import('@/stores/authStore');
     const { useUIStore } = await import('@/stores/uiStore');
     useAuthStore.getState().logout();
+    useUIStore.getState().setError(null);
     useUIStore.getState().openSignIn();
-    throw new Error('Session expired. Please sign in again.');
+    throw new Error('__auth_required__');
   }
 }
 

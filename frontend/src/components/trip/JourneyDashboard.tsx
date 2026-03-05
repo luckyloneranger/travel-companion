@@ -97,7 +97,8 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
       const result = await api.shareTrip(tripId);
       setShareUrl(`${window.location.origin}/shared/${result.token}`);
     } catch (err) {
-      useUIStore.getState().setError(err instanceof Error ? `Share failed: ${err.message}` : 'Share failed');
+      if (!(err instanceof Error && err.message === '__auth_required__'))
+        useUIStore.getState().setError(err instanceof Error ? `Share failed: ${err.message}` : 'Share failed');
     } finally {
       setIsSharing(false);
     }
@@ -107,7 +108,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     if (!tripId) return;
     setIsExporting('pdf');
     try { await api.exportPdf(tripId); }
-    catch { useUIStore.getState().setError('PDF export failed.'); }
+    catch (e) { if (!(e instanceof Error && e.message === '__auth_required__')) useUIStore.getState().setError('PDF export failed.'); }
     finally { setIsExporting(null); }
   }, [tripId]);
 
@@ -115,7 +116,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     if (!tripId) return;
     setIsExporting('calendar');
     try { await api.exportCalendar(tripId); }
-    catch { useUIStore.getState().setError('Calendar export failed.'); }
+    catch (e) { if (!(e instanceof Error && e.message === '__auth_required__')) useUIStore.getState().setError('Calendar export failed.'); }
     finally { setIsExporting(null); }
   }, [tripId]);
 

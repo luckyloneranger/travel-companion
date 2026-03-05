@@ -60,10 +60,12 @@ export function useStreamingDayPlans() {
     } catch (err) {
       if (!controller.signal.aborted) {
         const message = err instanceof Error ? err.message : 'Day plan generation failed';
-        const userMessage = message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch') || message.startsWith('HTTP')
-          ? 'Connection lost. Please try again.'
-          : message;
-        setError(userMessage);
+        if (message !== '__auth_required__') {
+          const userMessage = message.includes('fetch') || message.includes('network') || message.includes('Failed to fetch') || message.startsWith('HTTP')
+            ? 'Connection lost. Please try again.'
+            : message;
+          setError(userMessage);
+        }
       }
     } finally {
       clearStallTimer();
