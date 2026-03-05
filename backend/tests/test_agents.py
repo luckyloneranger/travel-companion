@@ -512,3 +512,39 @@ class TestExcursionBlocking:
         blocked, partial = DayPlanOrchestrator._compute_excursion_schedule([], 3)
         assert blocked == {}
         assert partial == {}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PlannerAgent dimension scores
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestPlannerDimensionScores:
+    @pytest.mark.asyncio
+    async def test_format_issues_with_dimension_scores(self):
+        """Planner formats dimension scores in issue text."""
+        from app.agents.planner import PlannerAgent
+        agent = PlannerAgent(llm=MagicMock())
+        review = ReviewResult(
+            is_acceptable=False, score=55,
+            issues=[ReviewIssue(severity="major", category="routing", description="Backtracking detected")],
+            summary="Needs work",
+            dimension_scores={"time_feasibility": 80, "route_logic": 45, "transport": 70},
+        )
+        result = agent._format_issues(review)
+        assert "route_logic: 45/100 [WEAK]" in result
+        assert "time_feasibility: 80/100 [OK]" in result
+        assert "Backtracking detected" in result
+
+    @pytest.mark.asyncio
+    async def test_format_issues_without_dimension_scores(self):
+        """Planner works fine when no dimension scores present."""
+        from app.agents.planner import PlannerAgent
+        agent = PlannerAgent(llm=MagicMock())
+        review = ReviewResult(
+            is_acceptable=True, score=85,
+            issues=[], summary="Good",
+        )
+        result = agent._format_issues(review)
+        assert "No specific issues" in result
+        assert "Dimension" not in result
