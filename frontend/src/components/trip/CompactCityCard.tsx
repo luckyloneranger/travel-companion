@@ -14,6 +14,7 @@ interface CompactCityCardProps {
   dayPlans?: DayPlan[];
   tips?: Record<string, string>;
   defaultExpanded?: boolean;
+  hideHighlights?: boolean;
 }
 
 const TRANSPORT_ICONS: Record<string, typeof Car> = {
@@ -36,7 +37,7 @@ function parseFare(leg: TravelLeg): number {
   return 0;
 }
 
-export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false }: CompactCityCardProps) {
+export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
   const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
 
@@ -93,8 +94,8 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
         </div>
       </div>
 
-      {/* ── Highlights (always visible) ───────────────────────── */}
-      {city.highlights.length > 0 && (
+      {/* ── Highlights (unless hidden) ───────────────────────────── */}
+      {!hideHighlights && city.highlights.length > 0 && (
         <div className="px-4 pb-2 flex flex-wrap gap-x-3 gap-y-1">
           {city.highlights.map((h) => (
             <span key={h.name} className="text-sm text-text-secondary flex items-center gap-1">

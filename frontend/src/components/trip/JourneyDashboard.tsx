@@ -3,7 +3,7 @@ import {
   MapPin, Calendar, Navigation, ArrowRight, Sparkles,
   MessageSquare, Copy, Check, Share2,
   FileDown, CalendarPlus, ChevronDown, Car, Train, Bus, Plane, Ship,
-  Loader2, RefreshCw, Users,
+  Loader2, RefreshCw, Users, Map as MapIcon, DollarSign, LayoutList,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +43,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [isSharing, setIsSharing] = useState(false);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'budget' | 'map'>('overview');
 
   // Use complete cost breakdown when day plans exist, otherwise estimate from journey data
   const estimatedTotal = (() => {
@@ -126,9 +127,16 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
   if (!journey) return null;
 
+  const tabs = [
+    { id: 'overview' as const, label: 'Overview', icon: Sparkles },
+    { id: 'cities' as const, label: `Cities (${journey.cities.length})`, icon: LayoutList },
+    { id: 'budget' as const, label: 'Budget', icon: DollarSign, hidden: !costBreakdown || !dayPlans || dayPlans.length === 0 },
+    { id: 'map' as const, label: 'Map', icon: MapIcon },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header card */}
+      {/* Header card — always visible */}
       <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
@@ -137,7 +145,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 <Sparkles className="h-5 w-5 text-primary-500 shrink-0" />
                 <span className="break-words">{journey.theme}</span>
               </CardTitle>
-              <CardDescription className="mt-1 leading-relaxed break-words">
+              <CardDescription className="mt-2 text-base leading-relaxed break-words">
                 {journey.summary}
               </CardDescription>
             </div>
@@ -179,73 +187,38 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
           <Separator />
 
-          {/* Route visualization */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {journey.origin && (
-              <span className="flex items-center gap-1.5">
-                <Badge variant="outline" className="text-xs">{journey.origin}</Badge>
-                <ArrowRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
-              </span>
-            )}
-            {journey.cities.map((city, i) => {
-              const leg = i > 0 ? journey.travel_legs.find(l => l.to_city === city.name) : (journey.origin ? journey.travel_legs.find(l => l.to_city === city.name) : null);
-              const TransportIcon = leg ? (TRANSPORT_ICONS[leg.mode] ?? Car) : null;
-              return (
-                <span key={`${city.name}-${i}`} className="flex items-center gap-1.5">
-                  {(i > 0 || journey.origin) && leg && TransportIcon && (
-                    <span className="flex items-center gap-0.5 text-xs text-text-muted">
-                      <TransportIcon className="h-3 w-3" />
-                      <span>{formatDuration(leg.duration_hours)}</span>
-                      <ArrowRight className="h-3 w-3 shrink-0" />
-                    </span>
-                  )}
-                  {i > 0 && !leg && (
-                    <ArrowRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                  )}
-                  <Badge variant="secondary" className="text-xs">{city.name}</Badge>
-                </span>
-              );
-            })}
-          </div>
-
-          <Separator />
-
-          {/* Day plans action button */}
-          {dayPlansGenerating ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCancelDayPlans}
-              className="border-primary-300 text-primary-600"
-            >
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Generating Day Plans...
-            </Button>
-          ) : dayPlans && dayPlans.length > 0 ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onGenerateDayPlans}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Regenerate Day Plans
-            </Button>
-          ) : (
-            <Button
-              onClick={onGenerateDayPlans}
-              size="sm"
-              className="bg-primary-600 hover:bg-primary-700 text-white"
-            >
-              <Calendar className="h-4 w-4" />
-              Generate Day Plans
-            </Button>
-          )}
-
-          {/* Secondary actions */}
+          {/* Actions */}
           <div className="flex flex-wrap gap-2">
+            {/* Day plans action button */}
+            {dayPlansGenerating ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onCancelDayPlans}
+                className="border-primary-300 text-primary-600"
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </Button>
+            ) : dayPlans && dayPlans.length > 0 ? (
+              <Button variant="outline" size="sm" onClick={onGenerateDayPlans}>
+                <RefreshCw className="h-4 w-4" />
+                Regenerate
+              </Button>
+            ) : (
+              <Button
+                onClick={onGenerateDayPlans}
+                size="sm"
+                className="bg-primary-600 hover:bg-primary-700 text-white"
+              >
+                <Calendar className="h-4 w-4" />
+                Generate Day Plans
+              </Button>
+            )}
+
             <Button variant="outline" size="sm" onClick={onOpenChat}>
               <MessageSquare className="h-4 w-4" />
-              Edit via Chat
+              Chat
             </Button>
             <Button variant="outline" size="sm" onClick={handleCopyItinerary}>
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
@@ -277,7 +250,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           {/* Share URL */}
           {shareUrl && (
             <div className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted px-3 py-2">
-              <input type="text" readOnly value={shareUrl} className="flex-1 bg-transparent text-xs text-text-secondary outline-none min-w-0" onFocus={(e) => e.target.select()} />
+              <input type="text" readOnly value={shareUrl} className="flex-1 bg-transparent text-sm text-text-secondary outline-none min-w-0" onFocus={(e) => e.target.select()} />
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(shareUrl).catch(() => window.prompt('Copy:', shareUrl)); }}>
                 <Copy className="h-3.5 w-3.5" /> Copy
               </Button>
@@ -286,45 +259,166 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
         </CardContent>
       </Card>
 
-      {/* Map — auto-visible */}
-      <Suspense fallback={<div className="h-80 rounded-lg bg-surface-muted animate-pulse" />}>
-        <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default">
-          <TripMap journey={journey} />
-        </div>
-      </Suspense>
-
-      {/* City cards */}
-      <div className="space-y-3">
-        {dayPlans && dayPlans.length > 0 && journey.cities.length > 1 && (
-          <div className="flex justify-end">
-            <Button variant="ghost" size="sm" onClick={() => setAllExpanded(!allExpanded)}>
-              {allExpanded ? 'Collapse All' : 'Expand All'}
-            </Button>
-          </div>
-        )}
-        {journey.cities.map((city, i) => {
-          const departureLeg = journey.travel_legs.find(l => l.from_city === city.name);
-          const cityDayPlans = dayPlans?.filter(
-            (dp) => dp.city_name.toLowerCase() === city.name.toLowerCase(),
-          );
+      {/* Tab navigation */}
+      <div className="flex gap-1 border-b border-border-default" role="tablist">
+        {tabs.filter(t => !t.hidden).map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
           return (
-            <CompactCityCard
-              key={`city-${i}-${allExpanded}`}
-              city={city}
-              index={i}
-              departureLeg={departureLeg}
-              dayPlans={cityDayPlans}
-              tips={tips}
-              defaultExpanded={allExpanded}
-            />
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                isActive
+                  ? 'border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400'
+                  : 'border-transparent text-text-muted hover:text-text-primary hover:border-border-default'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
           );
         })}
       </div>
 
-      {/* Budget summary (after day plans exist) */}
-      {costBreakdown && dayPlans && dayPlans.length > 0 && (
-        <BudgetSummary costBreakdown={costBreakdown} totalDays={dayPlans.length} />
-      )}
+      {/* Tab content */}
+      <div role="tabpanel">
+        {/* Overview tab */}
+        {activeTab === 'overview' && (
+          <div className="space-y-4 animate-fade-in-up">
+            {/* Route visualization */}
+            <Card>
+              <CardContent className="py-4">
+                <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Route</h3>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {journey.origin && (
+                    <span className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-xs">{journey.origin}</Badge>
+                      <ArrowRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                    </span>
+                  )}
+                  {journey.cities.map((city, i) => {
+                    const leg = i > 0 ? journey.travel_legs.find(l => l.to_city === city.name) : (journey.origin ? journey.travel_legs.find(l => l.to_city === city.name) : null);
+                    const TransportIcon = leg ? (TRANSPORT_ICONS[leg.mode] ?? Car) : null;
+                    return (
+                      <span key={`${city.name}-${i}`} className="flex items-center gap-1.5">
+                        {(i > 0 || journey.origin) && leg && TransportIcon && (
+                          <span className="flex items-center gap-0.5 text-xs text-text-muted">
+                            <TransportIcon className="h-3 w-3" />
+                            <span>{formatDuration(leg.duration_hours)}</span>
+                            <ArrowRight className="h-3 w-3 shrink-0" />
+                          </span>
+                        )}
+                        {i > 0 && !leg && (
+                          <ArrowRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                        )}
+                        <Badge variant="secondary" className="text-sm cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/40" onClick={() => setActiveTab('cities')}>
+                          {city.name}
+                        </Badge>
+                      </span>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Map preview */}
+            <Suspense fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted animate-pulse" />}>
+              <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default cursor-pointer" onClick={() => setActiveTab('map')}>
+                <TripMap journey={journey} />
+              </div>
+            </Suspense>
+
+            {/* City highlights */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {journey.cities.map((city, i) => (
+                <Card key={i} className="cursor-pointer hover:border-primary-300 transition-colors" onClick={() => setActiveTab('cities')}>
+                  <CardContent className="py-4 px-5">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/40 text-xs font-bold text-primary-700 dark:text-primary-300 shrink-0 mt-0.5">
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-base font-semibold text-text-primary">{city.name}, {city.country}</p>
+                          <span className="text-xs text-text-muted">{city.days} {city.days === 1 ? 'day' : 'days'}</span>
+                        </div>
+                        {city.why_visit && (
+                          <p className="text-sm text-text-secondary mt-1.5 line-clamp-2">{city.why_visit}</p>
+                        )}
+                        {city.highlights.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2.5">
+                            {city.highlights.slice(0, 4).map((h) => (
+                              <span key={h.name} className="inline-flex items-center gap-1 text-xs text-text-muted">
+                                <Sparkles className="h-2.5 w-2.5 text-accent-400" />
+                                {h.name}
+                              </span>
+                            ))}
+                            {city.highlights.length > 4 && (
+                              <span className="text-xs text-text-muted">+{city.highlights.length - 4} more</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Cities tab */}
+        {activeTab === 'cities' && (
+          <div className="space-y-3 animate-fade-in-up">
+            {dayPlans && dayPlans.length > 0 && journey.cities.length > 1 && (
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={() => setAllExpanded(!allExpanded)}>
+                  {allExpanded ? 'Collapse All' : 'Expand All'}
+                </Button>
+              </div>
+            )}
+            {journey.cities.map((city, i) => {
+              const departureLeg = journey.travel_legs.find(l => l.from_city === city.name);
+              const cityDayPlans = dayPlans?.filter(
+                (dp) => dp.city_name.toLowerCase() === city.name.toLowerCase(),
+              );
+              return (
+                <CompactCityCard
+                  key={`city-${i}-${allExpanded}`}
+                  city={city}
+                  index={i}
+                  departureLeg={departureLeg}
+                  dayPlans={cityDayPlans}
+                  tips={tips}
+                  defaultExpanded={allExpanded}
+                  hideHighlights={!!(dayPlans && dayPlans.length > 0)}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* Budget tab */}
+        {activeTab === 'budget' && costBreakdown && dayPlans && dayPlans.length > 0 && (
+          <div className="animate-fade-in-up">
+            <BudgetSummary costBreakdown={costBreakdown} totalDays={dayPlans.length} />
+          </div>
+        )}
+
+        {/* Map tab */}
+        {activeTab === 'map' && (
+          <div className="animate-fade-in-up">
+            <Suspense fallback={<div className="h-[60vh] rounded-lg bg-surface-muted animate-pulse" />}>
+              <div className="h-[60vh] rounded-lg overflow-hidden border border-border-default">
+                <TripMap journey={journey} />
+              </div>
+            </Suspense>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
