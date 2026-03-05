@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { User } from '@/types';
 import { api } from '@/services/api';
 
-import { AUTH_TOKEN_KEY, AUTH_REFRESH_INTERVAL_MS } from '@/constants';
+import { AUTH_TOKEN_KEY } from '@/constants';
 
 const TOKEN_KEY = AUTH_TOKEN_KEY;
 
