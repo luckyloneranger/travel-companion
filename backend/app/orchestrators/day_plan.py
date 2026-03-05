@@ -949,6 +949,13 @@ class DayPlanOrchestrator:
                     f"Strong winds ({forecast.wind_speed_kmh:.0f} km/h) — exercise caution"
                 )
 
+            # Evening activities: check nighttime forecast
+            if is_outdoor and activity.time_start >= "18:00":
+                if forecast.night_precipitation_chance_percent >= 60:
+                    warnings.append(
+                        f"Evening rain likely ({forecast.night_precipitation_chance_percent}%) — consider indoor alternative"
+                    )
+
             if warnings:
                 activity.weather_warning = " | ".join(warnings)
 
