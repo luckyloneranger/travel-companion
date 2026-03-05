@@ -143,7 +143,7 @@ class ChatService:
 
         logger.info("Journey edit request: %s", message)
 
-        raw = await self.llm.generate_structured(
+        result = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=ChatEditResponse,
@@ -151,20 +151,7 @@ class ChatService:
             temperature=0.7,
         )
 
-        # Build the response from the LLM output.
-        updated_journey: JourneyPlan | None = None
-        if raw.get("updated_journey"):
-            try:
-                updated_journey = JourneyPlan.model_validate(raw["updated_journey"])
-            except Exception:
-                logger.warning("Failed to parse updated_journey from LLM response")
-
-        return ChatEditResponse(
-            reply=raw.get("assistant_message", raw.get("understood_request", "")),
-            updated_journey=updated_journey,
-            updated_day_plans=None,
-            changes_made=raw.get("changes_made", []),
-        )
+        return result
 
     async def edit_day_plans(
         self,
@@ -218,7 +205,7 @@ class ChatService:
 
         logger.info("Day plan edit request: %s", message)
 
-        raw = await self.llm.generate_structured(
+        result = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=ChatEditResponse,
@@ -226,22 +213,7 @@ class ChatService:
             temperature=0.7,
         )
 
-        # Parse updated day plans from the LLM output.
-        updated_day_plans: list[DayPlan] | None = None
-        if raw.get("updated_day_plans"):
-            try:
-                updated_day_plans = [
-                    DayPlan.model_validate(dp) for dp in raw["updated_day_plans"]
-                ]
-            except Exception:
-                logger.warning("Failed to parse updated_day_plans from LLM response")
-
-        return ChatEditResponse(
-            reply=raw.get("assistant_message", raw.get("understood_request", "")),
-            updated_journey=None,
-            updated_day_plans=updated_day_plans,
-            changes_made=raw.get("changes_made", []),
-        )
+        return result
 
     # ── Private helpers ──────────────────────────────────────────────────
 

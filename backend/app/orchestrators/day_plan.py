@@ -190,6 +190,7 @@ class DayPlanOrchestrator:
                                 "available_hours": available,
                             })
 
+                from app.services.llm.exceptions import LLMValidationError
                 try:
                     ai_plan = await self.day_planner.plan_days(
                         candidates=candidates,
@@ -203,14 +204,12 @@ class DayPlanOrchestrator:
                         time_constraints=time_constraints if time_constraints else None,
                         travelers_description=request.travelers.summary,
                     )
-                    # Retry once if the LLM returned no usable day groups
-                    if not ai_plan.day_groups:
-                        logger.warning(
-                            "[DayPlanOrchestrator] LLM returned 0 day groups "
-                            "for %s (%d candidates), retrying...",
-                            city_name,
-                            len(candidates),
-                        )
+                except LLMValidationError:
+                    logger.warning(
+                        "[DayPlanOrchestrator] Validation failed for %s, retrying...",
+                        city_name,
+                    )
+                    try:
                         ai_plan = await self.day_planner.plan_days(
                             candidates=candidates,
                             city_name=city_name,
@@ -223,11 +222,23 @@ class DayPlanOrchestrator:
                             time_constraints=time_constraints if time_constraints else None,
                             travelers_description=request.travelers.summary,
                         )
+                    except (LLMValidationError, Exception) as exc:
+                        logger.error(
+                            "[DayPlanOrchestrator] AI planning failed for %s after retry: %s",
+                            city_name, exc,
+                        )
+                        day_offset += city.days
+                        yield ProgressEvent(
+                            phase="city_complete",
+                            message=f"{city_name}: AI planning failed",
+                            progress=pct_end,
+                            data={"city": city_name, "day_plans": []},
+                        )
+                        continue
                 except Exception as exc:
                     logger.error(
                         "[DayPlanOrchestrator] AI planning failed for %s: %s",
-                        city_name,
-                        exc,
+                        city_name, exc,
                     )
                     day_offset += city.days
                     yield ProgressEvent(
