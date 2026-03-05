@@ -189,6 +189,46 @@ REGIONAL_TRANSPORT_PROFILES: dict[str, dict] = {
         "notes": "Flights essential for safari parks. Buses between major cities. Ferry to Zanzibar.",
         "tips": "Precision Air, Fastjet for domestic. Dar Express for buses. Azam Marine for Zanzibar ferry.",
     },
+    "greece": {
+        "popular": ["ferry", "flight", "bus"],
+        "notes": "Ferry island-hopping is essential for Cyclades, Dodecanese, and Saronic islands. KTEL intercity buses connect mainland cities well. Domestic flights via Aegean Airlines and Olympic Air for longer distances. Rail limited outside the Athens-Thessaloniki corridor.",
+        "tips": "Blue Star Ferries and Hellenic Seaways for island ferries — book in advance for July-August. KTEL buses are comfortable and frequent. Athens Metro is excellent for city transport.",
+    },
+    "philippines": {
+        "popular": ["flight", "ferry", "bus"],
+        "notes": "Archipelago nation requiring flights or ferries between islands. Domestic flights via Cebu Pacific, AirAsia Philippines, Philippine Airlines. Jeepneys and tricycles handle local transport. Long-distance buses serve Luzon and Mindanao.",
+        "tips": "2Go Travel for inter-island ferries. Cebu Pacific for budget domestic flights. Victory Liner and JAM Transit for Luzon buses. Grab app works in major cities.",
+    },
+    "nepal": {
+        "popular": ["flight", "bus", "drive"],
+        "notes": "Domestic flights essential for mountain destinations — Yeti Airlines and Buddha Air serve Kathmandu-Pokhara-Lukla routes. Tourist buses connect Kathmandu-Pokhara-Chitwan. No passenger rail network. Mountain roads can be rough and slow.",
+        "tips": "Greenline Deluxe for tourist buses. Domestic flights to Lukla (Everest), Pokhara, Bharatpur. Hire a private car/driver for flexibility on mountain routes.",
+    },
+    "singapore": {
+        "popular": ["train"],
+        "notes": "Compact city-state where MRT covers everything efficiently. No domestic flights needed. Cross-border travel to Malaysia via train or bus (JB Sentral). Changi Airport is a major SE Asia transit hub.",
+        "tips": "EZ-Link or SimplyGo card for MRT and buses. Grab app for taxis. KTM Shuttle or causeway bus to Johor Bahru, Malaysia.",
+    },
+    "laos": {
+        "popular": ["bus", "ferry"],
+        "notes": "Mekong River slow boats (Huay Xai to Luang Prabang, 2 days) are an iconic experience. China-Laos Railway now connects Vientiane to Boten. VIP sleeper buses between major cities. Domestic flights limited via Lao Airlines.",
+        "tips": "Mekong slow boat is a must-do 2-day journey. VIP buses for Vientiane-Luang Prabang overland. China-Laos Railway is fast and modern for the northern corridor.",
+    },
+    "myanmar": {
+        "popular": ["bus", "flight"],
+        "notes": "Long-distance VIP buses dominate intercity travel (JJ Express is the best operator). Domestic flights via Myanmar National Airlines for the Bagan-Inle-Mandalay triangle. Rail exists but is very slow. Irrawaddy river ferries are scenic but time-consuming.",
+        "tips": "JJ Express for comfortable VIP buses. Domestic flights save days on the Bagan-Inle-Mandalay circuit. River cruise between Mandalay and Bagan is a scenic 10-hour option.",
+    },
+    "central_asia": {
+        "popular": ["train", "flight", "drive"],
+        "notes": "Uzbekistan has the excellent Afrosiab high-speed train (Tashkent-Samarkand-Bukhara). Kazakhstan's rail network is decent for long distances. Shared taxis (marshrutkas) are common for shorter routes. Flights between countries are affordable via Uzbekistan Airways and Air Astana.",
+        "tips": "Afrosiab train is the best way to see Uzbekistan's Silk Road cities. Book via UzRailway. Shared taxis for Samarkand-Bukhara if trains sold out. Air Astana for Kazakhstan domestic flights.",
+    },
+    "usa_central": {
+        "popular": ["flight", "drive"],
+        "notes": "Distances between cities are large — flights common for intercity travel. Driving is practical with excellent highways and Interstate system. Amtrak passenger rail is sparse in the central region. No significant intercity bus network.",
+        "tips": "Southwest Airlines and United for hub cities (Denver, Dallas, Chicago). Rent a car for flexibility. Amtrak's Texas Eagle and California Zephyr offer scenic rail routes but are slow.",
+    },
 }
 
 
@@ -219,6 +259,14 @@ def detect_region(origin: str, region: str) -> str:
         if key.replace("_", " ") in text:
             return key
 
+    # Nepal
+    if "nepal" in text or "kathmandu" in text or "pokhara" in text:
+        return "nepal"
+
+    # Singapore
+    if "singapore" in text:
+        return "singapore"
+
     # Regional groupings - Southeast Asia
     se_asia = ["vietnam", "thailand", "indonesia", "malaysia", "cambodia", "laos", "myanmar", "philippines"]
     if any(c in text for c in se_asia):
@@ -237,6 +285,10 @@ def detect_region(origin: str, region: str) -> str:
     if "taiwan" in text:
         return "taiwan"
 
+    # Greece (specific — before generic Europe)
+    if "greece" in text or "greek" in text or "athens" in text or "santorini" in text or "mykonos" in text or "crete" in text:
+        return "greece"
+
     # Europe
     west_eu = ["france", "germany", "italy", "spain", "netherlands", "belgium", "switzerland", "austria", "portugal"]
     east_eu = ["poland", "czech", "hungary", "romania", "bulgaria", "croatia", "serbia", "slovakia", "slovenia"]
@@ -250,6 +302,11 @@ def detect_region(origin: str, region: str) -> str:
         return "scandinavia"
 
     # Americas
+    # USA Central
+    usa_central_terms = ["denver", "austin", "dallas", "houston", "kansas city", "chicago", "minneapolis", "st louis", "nashville", "memphis", "oklahoma", "san antonio", "midwest"]
+    if any(t in text for t in usa_central_terms):
+        return "usa_central"
+
     if any(c in text for c in ["new york", "boston", "dc", "washington", "philadelphia", "east coast", "miami", "atlanta"]):
         return "usa_east"
     if any(c in text for c in ["california", "los angeles", "san francisco", "seattle", "west coast", "pacific", "las vegas", "portland"]):
@@ -292,6 +349,11 @@ def detect_region(origin: str, region: str) -> str:
         return "kenya"
     if "tanzania" in text:
         return "tanzania"
+
+    # Central Asia
+    central_asia_terms = ["uzbekistan", "kazakhstan", "kyrgyzstan", "tajikistan", "turkmenistan", "central asia", "silk road", "tashkent", "samarkand", "bukhara", "almaty"]
+    if any(t in text for t in central_asia_terms):
+        return "central_asia"
 
     return "unknown"
 
