@@ -34,6 +34,11 @@ interface UIState {
   wizardStep: number;
   setWizardStep: (step: number) => void;
 
+  // Sign in modal
+  showSignIn: boolean;
+  openSignIn: () => void;
+  closeSignIn: () => void;
+
   // Day plans background generation
   dayPlansGenerating: boolean;
   setDayPlansGenerating: (generating: boolean) => void;
@@ -84,6 +89,10 @@ export const useUIStore = create<UIState>((set) => ({
   wizardStep: 1,
   setWizardStep: (step) => set({ wizardStep: step }),
 
+  showSignIn: false,
+  openSignIn: () => set({ showSignIn: true }),
+  closeSignIn: () => set({ showSignIn: false }),
+
   dayPlansGenerating: false,
   setDayPlansGenerating: (generating) => set({ dayPlansGenerating: generating }),
 
@@ -98,6 +107,7 @@ export const useUIStore = create<UIState>((set) => ({
       isChatOpen: false,
       wizardStep: 1,
       dayPlansGenerating: false,
+      showSignIn: false,
     });
     sessionStorage.removeItem('tc_phase');
     sessionStorage.removeItem('tc_tripId');

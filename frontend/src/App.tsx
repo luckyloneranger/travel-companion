@@ -8,7 +8,7 @@ import { WizardForm } from '@/components/trip/WizardForm';
 import { PlanningDashboard } from '@/components/trip/PlanningDashboard';
 import { JourneyDashboard } from '@/components/trip/JourneyDashboard';
 import { SharedTrip } from '@/pages/SharedTrip';
-import { SignIn } from '@/pages/SignIn';
+import { SignIn, SignInModal } from '@/pages/SignIn';
 import { useStreamingPlan } from '@/hooks/useStreamingPlan';
 import { useStreamingDayPlans } from '@/hooks/useStreamingDayPlans';
 import { useUIStore } from '@/stores/uiStore';
@@ -18,8 +18,10 @@ import { AlertCircle } from 'lucide-react';
 
 function App() {
   const { phase, isLoading, error, setError } = useUIStore();
+  const showSignIn = useUIStore((s) => s.showSignIn);
+  const closeSignIn = useUIStore((s) => s.closeSignIn);
   const { journey } = useTripStore();
-  const { fetchUser } = useAuthStore();
+  const { fetchUser, user } = useAuthStore();
   const { startPlanning, cancelPlanning } = useStreamingPlan();
   const { startGenerating, cancelGenerating } = useStreamingDayPlans();
 
@@ -43,6 +45,11 @@ function App() {
     const interval = setInterval(fetchUser, AUTH_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [fetchUser]);
+
+  // Close sign-in modal when user signs in
+  useEffect(() => {
+    if (user && showSignIn) closeSignIn();
+  }, [user, showSignIn, closeSignIn]);
 
   const handleGenerateDayPlans = useCallback(() => {
     startGenerating();
@@ -136,6 +143,8 @@ function App() {
           </>
         } />
       </Routes>
+
+      {showSignIn && <SignInModal onClose={closeSignIn} />}
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { useAuthStore } from '@/stores/authStore';
+import { useUIStore } from '@/stores/uiStore';
 import { Button } from '@/components/ui/button';
 import { LogIn, LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 export function AuthButton() {
   const { user, isLoading, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const openSignIn = useUIStore((s) => s.openSignIn);
 
   if (isLoading) return null;
 
@@ -14,7 +14,7 @@ export function AuthButton() {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => navigate('/signin')}
+        onClick={openSignIn}
       >
         <LogIn className="h-4 w-4" />
         Sign In

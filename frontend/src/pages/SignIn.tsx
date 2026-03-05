@@ -1,8 +1,9 @@
-import { MapPin, Plane } from 'lucide-react';
+import { MapPin, Plane, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const WIZARD_STATE_KEY = 'tc_wizard_state';
 
 function GoogleIcon() {
   return (
@@ -23,11 +24,47 @@ function GitHubIcon() {
   );
 }
 
+/** Save current wizard form state to sessionStorage before OAuth redirect. */
+function saveWizardState() {
+  const state = sessionStorage.getItem('tc_phase');
+  if (state === 'input' || !state) {
+    sessionStorage.setItem(WIZARD_STATE_KEY, 'preserve');
+  }
+}
+
+function SignInButtons() {
+  return (
+    <div className="space-y-4">
+      <p className="text-center text-sm text-text-secondary mb-2">
+        Sign in to save trips, share plans, and export itineraries
+      </p>
+
+      <Button
+        variant="outline"
+        className="w-full h-11 justify-start gap-3 text-sm font-medium"
+        onClick={() => { saveWizardState(); window.location.href = `${API_BASE}/api/auth/login/google`; }}
+      >
+        <GoogleIcon />
+        Continue with Google
+      </Button>
+
+      <Button
+        variant="outline"
+        className="w-full h-11 justify-start gap-3 text-sm font-medium"
+        onClick={() => { saveWizardState(); window.location.href = `${API_BASE}/api/auth/login/github`; }}
+      >
+        <GitHubIcon />
+        Continue with GitHub
+      </Button>
+    </div>
+  );
+}
+
+/** Full-page sign-in (for /signin route). */
 export function SignIn() {
   return (
     <div className="min-h-screen bg-surface-dim flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
-        {/* Logo / Branding */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-primary-600 text-white mx-auto">
             <Plane className="h-7 w-7" />
@@ -40,32 +77,10 @@ export function SignIn() {
           </p>
         </div>
 
-        {/* Sign-in card */}
         <Card>
-          <CardContent className="pt-6 space-y-4">
-            <p className="text-center text-sm text-text-secondary mb-2">
-              Sign in to save trips, share plans, and export itineraries
-            </p>
-
-            <Button
-              variant="outline"
-              className="w-full h-11 justify-start gap-3 text-sm font-medium"
-              onClick={() => { window.location.href = `${API_BASE}/api/auth/login/google`; }}
-            >
-              <GoogleIcon />
-              Continue with Google
-            </Button>
-
-            <Button
-              variant="outline"
-              className="w-full h-11 justify-start gap-3 text-sm font-medium"
-              onClick={() => { window.location.href = `${API_BASE}/api/auth/login/github`; }}
-            >
-              <GitHubIcon />
-              Continue with GitHub
-            </Button>
-
-            <div className="relative py-2">
+          <CardContent className="pt-6">
+            <SignInButtons />
+            <div className="relative py-3">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border-default" />
               </div>
@@ -73,7 +88,6 @@ export function SignIn() {
                 <span className="bg-surface px-3 text-xs text-text-muted">or</span>
               </div>
             </div>
-
             <Button
               variant="ghost"
               className="w-full text-sm text-text-muted"
@@ -88,6 +102,37 @@ export function SignIn() {
         <p className="text-center text-xs text-text-muted">
           By signing in, you agree to our terms of service and privacy policy.
         </p>
+      </div>
+    </div>
+  );
+}
+
+/** Modal overlay sign-in (opened from anywhere without losing page state). */
+export function SignInModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm mx-4 animate-fade-in-up">
+        <Card>
+          <CardContent className="pt-6">
+            <button
+              onClick={onClose}
+              className="absolute top-3 right-3 text-text-muted hover:text-text-primary"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="text-center mb-4">
+              <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-primary-600 text-white mx-auto mb-3">
+                <Plane className="h-6 w-6" />
+              </div>
+              <h2 className="text-lg font-display font-bold text-text-primary">
+                Sign in to continue
+              </h2>
+            </div>
+            <SignInButtons />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

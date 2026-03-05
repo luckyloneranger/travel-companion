@@ -22,12 +22,13 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/** Handle 401 responses: logout + redirect to sign-in. */
+/** Handle 401 responses: logout + show sign-in modal. */
 async function handle401(res: Response): Promise<void> {
   if (res.status === 401) {
     const { useAuthStore } = await import('@/stores/authStore');
+    const { useUIStore } = await import('@/stores/uiStore');
     useAuthStore.getState().logout();
-    window.location.href = '/signin';
+    useUIStore.getState().openSignIn();
     throw new Error('Session expired. Please sign in again.');
   }
 }
