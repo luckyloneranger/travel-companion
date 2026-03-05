@@ -1,6 +1,6 @@
 import logging
 
-from app.models.journey import JourneyPlan, ReviewResult, ReviewIssue
+from app.models.journey import JourneyPlan, ReviewResult
 from app.models.trip import TripRequest
 from app.services.llm.base import LLMService
 from app.prompts import journey_prompts
@@ -32,7 +32,7 @@ class ReviewerAgent:
         )
 
         from app.config.planning import LLM_REVIEWER_MAX_TOKENS, LLM_REVIEWER_TEMPERATURE
-        data = await self.llm.generate_structured(
+        result = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=ReviewResult,
@@ -40,7 +40,8 @@ class ReviewerAgent:
             temperature=LLM_REVIEWER_TEMPERATURE,
         )
 
-        return self._parse_result(data, iteration)
+        result.iteration = iteration
+        return result
 
     def _format_cities(self, plan: JourneyPlan) -> str:
         """Format city details for the prompt."""
@@ -70,25 +71,3 @@ class ReviewerAgent:
             if leg.notes:
                 lines.append(f"   Notes: {leg.notes}")
         return "\n".join(lines)
-
-    def _parse_result(self, data: dict, iteration: int) -> ReviewResult:
-        """Parse LLM response into ReviewResult."""
-        issues = []
-        for issue_data in data.get("issues", []):
-            issues.append(ReviewIssue(
-                severity=issue_data.get("severity", "minor"),
-                category=issue_data.get("category", "general"),
-                description=issue_data.get("description", ""),
-                affected_leg=issue_data.get("affected_leg"),
-                affected_city=issue_data.get("affected_city"),
-                suggested_fix=issue_data.get("suggestion", issue_data.get("suggested_fix", "")),
-            ))
-
-        score = data.get("score", 70)
-        return ReviewResult(
-            is_acceptable=score >= 70,
-            score=min(max(score, 0), 100),
-            issues=issues,
-            summary=data.get("summary", ""),
-            iteration=iteration,
-        )

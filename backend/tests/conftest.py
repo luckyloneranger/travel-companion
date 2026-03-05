@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import AsyncGenerator
-from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -95,8 +94,21 @@ class MockLLMService(LLMService):
         schema: type[BaseModel],
         max_tokens: int = 8000,
         temperature: float = 0.7,
-    ) -> dict[str, Any]:
-        return {"message": "mock structured response"}
+        max_retries: int = 2,
+    ) -> BaseModel:
+        """Return a default instance of the requested schema.
+
+        Attempts to build a minimal valid instance. Falls back to an empty
+        model if construction fails (tests that actually exercise
+        generate_structured use their own MagicMock overrides).
+        """
+        try:
+            return schema.model_validate({"message": "mock structured response"})
+        except Exception:
+            # Most schemas don't have a 'message' field. Return a stub that
+            # won't crash the test app fixture (individual tests mock at a
+            # higher level anyway).
+            return schema.model_construct()
 
     async def close(self) -> None:
         pass

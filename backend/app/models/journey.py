@@ -73,7 +73,7 @@ class JourneyPlan(BaseModel):
     origin: str = ""
     cities: list[CityStop]
     travel_legs: list[TravelLeg] = []
-    total_days: int
+    total_days: int = 0
     total_distance_km: float | None = None
     total_travel_hours: float | None = None
     review_score: float | None = None
