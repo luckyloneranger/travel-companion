@@ -20,24 +20,10 @@ logger = logging.getLogger(__name__)
 BASE_URL = "https://places.googleapis.com/v1"
 from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT, PLACES_MIN_RATING as MIN_RATING, PLACES_MIN_RATINGS_COUNT as MIN_RATINGS_COUNT, PLACES_DISCOVERY_RADIUS_KM
 
-# ── Interest-to-place-type mapping ─────────────────────────────────────
-INTEREST_TYPE_MAP: dict[str, list[str]] = {
-    "art": ["art_gallery", "museum"],
-    "history": ["historical_landmark", "museum", "monument"],
-    "food": ["restaurant", "cafe", "bakery"],
-    "nature": ["park", "national_park", "campground"],
-    "shopping": ["shopping_mall", "market"],
-    "nightlife": ["night_club", "bar"],
-    "architecture": ["church", "mosque", "hindu_temple"],
-    "culture": ["cultural_center", "performing_arts_theater"],
-    "adventure": ["amusement_park", "tourist_attraction"],
-    "relaxation": ["spa", "park"],
-    "photography": ["scenic_spot", "tourist_attraction"],
-    "local": ["market", "cafe", "restaurant"],
-}
+from app.config.planning import INTEREST_TO_TYPES as INTEREST_TYPE_MAP
 
-# Types we always include in every discovery search.
-ESSENTIAL_TYPES: list[str] = [
+# Types we always include, but skip if the user's interests already cover them.
+DEFAULT_ESSENTIAL_TYPES: list[str] = [
     "tourist_attraction",
     "museum",
     "park",
@@ -45,6 +31,20 @@ ESSENTIAL_TYPES: list[str] = [
 ]
 
 DINING_TYPES: list[str] = ["restaurant", "cafe", "bakery"]
+
+
+def _get_essential_types(interests: list[str]) -> list[str]:
+    """Return essential place types, filtering out those already covered by interests.
+
+    For example, if the user's interests include 'nature' (which maps to 'park',
+    'national_park', etc.), there's no need to also search 'park' as an essential.
+    """
+    interest_types: set[str] = set()
+    for interest in interests:
+        key = interest.lower().strip()
+        if key in INTEREST_TYPE_MAP:
+            interest_types.update(INTEREST_TYPE_MAP[key])
+    return [t for t in DEFAULT_ESSENTIAL_TYPES if t not in interest_types]
 
 
 class GooglePlacesService:
@@ -131,8 +131,11 @@ class GooglePlacesService:
             if key in INTEREST_TYPE_MAP:
                 interest_types.update(INTEREST_TYPE_MAP[key])
 
+        # Compute essential types that aren't already covered by interests
+        essential_types = _get_essential_types(interests)
+
         # Remove types already covered by essentials.
-        interest_types -= set(ESSENTIAL_TYPES)
+        interest_types -= set(essential_types)
         # Remove dining if already present.
         interest_types -= set(DINING_TYPES)
 
@@ -141,8 +144,8 @@ class GooglePlacesService:
         # Run all category searches in parallel.
         tasks: list[asyncio.Task[list[PlaceCandidate]]] = []
 
-        # Essential types
-        for t in ESSENTIAL_TYPES:
+        # Essential types (interest-aware)
+        for t in essential_types:
             tasks.append(
                 asyncio.ensure_future(
                     self._nearby_search(location, [t], radius_meters)
@@ -380,11 +383,18 @@ class GooglePlacesService:
     def get_photo_url(
         self, photo_reference: str, max_width: int = 400
     ) -> str:
-        """Build a public photo URL for a Places (New) photo reference.
+        """Build a proxied photo URL that does not expose the API key.
 
         *photo_reference* is the ``name`` field from the Photos array,
         e.g. ``places/PLACE_ID/photos/PHOTO_REF``.
         """
+        from urllib.parse import quote
+        return f"/api/places/photo/{quote(photo_reference, safe='')}"
+
+    def get_direct_photo_url(
+        self, photo_reference: str, max_width: int = 400
+    ) -> str:
+        """Build the direct Google Places photo URL (server-side only)."""
         return (
             f"{BASE_URL}/{photo_reference}/media"
             f"?maxWidthPx={max_width}&key={self.api_key}"

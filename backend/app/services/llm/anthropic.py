@@ -33,7 +33,7 @@ class AnthropicLLMService(LLMService):
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            return response.content[0].text
+            return response.content[0].text.replace("\x00", "")
         except anthropic.APIError as e:
             logger.error("Anthropic generate failed: %s", e)
             raise

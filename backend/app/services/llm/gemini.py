@@ -39,7 +39,7 @@ class GeminiLLMService(LLMService):
                     temperature=temperature,
                 ),
             )
-            return response.text or ""
+            return (response.text or "").replace("\x00", "")
         except Exception as e:
             logger.error("Gemini generate failed: %s", e)
             raise
@@ -76,7 +76,7 @@ class GeminiLLMService(LLMService):
                         response_json_schema=schema.model_json_schema(),
                     ),
                 )
-                content = response.text or "{}"
+                content = (response.text or "{}").replace("\x00", "")
                 raw = json.loads(content)
                 return schema.model_validate(raw)
             except ValidationError as e:

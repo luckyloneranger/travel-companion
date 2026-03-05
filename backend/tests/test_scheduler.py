@@ -85,7 +85,7 @@ class TestScheduleBuilderPace:
 
     def test_relaxed_longer_durations(self):
         builder = ScheduleBuilder()
-        place = _make_place("Museum", types=["museum"])  # 120 min base
+        place = _make_place("Museum", types=["museum"])  # 90 min base
         relaxed = builder.build_schedule(
             [place], pace=Pace.RELAXED, schedule_date=date(2026, 3, 4)
         )
@@ -96,7 +96,7 @@ class TestScheduleBuilderPace:
 
     def test_packed_shorter_durations(self):
         builder = ScheduleBuilder()
-        place = _make_place("Museum", types=["museum"])  # 120 min base
+        place = _make_place("Museum", types=["museum"])  # 90 min base
         packed = builder.build_schedule(
             [place], pace=Pace.PACKED, schedule_date=date(2026, 3, 4)
         )
@@ -112,7 +112,8 @@ class TestScheduleBuilderMeals:
     def test_lunch_scheduled_in_window(self):
         builder = ScheduleBuilder()
         places = [
-            _make_place("Morning activity", types=["museum"]),  # 120 min: 09:00-11:00
+            _make_place("Morning activity", types=["museum"]),  # 90 min: 09:00-10:30
+            _make_place("Stroll", types=["park"]),               # 60 min: 10:45-11:45
             _make_place("Lunch spot", types=["restaurant"]),
         ]
         result = builder.build_schedule(places, schedule_date=date(2026, 3, 4))
@@ -123,12 +124,13 @@ class TestScheduleBuilderMeals:
     def test_dinner_scheduled_in_window(self):
         builder = ScheduleBuilder()
         places = [
-            _make_place("Activity 1", types=["museum"]),       # 120 min: 09:00-11:00
-            _make_place("Lunch", types=["restaurant"]),         # 75 min: ~12:30-13:45
-            _make_place("Activity 2", types=["museum"]),        # 120 min: ~14:00-16:00
-            _make_place("Activity 3", types=["park"]),          # 60 min: ~16:15-17:15
-            _make_place("Activity 4", types=["tourist_attraction"]),  # 45 min: ~17:30-18:15
-            _make_place("Dinner", types=["restaurant"]),        # Should wait for 18:00+
+            _make_place("Activity 1", types=["museum"]),            # 90 min: 09:00-10:30
+            _make_place("Activity 2", types=["park"]),              # 60 min: 10:45-11:45
+            _make_place("Lunch", types=["restaurant"]),             # 75 min: ~12:30-13:45
+            _make_place("Activity 3", types=["museum"]),            # 90 min: ~14:00-15:30
+            _make_place("Activity 4", types=["park"]),              # 60 min: ~15:45-16:45
+            _make_place("Activity 5", types=["tourist_attraction"]),  # 45 min: ~17:00-17:45
+            _make_place("Dinner", types=["restaurant"]),            # Should wait for 18:00+
         ]
         result = builder.build_schedule(places, schedule_date=date(2026, 3, 4))
         dinner = next(a for a in result if a.place.name == "Dinner")
@@ -157,11 +159,11 @@ class TestScheduleBuilderDurations:
         assert result[0].duration_minutes == 30
 
     def test_category_duration_defaults(self):
-        """Museum default is 120 min at moderate pace."""
+        """Museum default is 90 min at moderate pace."""
         builder = ScheduleBuilder()
         place = _make_place("A", types=["museum"])
         result = builder.build_schedule([place], schedule_date=date(2026, 3, 4))
-        assert result[0].duration_minutes == 120
+        assert result[0].duration_minutes == 90
 
 
 class TestScheduleBuilderValidation:

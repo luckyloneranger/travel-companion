@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Any, TypeVar
@@ -9,6 +10,16 @@ from .base import LLMService
 from .exceptions import LLMValidationError
 
 logger = logging.getLogger(__name__)
+
+# Transient OpenAI errors worth retrying
+_TRANSIENT_ERRORS = (openai.APITimeoutError, openai.APIConnectionError, openai.InternalServerError, openai.RateLimitError)
+_API_MAX_RETRIES = 2
+_API_RETRY_BASE_DELAY = 2.0
+
+
+def _sanitize_content(text: str) -> str:
+    """Remove null characters that corrupt non-ASCII text from LLM output."""
+    return text.replace("\x00", "")
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -54,20 +65,29 @@ class AzureOpenAILLMService(LLMService):
         temperature: float = 0.7,
     ) -> str:
         """Generate text response."""
-        try:
-            params = self._build_params(max_tokens, temperature)
-            response = await self.client.chat.completions.create(
-                model=self.deployment,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                **params,
-            )
-            return response.choices[0].message.content or ""
-        except openai.OpenAIError as e:
-            logger.error("Azure OpenAI generate failed: %s", e)
-            raise
+        params = self._build_params(max_tokens, temperature)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        for attempt in range(_API_MAX_RETRIES + 1):
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.deployment, messages=messages, **params,
+                )
+                return _sanitize_content(response.choices[0].message.content or "")
+            except _TRANSIENT_ERRORS as e:
+                if attempt < _API_MAX_RETRIES:
+                    delay = _API_RETRY_BASE_DELAY * (2 ** attempt)
+                    logger.warning("Transient OpenAI error (attempt %d/%d), retrying in %.1fs: %s", attempt + 1, _API_MAX_RETRIES + 1, delay, e)
+                    await asyncio.sleep(delay)
+                    continue
+                logger.error("Azure OpenAI generate failed after %d attempts: %s", _API_MAX_RETRIES + 1, e)
+                raise
+            except openai.OpenAIError as e:
+                logger.error("Azure OpenAI generate failed: %s", e)
+                raise
+        raise RuntimeError("Unreachable")
 
     async def generate_structured(
         self,
@@ -88,22 +108,19 @@ class AzureOpenAILLMService(LLMService):
         """
         json_system_prompt = f"{system_prompt}\n\nYou must respond with valid JSON."
         last_errors: list[str] = []
+        params = self._build_params(
+            max_tokens, temperature,
+            response_format={"type": "json_object"},
+        )
+        messages = [
+            {"role": "system", "content": json_system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
 
         for attempt in range(1 + max_retries):
             try:
-                params = self._build_params(
-                    max_tokens, temperature,
-                    response_format={"type": "json_object"},
-                )
-                response = await self.client.chat.completions.create(
-                    model=self.deployment,
-                    messages=[
-                        {"role": "system", "content": json_system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    **params,
-                )
-                content = response.choices[0].message.content or "{}"
+                response = await self._call_with_retry(messages, params)
+                content = _sanitize_content(response.choices[0].message.content or "{}")
                 raw = json.loads(content)
                 return schema.model_validate(raw)
             except ValidationError as e:
@@ -125,6 +142,22 @@ class AzureOpenAILLMService(LLMService):
                 raise
 
         raise LLMValidationError(schema.__name__, last_errors, 1 + max_retries)
+
+    async def _call_with_retry(self, messages: list[dict], params: dict) -> Any:
+        """Call the OpenAI API with retry on transient errors."""
+        for attempt in range(_API_MAX_RETRIES + 1):
+            try:
+                return await self.client.chat.completions.create(
+                    model=self.deployment, messages=messages, **params,
+                )
+            except _TRANSIENT_ERRORS as e:
+                if attempt < _API_MAX_RETRIES:
+                    delay = _API_RETRY_BASE_DELAY * (2 ** attempt)
+                    logger.warning("Transient OpenAI error (attempt %d/%d), retrying in %.1fs: %s", attempt + 1, _API_MAX_RETRIES + 1, delay, e)
+                    await asyncio.sleep(delay)
+                    continue
+                raise
+        raise RuntimeError("Unreachable")
 
     async def close(self) -> None:
         """Cleanup resources."""

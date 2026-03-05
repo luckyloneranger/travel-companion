@@ -24,6 +24,11 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         response.headers["X-Request-ID"] = req_id
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if "server" in response.headers:
+            del response.headers["server"]
         logger.info(
             "Completed %s %s — %d in %.1fms",
             request.method,
