@@ -57,6 +57,11 @@ async def export_calendar(
     if owner is not None and owner != user["sub"]:
         raise HTTPException(404, "Trip not found")
 
+    if not trip.day_plans:
+        raise HTTPException(
+            400, "No day plans generated yet. Generate day plans first to export a calendar."
+        )
+
     from app.services.export import generate_ics
 
     try:
