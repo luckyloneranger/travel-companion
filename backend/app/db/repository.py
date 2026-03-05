@@ -11,7 +11,7 @@ from app.models.day_plan import DayPlan
 from app.models.journey import JourneyPlan
 from app.models.trip import TripRequest, TripResponse, TripSummary
 
-from .models import Trip, TripShare
+from .models import Trip, TripShare, User
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,16 @@ class TripRepository:
         user_id: str | None = None,
     ) -> str:
         """Save a new trip. Returns trip ID."""
+        # Ensure user exists before saving (defensive against FK constraint)
+        if user_id:
+            existing = await self.session.get(User, user_id)
+            if not existing:
+                logger.warning(f"User {user_id} not in DB, creating stub")
+                self.session.add(User(
+                    id=user_id, email=f"{user_id}@unknown", name="Unknown", provider="unknown"
+                ))
+                await self.session.flush()
+
         tid = trip_id or str(uuid.uuid4())
         trip = Trip(
             id=tid,

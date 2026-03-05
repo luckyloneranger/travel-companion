@@ -112,6 +112,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       set({ savedTrips: trips });
     } catch (e) {
       console.error('Failed to load trips:', e);
+      const { useUIStore } = await import('./uiStore');
+      useUIStore.getState().setError('Failed to load saved trips. Please try again.');
     }
   },
 
@@ -127,6 +129,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       });
     } catch (e) {
       console.error('Failed to load trip:', e);
+      const { useUIStore } = await import('./uiStore');
+      useUIStore.getState().setError('Failed to load trip. Please try again.');
       throw e;
     }
   },
@@ -142,6 +146,9 @@ export const useTripStore = create<TripState>((set, get) => ({
       }));
     } catch (e) {
       console.error('Failed to delete trip:', e);
+      const { useUIStore } = await import('./uiStore');
+      useUIStore.getState().setError('Failed to delete trip. Please try again.');
+      throw e;
     }
   },
 
@@ -154,6 +161,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       set((state) => ({ tips: { ...state.tips, ...result.tips } }));
     } catch (e) {
       console.error('Failed to fetch tips:', e);
+      const { useUIStore } = await import('./uiStore');
+      useUIStore.getState().setError('Failed to load tips. Please try again.');
     } finally {
       set({ tipsLoading: false });
     }

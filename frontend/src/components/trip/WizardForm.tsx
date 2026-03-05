@@ -126,7 +126,11 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
     async (e: React.MouseEvent, tripId: string) => {
       e.stopPropagation();
       if (deletingId === tripId) {
-        await deleteTrip(tripId);
+        try {
+          await deleteTrip(tripId);
+        } catch {
+          // Error already surfaced via uiStore
+        }
         setDeletingId(null);
       } else {
         setDeletingId(tripId);
