@@ -34,6 +34,8 @@ export interface CityHighlight {
   description: string;
   category: string;
   suggested_duration_hours: number | null;
+  excursion_type: string | null;
+  excursion_days: number | null;
 }
 
 export interface CityStop {
@@ -150,6 +152,8 @@ export interface DayPlan {
   city_name: string;
   weather: Weather | null;
   daily_cost_usd: number | null;
+  is_excursion: boolean;
+  excursion_name: string | null;
 }
 
 // ── trip.py ────────────────────────────────────────────────

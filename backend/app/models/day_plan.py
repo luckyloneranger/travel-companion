@@ -59,3 +59,5 @@ class DayPlan(BaseModel):
     city_name: str = ""
     weather: Weather | None = None
     daily_cost_usd: float | None = None
+    is_excursion: bool = False
+    excursion_name: str | None = None

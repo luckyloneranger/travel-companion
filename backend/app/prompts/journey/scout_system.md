@@ -58,6 +58,22 @@ Choose the OPTIMAL number of destinations based on:
 - Include at least one food/culinary experience per destination
 - **Duration sanity check**: Total highlight hours per destination should not exceed 70% of available day hours (assume 10 active hours/day). A 2-day destination = ~14 hours of activities max, a 3-day destination = ~21 hours max. This leaves room for meals, travel within the area, and rest.
 
+### 6b. EXCURSIONS & SPECIAL EXPERIENCES
+Some destinations are famous for experiences that don't fit a standard day itinerary. When a destination has such experiences, mark them in highlights with `excursion_type`:
+
+- **full_day**: Theme parks (Disney, Universal Studios), safaris, day cruises, island day-trips — consumes entire day
+- **half_day_morning**: Cooking classes, market tours, morning snorkeling — blocks morning only
+- **half_day_afternoon**: Wine tours, afternoon boat tours, sunset cruises — blocks afternoon only
+- **multi_day**: Ha Long Bay overnight cruises, Sapa treks, desert camping, Mekong Delta tours — spans 2-3 consecutive days. Set `excursion_days` (e.g., 2)
+- **evening**: Dinner cruises, night markets, traditional shows (kabuki, flamenco), pub crawls — evening only, daytime free
+
+Rules:
+- Only mark experiences that GENUINELY require extended time — don't mark a 2-hour museum as full_day
+- Maximum 1 multi_day excursion per destination
+- Full-day excursions must not exceed half the destination's allocated days (e.g., 3-day city → max 1 full_day excursion)
+- Set `excursion_type` on the highlight object. Set `excursion_days` only for multi_day type
+- Not every destination needs excursions — only include them when the destination is genuinely famous for such experiences
+
 ### 7. SAFETY & PRACTICALITY
 - Do NOT suggest destinations in active conflict zones or areas with travel advisories
 - Consider visa/border crossing requirements for multi-country routes

@@ -387,3 +387,128 @@ class TestDayPlannerValidation:
         )
         assert len(result.day_groups) == 2
         assert len(result.selected_place_ids) == 3
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CityHighlight excursion fields
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestCityHighlightExcursion:
+    def test_excursion_fields_default_none(self):
+        from app.models.journey import CityHighlight
+        h = CityHighlight(name="Test")
+        assert h.excursion_type is None
+        assert h.excursion_days is None
+
+    def test_excursion_fields_set(self):
+        from app.models.journey import CityHighlight
+        h = CityHighlight(
+            name="Ha Long Bay Cruise", category="adventure",
+            excursion_type="multi_day", excursion_days=2,
+        )
+        assert h.excursion_type == "multi_day"
+        assert h.excursion_days == 2
+
+    def test_full_day_excursion(self):
+        from app.models.journey import CityHighlight
+        h = CityHighlight(name="Disney", excursion_type="full_day")
+        assert h.excursion_type == "full_day"
+        assert h.excursion_days is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DayPlanOrchestrator excursion day-blocking helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from app.orchestrators.day_plan import DayPlanOrchestrator
+
+
+class TestExcursionBlocking:
+    """Test DayPlanOrchestrator excursion day-blocking helpers."""
+
+    def test_extract_excursions_none(self):
+        from app.models.journey import CityHighlight
+        highlights = [
+            CityHighlight(name="Museum", category="culture"),
+            CityHighlight(name="Temple", category="religious"),
+        ]
+        result = DayPlanOrchestrator._extract_excursions(highlights)
+        assert result == []
+
+    def test_extract_excursions_full_day(self):
+        from app.models.journey import CityHighlight
+        highlights = [
+            CityHighlight(name="Disney", category="entertainment", excursion_type="full_day"),
+            CityHighlight(name="Museum", category="culture"),
+        ]
+        result = DayPlanOrchestrator._extract_excursions(highlights)
+        assert len(result) == 1
+        assert result[0].name == "Disney"
+
+    def test_extract_excursions_multi_day(self):
+        from app.models.journey import CityHighlight
+        highlights = [
+            CityHighlight(name="Ha Long Bay", category="adventure", excursion_type="multi_day", excursion_days=2),
+        ]
+        result = DayPlanOrchestrator._extract_excursions(highlights)
+        assert len(result) == 1
+        assert result[0].excursion_days == 2
+
+    def test_build_excursion_day_plan(self):
+        from app.models.journey import CityHighlight
+        excursion = CityHighlight(
+            name="Ha Long Bay Cruise", category="adventure",
+            description="Overnight cruise through limestone karsts",
+            excursion_type="multi_day", excursion_days=2,
+        )
+        plan = DayPlanOrchestrator._build_excursion_day_plan(
+            excursion=excursion,
+            date_str="2026-06-20",
+            day_number=3,
+            city_name="Hanoi",
+            day_label="Day 1 of 2",
+        )
+        assert plan.is_excursion is True
+        assert "Ha Long Bay Cruise" in plan.excursion_name
+        assert "Day 1 of 2" in plan.excursion_name
+        assert plan.city_name == "Hanoi"
+        assert plan.day_number == 3
+        assert plan.date == "2026-06-20"
+        assert plan.theme == "Ha Long Bay Cruise"
+        assert len(plan.activities) == 1
+        assert plan.activities[0].place.name == "Ha Long Bay Cruise"
+        assert plan.activities[0].notes == "Overnight cruise through limestone karsts"
+
+    def test_compute_schedule_multi_day_at_end(self):
+        from app.models.journey import CityHighlight
+        excursions = [
+            CityHighlight(name="Ha Long Bay", excursion_type="multi_day", excursion_days=2),
+        ]
+        blocked, partial = DayPlanOrchestrator._compute_excursion_schedule(excursions, 4)
+        assert sorted(blocked.keys()) == [2, 3]  # last 2 days
+        assert len(partial) == 0
+
+    def test_compute_schedule_full_day(self):
+        from app.models.journey import CityHighlight
+        excursions = [
+            CityHighlight(name="Disney", excursion_type="full_day"),
+        ]
+        blocked, partial = DayPlanOrchestrator._compute_excursion_schedule(excursions, 3)
+        assert 2 in blocked  # last day
+        assert len(partial) == 0
+
+    def test_compute_schedule_mixed(self):
+        from app.models.journey import CityHighlight
+        excursions = [
+            CityHighlight(name="Ha Long Bay", excursion_type="multi_day", excursion_days=2),
+            CityHighlight(name="Cooking Class", excursion_type="half_day_morning"),
+        ]
+        blocked, partial = DayPlanOrchestrator._compute_excursion_schedule(excursions, 5)
+        assert len(blocked) == 2  # multi-day takes last 2
+        assert len(partial) == 1  # half-day on earliest free day
+
+    def test_compute_schedule_no_excursions(self):
+        blocked, partial = DayPlanOrchestrator._compute_excursion_schedule([], 3)
+        assert blocked == {}
+        assert partial == {}
