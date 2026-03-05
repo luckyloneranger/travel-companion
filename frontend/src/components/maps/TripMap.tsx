@@ -148,7 +148,7 @@ export function TripMap({ journey, onCityClick }: TripMapProps) {
             key={`hotel-${idx}`}
             position={{ lat: accom.location.lat, lng: accom.location.lng }}
             title={accom.name}
-            onClick={() => { setSelectedHotel({ name: accom.name, rating: accom.rating, price: accom.estimated_nightly_usd, location: accom.location! }); setSelectedCity(null); }}
+            onClick={() => { setSelectedHotel({ name: accom.name, rating: accom.rating ?? undefined, price: accom.estimated_nightly_usd ?? undefined, location: accom.location! }); setSelectedCity(null); }}
           >
             <div className="flex flex-col items-center cursor-pointer">
               <span className="mb-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-medium text-white shadow whitespace-nowrap max-w-[160px] truncate">
