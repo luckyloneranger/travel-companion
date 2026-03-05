@@ -7,7 +7,9 @@ import pytest
 from app.agents.scout import ScoutAgent
 from app.agents.reviewer import ReviewerAgent
 from app.agents.planner import PlannerAgent
-from app.models.common import Pace, TransportMode, TravelMode
+from app.agents.day_planner import DayPlannerAgent
+from app.models.common import Location, Pace, TransportMode, TravelMode
+from app.models.internal import AIPlan, DayGroup, PlaceCandidate
 from app.models.journey import (
     CityStop,
     JourneyPlan,
@@ -285,3 +287,102 @@ class TestPlannerValidation:
         review = ReviewResult(is_acceptable=False, score=40, issues=[], summary="Bad", iteration=1)
         result = await agent.fix_plan(original, review, _make_request())
         assert result.theme == "Fixed Plan"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DayPlannerAgent validation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _make_candidates(n: int = 5) -> list[PlaceCandidate]:
+    return [
+        PlaceCandidate(
+            place_id=f"place_{i}",
+            name=f"Place {i}",
+            address=f"Address {i}",
+            location=Location(lat=48.8 + i * 0.01, lng=2.3 + i * 0.01),
+            types=["tourist_attraction"],
+        )
+        for i in range(n)
+    ]
+
+
+class TestDayPlannerValidation:
+    @pytest.mark.asyncio
+    async def test_empty_day_groups_raises(self):
+        mock_llm = MagicMock()
+        empty_plan = AIPlan(selected_place_ids=[], day_groups=[], durations={})
+        mock_llm.generate_structured = AsyncMock(return_value=empty_plan)
+        agent = DayPlannerAgent(llm=mock_llm)
+        with pytest.raises(LLMValidationError, match="No day groups"):
+            await agent.plan_days(
+                candidates=_make_candidates(),
+                city_name="Paris", num_days=2,
+                interests=["art"], pace="moderate",
+            )
+
+    @pytest.mark.asyncio
+    async def test_day_with_no_valid_places_raises(self):
+        mock_llm = MagicMock()
+        plan = AIPlan(
+            selected_place_ids=["place_0", "orphan_only"],
+            day_groups=[
+                DayGroup(theme="Day 1", place_ids=["place_0"]),
+                DayGroup(theme="Day 2", place_ids=["orphan_only"]),  # only orphan
+            ],
+            durations={},
+        )
+        mock_llm.generate_structured = AsyncMock(return_value=plan)
+        agent = DayPlannerAgent(llm=mock_llm)
+        with pytest.raises(LLMValidationError, match="no places"):
+            await agent.plan_days(
+                candidates=_make_candidates(3),
+                city_name="Paris", num_days=2,
+                interests=["art"], pace="moderate",
+            )
+
+    @pytest.mark.asyncio
+    async def test_orphan_ids_cleaned(self):
+        mock_llm = MagicMock()
+        candidates = _make_candidates(3)
+        plan = AIPlan(
+            selected_place_ids=["place_0", "place_1", "orphan_99"],
+            day_groups=[
+                DayGroup(theme="Day 1", place_ids=["place_0", "place_1", "orphan_99"]),
+            ],
+            durations={"place_0": 60, "orphan_99": 30},
+            cost_estimates={"orphan_99": 10.0},
+        )
+        mock_llm.generate_structured = AsyncMock(return_value=plan)
+        agent = DayPlannerAgent(llm=mock_llm)
+        result = await agent.plan_days(
+            candidates=candidates,
+            city_name="Paris", num_days=1,
+            interests=["art"], pace="moderate",
+        )
+        assert "orphan_99" not in result.selected_place_ids
+        assert "orphan_99" not in result.day_groups[0].place_ids
+        assert "orphan_99" not in result.durations
+        assert "orphan_99" not in result.cost_estimates
+
+    @pytest.mark.asyncio
+    async def test_valid_plan_passes(self):
+        mock_llm = MagicMock()
+        candidates = _make_candidates(3)
+        plan = AIPlan(
+            selected_place_ids=["place_0", "place_1", "place_2"],
+            day_groups=[
+                DayGroup(theme="Day 1", place_ids=["place_0", "place_1"]),
+                DayGroup(theme="Day 2", place_ids=["place_2"]),
+            ],
+            durations={"place_0": 60, "place_1": 90, "place_2": 120},
+        )
+        mock_llm.generate_structured = AsyncMock(return_value=plan)
+        agent = DayPlannerAgent(llm=mock_llm)
+        result = await agent.plan_days(
+            candidates=candidates,
+            city_name="Paris", num_days=2,
+            interests=["art"], pace="moderate",
+        )
+        assert len(result.day_groups) == 2
+        assert len(result.selected_place_ids) == 3

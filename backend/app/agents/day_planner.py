@@ -8,9 +8,10 @@ themed days, and estimate visit durations.
 import json
 import logging
 
-from app.models.internal import AIPlan, DayGroup, PlaceCandidate
+from app.models.internal import AIPlan, PlaceCandidate
 from app.prompts import day_plan_prompts
 from app.services.llm.base import LLMService
+from app.services.llm.exceptions import LLMValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,9 @@ class DayPlannerAgent:
         )
 
         from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_DEFAULT_TEMPERATURE
-        data = await self.llm.generate_structured(
+
+        # generate_structured now returns AIPlan model directly
+        plan = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=AIPlan,
@@ -87,47 +90,44 @@ class DayPlannerAgent:
             temperature=LLM_DEFAULT_TEMPERATURE,
         )
 
-        plan = self._parse_plan(data, num_days)
+        # Derive selected_place_ids from day_groups if empty
+        if not plan.selected_place_ids and plan.day_groups:
+            seen: set[str] = set()
+            ids: list[str] = []
+            for group in plan.day_groups:
+                for pid in group.place_ids:
+                    if pid not in seen:
+                        seen.add(pid)
+                        ids.append(pid)
+            plan.selected_place_ids = ids
 
-        # Deduplicate place_ids within and across days
+        # Semantic validation
+        valid_ids = {c.place_id for c in candidates}
+        self._validate_ai_plan(plan, valid_ids)
+
+        # Deduplicate
         plan = self._deduplicate_plan(plan, candidates)
 
-        # Validate: check for orphan IDs (LLM-generated IDs not in candidates)
-        valid_ids = {c.place_id for c in candidates}
-        orphan_ids = [
-            pid for pid in plan.selected_place_ids if pid not in valid_ids
-        ]
+        # Clean orphan IDs (soft — not a hard error)
+        orphan_ids = [pid for pid in plan.selected_place_ids if pid not in valid_ids]
         if orphan_ids:
-            logger.warning(
-                "[DayPlanner] %d orphan place_ids not in candidates: %s",
-                len(orphan_ids),
-                orphan_ids[:5],
-            )
-            # Remove orphan IDs from cost_estimates and durations
+            logger.warning("[DayPlanner] %d orphan place_ids: %s", len(orphan_ids), orphan_ids[:5])
+            plan.selected_place_ids = [pid for pid in plan.selected_place_ids if pid in valid_ids]
+            for group in plan.day_groups:
+                group.place_ids = [pid for pid in group.place_ids if pid in valid_ids]
             for oid in orphan_ids:
                 plan.cost_estimates.pop(oid, None)
                 plan.durations.pop(oid, None)
 
-        # Validate dining presence per day
-        dining_ids = {
-            c.place_id for c in candidates if _is_dining(c)
-        }
+        # Validate dining presence per day (warning only)
+        dining_ids = {c.place_id for c in candidates if _is_dining(c)}
         for i, group in enumerate(plan.day_groups):
             day_dining = [pid for pid in group.place_ids if pid in dining_ids]
             if len(day_dining) == 0:
-                logger.warning(
-                    "[DayPlanner] Day %d (%s) has NO dining places — "
-                    "LLM ignored meal requirement",
-                    i + 1,
-                    group.theme,
-                )
+                logger.warning("[DayPlanner] Day %d (%s) has NO dining places", i + 1, group.theme)
 
-        logger.info(
-            "[DayPlanner] LLM selected %d places across %d day groups",
-            len(plan.selected_place_ids),
-            len(plan.day_groups),
-        )
-
+        logger.info("[DayPlanner] LLM selected %d places across %d day groups",
+                    len(plan.selected_place_ids), len(plan.day_groups))
         return plan
 
     # ------------------------------------------------------------------
@@ -320,82 +320,20 @@ class DayPlannerAgent:
             travelers_description=travelers_description,
         )
 
-    def _parse_plan(self, data: dict, expected_days: int) -> AIPlan:
-        """Parse the LLM response dict into an AIPlan model.
+    def _validate_ai_plan(self, plan: AIPlan, valid_ids: set[str]) -> None:
+        """Validate semantic completeness of an AI plan.
 
-        Handles gracefully when the LLM returns fewer or more day groups
-        than expected.
-
-        Args:
-            data: Raw dict from the LLM structured output.
-            expected_days: Number of days we asked the LLM to plan.
-
-        Returns:
-            Validated AIPlan instance.
+        Raises:
+            LLMValidationError: If the plan is structurally incomplete.
         """
-        try:
-            # Parse day groups
-            day_groups: list[DayGroup] = []
-            for group_data in data.get("day_groups", []):
-                day_groups.append(
-                    DayGroup(
-                        theme=group_data.get("theme", f"Day {len(day_groups) + 1}"),
-                        place_ids=group_data.get("place_ids", []),
-                    )
+        if not plan.day_groups:
+            raise LLMValidationError("AIPlan", ["No day groups returned"], 1)
+
+        for i, group in enumerate(plan.day_groups):
+            valid_place_ids = [pid for pid in group.place_ids if pid in valid_ids]
+            if not valid_place_ids:
+                raise LLMValidationError(
+                    "AIPlan",
+                    [f"Day {i + 1} ({group.theme}) has no places after orphan removal"],
+                    1,
                 )
-
-            # Warn if group count doesn't match expected days
-            if day_groups and len(day_groups) != expected_days:
-                logger.warning(
-                    "[DayPlanner] LLM returned %d day groups but %d were expected. "
-                    "Using what was returned.",
-                    len(day_groups),
-                    expected_days,
-                )
-
-            # Parse selected place IDs
-            selected_ids = data.get("selected_place_ids", [])
-
-            # If selected_place_ids is empty, derive from day_groups
-            if not selected_ids and day_groups:
-                selected_ids = []
-                for group in day_groups:
-                    selected_ids.extend(group.place_ids)
-                # Deduplicate while preserving order
-                seen: set[str] = set()
-                unique_ids: list[str] = []
-                for pid in selected_ids:
-                    if pid not in seen:
-                        seen.add(pid)
-                        unique_ids.append(pid)
-                selected_ids = unique_ids
-
-            # Parse durations
-            durations: dict[str, int] = {}
-            raw_durations = data.get("durations", {})
-            for place_id, minutes in raw_durations.items():
-                if isinstance(minutes, (int, float)):
-                    durations[str(place_id)] = int(minutes)
-
-            # Parse cost estimates
-            cost_estimates: dict[str, float] = {}
-            raw_costs = data.get("cost_estimates", {})
-            for pid, cost in raw_costs.items():
-                if isinstance(cost, (int, float)):
-                    cost_estimates[str(pid)] = float(cost)
-
-            return AIPlan(
-                selected_place_ids=selected_ids,
-                day_groups=day_groups,
-                durations=durations,
-                cost_estimates=cost_estimates,
-            )
-
-        except Exception as e:
-            logger.error("[DayPlanner] Failed to parse LLM response: %s", e)
-            # Return an empty plan rather than crashing
-            return AIPlan(
-                selected_place_ids=[],
-                day_groups=[],
-                durations={},
-            )
