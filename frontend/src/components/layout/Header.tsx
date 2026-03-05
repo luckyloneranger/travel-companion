@@ -43,8 +43,8 @@ export function Header() {
     navigate('/');
   }, [navigate]);
 
-  const showTripContext = phase === 'preview' && journey;
-  const showNewTrip = phase === 'preview';
+  const showTripContext = (phase === 'preview' || phase === 'day-plans') && journey;
+  const showNewTrip = phase === 'preview' || phase === 'day-plans';
 
   return (
     <header className="border-b border-border-default bg-surface px-4 sm:px-6 py-3 sm:py-4">
