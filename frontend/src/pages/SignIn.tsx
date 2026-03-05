@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { MapPin, Plane, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -109,8 +110,17 @@ export function SignIn() {
 
 /** Modal overlay sign-in (opened from anywhere without losing page state). */
 export function SignInModal({ onClose }: { onClose: () => void }) {
+  // Trap focus and handle ESC
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Sign in">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-sm mx-4 animate-fade-in-up">
         <Card>

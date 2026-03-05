@@ -131,7 +131,17 @@ function MainApp() {
     <div className="max-w-lg mx-auto mb-4 animate-fade-in-up">
       <div role="alert" className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg flex items-start gap-3">
         <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-        <p className="text-sm flex-1">{error}</p>
+        <div className="flex-1">
+          <p className="text-sm">{error}</p>
+          {(error.includes('Connection lost') || error.includes('try again') || error.includes('interrupted')) && (
+            <button
+              onClick={() => { setError(null); window.location.reload(); }}
+              className="text-xs mt-1 underline text-red-600 dark:text-red-300 hover:text-red-800 dark:hover:text-red-100"
+            >
+              Retry
+            </button>
+          )}
+        </div>
         <button
           onClick={() => setError(null)}
           className="text-red-400 hover:text-red-600 dark:hover:text-red-200 font-bold text-lg leading-none shrink-0"

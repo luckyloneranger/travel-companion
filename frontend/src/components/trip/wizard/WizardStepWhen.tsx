@@ -34,7 +34,8 @@ function CounterInput({ label, sublabel, value, min, max, onChange }: {
           type="button"
           onClick={() => onChange(Math.max(min, value - 1))}
           disabled={value <= min}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-border-default bg-surface text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-surface-muted transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-border-default bg-surface text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-surface-muted transition-colors"
+          aria-label={`Decrease ${label}`}
         >
           <Minus className="h-3.5 w-3.5" />
         </button>
@@ -43,7 +44,8 @@ function CounterInput({ label, sublabel, value, min, max, onChange }: {
           type="button"
           onClick={() => onChange(Math.min(max, value + 1))}
           disabled={value >= max}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-border-default bg-surface text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-surface-muted transition-colors"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-border-default bg-surface text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-surface-muted transition-colors"
+          aria-label={`Increase ${label}`}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>

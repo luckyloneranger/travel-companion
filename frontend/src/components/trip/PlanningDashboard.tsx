@@ -82,7 +82,11 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
 
     if (progress.message && progress.message !== prevMessageRef.current) {
       prevMessageRef.current = progress.message;
-      setActivityLog((prev) => [...prev, progress.message]);
+      setActivityLog((prev) => {
+        // Deduplicate consecutive identical messages
+        if (prev.length > 0 && prev[prev.length - 1] === progress.message) return prev;
+        return [...prev, progress.message];
+      });
     }
 
     // Track city progress for day plans mode

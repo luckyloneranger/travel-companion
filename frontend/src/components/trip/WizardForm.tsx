@@ -160,6 +160,8 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
         setDeletingId(null);
       } else {
         setDeletingId(tripId);
+        // Auto-reset confirmation after 3 seconds
+        setTimeout(() => setDeletingId((current) => current === tripId ? null : current), 3000);
       }
     },
     [deletingId, deleteTrip],
@@ -249,7 +251,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       </div>
 
       {/* Recent Trips */}
-      {savedTrips.length > 0 && (
+      {savedTrips.length > 0 ? (
         <div className="mt-4 space-y-3">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider px-1 flex items-center gap-1.5">
             <FolderOpen className="h-4 w-4" />
@@ -319,7 +321,12 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
             ))}
           </div>
         </div>
-      )}
+      ) : user ? (
+        <div className="mt-4 text-center py-6 text-text-muted">
+          <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-40" />
+          <p className="text-sm">No trips yet. Plan your first adventure above!</p>
+        </div>
+      ) : null}
     </div>
   );
 }

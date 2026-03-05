@@ -42,6 +42,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [showExport, setShowExport] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [allExpanded, setAllExpanded] = useState(true);
 
   // Use complete cost breakdown when day plans exist, otherwise estimate from journey data
   const estimatedTotal = (() => {
@@ -95,7 +96,10 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     setIsSharing(true);
     try {
       const result = await api.shareTrip(tripId);
-      setShareUrl(`${window.location.origin}/shared/${result.token}`);
+      const url = `${window.location.origin}/shared/${result.token}`;
+      setShareUrl(url);
+      // Auto-copy to clipboard
+      navigator.clipboard.writeText(url).catch(() => {});
     } catch (err) {
       if (!(err instanceof Error && err.message === '__auth_required__'))
         useUIStore.getState().setError(err instanceof Error ? `Share failed: ${err.message}` : 'Share failed');
@@ -291,6 +295,13 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
       {/* City cards */}
       <div className="space-y-3">
+        {dayPlans && dayPlans.length > 0 && journey.cities.length > 1 && (
+          <div className="flex justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setAllExpanded(!allExpanded)}>
+              {allExpanded ? 'Collapse All' : 'Expand All'}
+            </Button>
+          </div>
+        )}
         {journey.cities.map((city, i) => {
           const departureLeg = journey.travel_legs.find(l => l.from_city === city.name);
           const cityDayPlans = dayPlans?.filter(
@@ -298,12 +309,13 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           );
           return (
             <CompactCityCard
-              key={`city-${i}`}
+              key={`city-${i}-${allExpanded}`}
               city={city}
               index={i}
               departureLeg={departureLeg}
               dayPlans={cityDayPlans}
               tips={tips}
+              defaultExpanded={allExpanded}
             />
           );
         })}
