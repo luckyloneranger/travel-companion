@@ -63,6 +63,7 @@ class DayPlanOrchestrator:
         self.weather = weather
         self.optimizer = RouteOptimizer()
         self.scheduler = ScheduleBuilder()
+        self._route_cache: dict[tuple, Route] = {}
 
     # ------------------------------------------------------------------
     # Excursion scheduling helpers
@@ -201,6 +202,9 @@ class DayPlanOrchestrator:
 
         try:
             for city_idx, city in enumerate(journey.cities):
+                # Clear route cache for each new city
+                self._route_cache.clear()
+
                 city_name = city.name
                 pct_start = int((city_idx / total_cities) * 100)
                 pct_end = int(((city_idx + 1) / total_cities) * 100)
@@ -562,6 +566,17 @@ class DayPlanOrchestrator:
                         if a.estimated_cost_usd is not None
                     )
 
+                    # Budget warning
+                    if request.budget_usd and request.total_days:
+                        daily_budget = request.budget_usd / request.total_days
+                        if daily_cost > 0 and daily_cost > daily_budget * 1.2:
+                            logger.warning(
+                                "[DayPlanOrchestrator] %s day %d: estimated cost $%.0f exceeds "
+                                "daily budget $%.0f by %.0f%%",
+                                city_name, day_idx + 1, daily_cost, daily_budget,
+                                ((daily_cost / daily_budget) - 1) * 100,
+                            )
+
                     city_plans.append(
                         DayPlan(
                             date=str(schedule_date),
@@ -837,6 +852,14 @@ class DayPlanOrchestrator:
         destination: Location,
     ) -> Route:
         """Query WALK, DRIVE, and TRANSIT via Routes API in parallel, pick the best."""
+        # Check route cache
+        cache_key = (
+            round(origin.lat, 5), round(origin.lng, 5),
+            round(destination.lat, 5), round(destination.lng, 5),
+        )
+        if cache_key in self._route_cache:
+            return self._route_cache[cache_key]
+
         walk_task = self.routes.compute_route(origin, destination, TravelMode.WALK)
         drive_task = self.routes.compute_route(origin, destination, TravelMode.DRIVE)
         transit_task = self.routes.compute_route(origin, destination, TravelMode.TRANSIT)
@@ -854,7 +877,9 @@ class DayPlanOrchestrator:
         if not candidates:
             return self.routes._fallback_route(TravelMode.WALK)
 
-        return self._pick_best_route(candidates)
+        result = self._pick_best_route(candidates)
+        self._route_cache[cache_key] = result
+        return result
 
     @staticmethod
     def _pick_best_route(candidates: list[Route]) -> Route:
