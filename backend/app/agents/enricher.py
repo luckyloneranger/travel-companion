@@ -334,6 +334,11 @@ class EnricherAgent:
                     best_transit.duration_seconds / 3600, 2
                 )
                 leg.fare = best_transit.fare
+                # Try to update fare_usd from the new fare string
+                if best_transit.fare:
+                    parsed = self._try_parse_fare_usd(best_transit.fare)
+                    if parsed is not None:
+                        leg.fare_usd = parsed
                 leg.num_transfers = best_transit.num_transfers
                 leg.departure_time = best_transit.departure_time
                 leg.arrival_time = best_transit.arrival_time
@@ -352,12 +357,17 @@ class EnricherAgent:
                                 desc += f" ({step.line.agency})"
                             step_descriptions.append(desc)
                     if step_descriptions:
-                        leg.notes = " -> ".join(step_descriptions)
+                        transit_info = " -> ".join(step_descriptions)
                         if best_transit.departure_time and best_transit.arrival_time:
-                            leg.notes += (
+                            transit_info += (
                                 f" | {best_transit.departure_time}"
                                 f" -> {best_transit.arrival_time}"
                             )
+                        # Preserve original notes and booking_tip
+                        parts = [transit_info]
+                        if leg.booking_tip:
+                            parts.append(f"Booking: {leg.booking_tip}")
+                        leg.notes = " | ".join(parts)
                 return
 
         # For driving, use real driving data.
@@ -366,10 +376,15 @@ class EnricherAgent:
             leg.duration_hours = round(driving.duration_seconds / 3600, 2)
             leg.distance_km = round(driving.distance_meters / 1000, 1)
             leg.polyline = driving.polyline
-            leg.notes = (
+            drive_info = (
                 f"Drive: {driving.duration_text}, "
                 f"{round(driving.distance_meters / 1000, 1)}km"
             )
+            # Preserve original notes and booking_tip
+            parts = [drive_info]
+            if leg.booking_tip:
+                parts.append(f"Booking: {leg.booking_tip}")
+            leg.notes = " | ".join(parts)
             return
 
         # Fallback: use driving distance as baseline for any mode.
@@ -387,6 +402,18 @@ class EnricherAgent:
                 leg.duration_hours = round(
                     options.driving.duration_seconds / 3600, 2
                 )
+
+    @staticmethod
+    def _try_parse_fare_usd(fare_string: str) -> float | None:
+        """Try to parse a USD numeric value from a fare string like '$12.50' or 'USD 5.50'."""
+        import re
+        if not fare_string:
+            return None
+        # Match patterns like "$12.50", "USD 5.50", "12.50"
+        match = re.search(r'\$?\s*(\d+(?:\.\d{1,2})?)', fare_string)
+        if match:
+            return float(match.group(1))
+        return None
 
     @staticmethod
     def _find_best_transit_route(

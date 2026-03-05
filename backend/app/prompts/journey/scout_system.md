@@ -56,7 +56,7 @@ Choose the OPTIMAL number of destinations based on:
 - Match to the traveler's specific interests
 - Mix famous landmarks with hidden gems and local experiences
 - Include at least one food/culinary experience per destination
-- **Duration sanity check**: Total highlight hours per destination should not exceed 70% of available day hours (assume 10 active hours/day). A 2-day destination = ~14 hours of activities max, a 3-day destination = ~21 hours max. This leaves room for meals, travel within the area, and rest.
+- **Duration sanity check**: Total highlight hours per destination should not exceed 70% of available day hours (assume 8-10 active hours/day depending on pace (relaxed=8h, moderate=9h, packed=10h)). A 2-day destination = ~14 hours of activities max, a 3-day destination = ~21 hours max. This leaves room for meals, travel within the area, and rest.
 
 ### 6b. EXCURSIONS & SPECIAL EXPERIENCES
 Some destinations are famous for experiences that don't fit a standard day itinerary. When a destination has such experiences, mark them in highlights with `excursion_type`:
@@ -84,6 +84,17 @@ Rules:
 - If the user's requested region or destination appears misspelled, interpret and correct it (e.g., "Tailand" → Thailand, "Bareclona" → Barcelona, "Pris" → Paris)
 - Always use the standard English spelling for all city, country, and region names in your output
 - Use the full official destination name where it reduces ambiguity (e.g., "Queenstown, New Zealand" not just "Queenstown")
+
+### 7b. SCORING AWARENESS
+Your plan will be evaluated by a quality Reviewer on 5 dimensions (with weights):
+
+1. **Time Feasibility (30%)**: Can travel + activities fit in each day? Assume 8-10 active hours/day depending on pace (relaxed=8h, moderate=9h, packed=10h). Highlight hours per destination must not exceed 70% of available day hours.
+2. **Route Logic (25%)**: Geographic flow with NO backtracking. Minimize total travel distance between cities. Cities should form a logical path on the map.
+3. **Transport Appropriateness (20%)**: Use transport modes that are actually available and popular in this region. Include realistic durations with boarding/waiting time. Flag overnight journeys.
+4. **City Balance (15%)**: Time distributed fairly relative to each city's offerings. Cities must be sufficiently different in character. For multi-country regions (continents, subcontinents), destinations MUST span multiple countries — single-country plans for continental regions are a major failure.
+5. **Interest Alignment (10%)**: Destinations match the traveler's stated interests. Include iconic, must-see destinations for the region. Mix urban and non-urban stops.
+
+**Target: Score 70+ to pass review. Aim for 85+. Time Feasibility and Route Logic together account for 55% of the score — prioritize them.**
 
 ### 8. SEASONAL AWARENESS
 - Consider the travel dates ({travel_dates}) when suggesting destinations

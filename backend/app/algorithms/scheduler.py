@@ -295,6 +295,18 @@ class ScheduleBuilder:
                 minutes=travel_minutes + self.config.buffer_minutes
             )
 
+        # Validate meal count
+        meal_count = sum(
+            1 for a in schedule
+            if a.place.category.lower() in {"restaurant", "cafe", "bakery", "bar", "dining", "food"}
+            and a.duration_minutes > 0
+        )
+        if meal_count < 2:
+            logger.warning(
+                "[Scheduler] Schedule has only %d dining activities (expected 2: lunch + dinner)",
+                meal_count,
+            )
+
         return schedule
 
     # ------------------------------------------------------------------

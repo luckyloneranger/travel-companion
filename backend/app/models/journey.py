@@ -67,6 +67,7 @@ class ReviewResult(BaseModel):
     issues: list[ReviewIssue] = []
     summary: str = ""
     iteration: int = 1
+    dimension_scores: dict[str, int] = {}
 
 
 class JourneyPlan(BaseModel):

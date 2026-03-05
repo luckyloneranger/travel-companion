@@ -84,10 +84,17 @@ class PlannerAgent:
         return "\n".join(lines)
 
     def _format_issues(self, review: ReviewResult) -> str:
-        """Format review issues for the planner."""
-        if not review.issues:
-            return "No specific issues."
+        """Format review issues and dimension scores for the planner."""
         lines = []
+        if review.dimension_scores:
+            lines.append("**Dimension Scores (focus on WEAK areas):**")
+            for dim, score in review.dimension_scores.items():
+                status = "WEAK" if score < 70 else ("OK" if score < 85 else "GOOD")
+                lines.append(f"  - {dim}: {score}/100 [{status}]")
+            lines.append("")
+        if not review.issues:
+            lines.append("No specific issues.")
+            return "\n".join(lines)
         for issue in review.issues:
             lines.append(f"- [{issue.severity.upper()}] {issue.description}")
             if issue.suggested_fix:

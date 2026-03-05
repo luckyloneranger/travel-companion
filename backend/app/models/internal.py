@@ -25,6 +25,12 @@ class PlaceCandidate(BaseModel):
     website: str | None = None
     editorial_summary: str | None = None
     suggested_duration_minutes: int | None = None
+    good_for_children: bool | None = None
+    good_for_groups: bool | None = None
+    serves_vegetarian_food: bool | None = None
+    serves_brunch: bool | None = None
+    serves_lunch: bool | None = None
+    serves_dinner: bool | None = None
 
 
 class DayGroup(BaseModel):
