@@ -38,11 +38,10 @@ export function Header() {
   }, [navigate]);
 
   const handleGoHome = useCallback(() => {
-    if (phase !== 'input') {
-      useUIStore.getState().setPhase('input');
-      navigate('/');
-    }
-  }, [phase, navigate]);
+    useTripStore.getState().reset();
+    useUIStore.getState().resetUI();
+    navigate('/');
+  }, [navigate]);
 
   const showTripContext = phase === 'preview' && journey;
   const showNewTrip = phase === 'preview';
