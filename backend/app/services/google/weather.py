@@ -33,6 +33,9 @@ class WeatherForecast:
         wind_speed_kmh: float,
         humidity_percent: int,
         uv_index: int | None = None,
+        night_condition: str = "",
+        night_temperature_c: float | None = None,
+        night_precipitation_chance_percent: int = 0,
     ):
         self.date = date
         self.temperature_high_c = temperature_high_c
@@ -42,6 +45,9 @@ class WeatherForecast:
         self.wind_speed_kmh = wind_speed_kmh
         self.humidity_percent = humidity_percent
         self.uv_index = uv_index
+        self.night_condition = night_condition
+        self.night_temperature_c = night_temperature_c
+        self.night_precipitation_chance_percent = night_precipitation_chance_percent
 
 
 class GoogleWeatherService:
@@ -175,6 +181,17 @@ class GoogleWeatherService:
         # UV Index — from daytime forecast
         uv = daytime.get("uvIndex")
 
+        # Nighttime forecast
+        nighttime = day_data.get("nighttimeForecast", {})
+        night_cond_data = nighttime.get("weatherCondition", {})
+        night_condition = night_cond_data.get("description", {}).get("text", "")
+        if not night_condition:
+            raw_type = night_cond_data.get("type", "")
+            night_condition = raw_type.replace("_", " ").title() if raw_type else ""
+        night_precip = nighttime.get("precipitation", {}).get("probability", {}).get("percent", 0)
+        night_temp_raw = nighttime.get("temperature", {}).get("degrees")
+        night_temp = float(night_temp_raw) if night_temp_raw is not None else None
+
         return WeatherForecast(
             date=forecast_date,
             temperature_high_c=high_c,
@@ -184,6 +201,9 @@ class GoogleWeatherService:
             wind_speed_kmh=wind_kmh,
             humidity_percent=int(humidity),
             uv_index=int(uv) if uv is not None else None,
+            night_condition=night_condition,
+            night_temperature_c=night_temp,
+            night_precipitation_chance_percent=int(night_precip),
         )
 
 
