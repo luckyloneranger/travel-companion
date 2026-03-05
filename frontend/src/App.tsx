@@ -52,7 +52,7 @@ function App() {
 
   // Browser back/forward button navigation
   useEffect(() => {
-    const validPhases = new Set(['input', 'preview']);
+    const validPhases = new Set(['input', 'preview', 'day-plans']);
     const handler = (e: PopStateEvent) => {
       const targetPhase = e.state?.phase as string | undefined;
       if (targetPhase && validPhases.has(targetPhase)) {
@@ -118,7 +118,7 @@ function App() {
                 </div>
               )}
 
-              {phase === 'preview' && journey && (
+              {(phase === 'preview' || phase === 'day-plans') && journey && (
                 <div key="preview" className="animate-fade-in-up">
                   <JourneyDashboard
                     onGenerateDayPlans={handleGenerateDayPlans}

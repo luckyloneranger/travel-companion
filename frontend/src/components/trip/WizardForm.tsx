@@ -113,6 +113,8 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       try {
         await loadTrip(trip.id);
         setPhase(trip.has_day_plans ? 'day-plans' : 'preview');
+      } catch {
+        // loadTrip already logs the error
       } finally {
         setLoadingTripId(null);
       }

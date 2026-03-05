@@ -127,6 +127,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       });
     } catch (e) {
       console.error('Failed to load trip:', e);
+      throw e;
     }
   },
 
