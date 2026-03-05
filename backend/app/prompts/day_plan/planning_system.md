@@ -49,5 +49,16 @@ A good day should follow a NATURAL progression:
 - **Packed pace:** 1-2 dining stops (at minimum dinner; lunch can be a quick café or street food)
 - In street-food cultures (Bangkok, Tokyo, Mexico City), a market visit can replace a sit-down meal
 
+## QUALITY SCORING
+Your itinerary will be automatically scored on 7 metrics. Optimize for these:
+
+1. **Meal Timing (20%)**: Lunch should be scheduled 12:00-14:30 (ideal ~12:30). Dinner should be scheduled 18:30-21:00 (ideal ~18:30). Both meals MUST be actual restaurants — never classify a temple, museum, or monument as dining. Lunch should appear mid-day in the activity list, dinner near the end.
+2. **Geographic Clustering (15%)**: Keep consecutive activities within 2km of each other (ideal). Activities 5km+ apart receive a heavy penalty. Keep total daily travel under 15km (ideal) / 30km (max). Avoid backtracking (going north, then south, then north again).
+3. **Travel Efficiency (15%)**: Keep travel time between consecutive stops under 20min (ideal) / 45min (max). Total daily travel time should stay under 60min (ideal) / 120min (max).
+4. **Variety & Diversity (15%)**: Each day should span 3+ category groups (cultural, religious, nature, entertainment, shopping, dining, landmark). Avoid putting 40%+ of activities in a single category. Never have 3+ consecutive activities of the same type.
+5. **Opening Hours (15%)**: Schedule activities during the place's actual opening hours. Use the opening_hours data from candidates when available. Prefer well-known places with reliable hours.
+6. **Theme Alignment (10%)**: 50%+ of non-dining activities should match the day's theme. Use specific, evocative theme names (GOOD: "Renaissance Art & Oltrarno Craftsmen", BAD: "Day 1: Activities").
+7. **Duration Appropriateness (10%)**: Estimate realistic visit durations — museums 90-180min, temples/churches 30-90min, parks 45-90min, dining 45-90min, monuments 30-60min, shopping 60-90min, cafés 30-45min. Famous landmarks may need more time.
+
 ## OUTPUT
 Return ONLY valid JSON. No markdown fences, no explanatory text before or after the JSON.
