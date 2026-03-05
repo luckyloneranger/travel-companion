@@ -280,7 +280,7 @@ class TestWeatherWarnings:
         activities = [self._make_activity("City Park", "park")]
         result = DayPlanOrchestrator._add_weather_warnings(activities, forecast)
         assert result[0].weather_warning is not None
-        assert "Rain likely" in result[0].weather_warning
+        assert "rain" in result[0].weather_warning.lower()
 
     def test_no_warning_for_indoor(self):
         from app.orchestrators.day_plan import DayPlanOrchestrator

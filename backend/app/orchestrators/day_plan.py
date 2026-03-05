@@ -15,7 +15,7 @@ from collections.abc import AsyncGenerator
 from datetime import time, timedelta
 
 from app.agents.day_planner import DayPlannerAgent
-from app.algorithms.scheduler import ScheduleBuilder
+from app.algorithms.scheduler import ScheduleBuilder, ScheduleConfig
 from app.algorithms.tsp import RouteOptimizer, haversine_distance
 from app.models.common import Location, Pace, TravelMode
 from app.models.day_plan import Activity, DayPlan, Place, Route, Weather
@@ -394,6 +394,7 @@ class DayPlanOrchestrator:
                         must_include=request.must_include if request.must_include else None,
                         time_constraints=time_constraints if time_constraints else None,
                         travelers_description=request.travelers.summary,
+                        country=city.country or "",
                     )
                 except LLMValidationError:
                     logger.warning(
@@ -412,6 +413,7 @@ class DayPlanOrchestrator:
                             must_include=request.must_include if request.must_include else None,
                             time_constraints=time_constraints if time_constraints else None,
                             travelers_description=request.travelers.summary,
+                            country=city.country or "",
                         )
                     except (LLMValidationError, Exception) as exc:
                         logger.error(
@@ -529,6 +531,7 @@ class DayPlanOrchestrator:
                         day_start_time=day_start_time,
                         day_end_time=day_end_time,
                         cost_estimates=ai_plan.cost_estimates,
+                        country=city.country,
                     )
 
                     # d. Bookend — add hotel departure/return
@@ -542,7 +545,7 @@ class DayPlanOrchestrator:
 
                     # e. Compute routes between consecutive activities
                     activities = await self._compute_routes_via_matrix(
-                        activities
+                        activities, pace=request.pace,
                     )
 
                     # f. Attach weather and add warnings to outdoor activities
@@ -801,6 +804,7 @@ class DayPlanOrchestrator:
     async def _compute_activity_routes(
         self,
         activities: list[Activity],
+        pace: Pace = Pace.MODERATE,
     ) -> list[Activity]:
         """Compute routes between consecutive activities.
 
@@ -825,6 +829,7 @@ class DayPlanOrchestrator:
             self._compute_best_route_for_leg(
                 activities[i].place.location,
                 activities[i + 1].place.location,
+                pace=pace,
             )
             for i in range(len(activities) - 1)
         ]
@@ -849,6 +854,7 @@ class DayPlanOrchestrator:
     async def _compute_routes_via_matrix(
         self,
         activities: list[Activity],
+        pace: Pace = Pace.MODERATE,
     ) -> list[Activity]:
         """Compute routes using distance matrix for mode selection + individual calls for polylines.
 
@@ -886,7 +892,7 @@ class DayPlanOrchestrator:
                 tasks.append(None)
                 selected_modes.append(TravelMode.WALK)  # placeholder, won't be used
             else:
-                best_mode = self._pick_best_mode_from_matrix(matrices, i)
+                best_mode = self._pick_best_mode_from_matrix(matrices, i, pace=pace)
                 selected_modes.append(best_mode)
                 tasks.append(
                     asyncio.ensure_future(
@@ -929,6 +935,7 @@ class DayPlanOrchestrator:
         self,
         origin: Location,
         destination: Location,
+        pace: Pace = Pace.MODERATE,
     ) -> Route:
         """Query WALK, DRIVE, and TRANSIT via Routes API in parallel, pick the best."""
         # Check route cache
@@ -956,12 +963,38 @@ class DayPlanOrchestrator:
         if not candidates:
             return self.routes._fallback_route(TravelMode.WALK)
 
-        result = self._pick_best_route(candidates)
+        result = self._pick_best_route(candidates, pace=pace)
         self._route_cache[cache_key] = result
         return result
 
     @staticmethod
-    def _pick_best_route(candidates: list[Route]) -> Route:
+    def _walk_threshold_seconds(pace: Pace) -> int:
+        """Return walk preference threshold based on pace.
+
+        Relaxed travelers are happy to walk further; packed pace users
+        prefer faster transport to maximize sightseeing time.
+        """
+        return {
+            Pace.RELAXED: 1500,   # 25 min
+            Pace.MODERATE: 1200,  # 20 min
+            Pace.PACKED: 900,     # 15 min
+        }.get(pace, 1200)
+
+    @staticmethod
+    def _walk_multiplier(pace: Pace) -> float:
+        """Return walk-vs-transit acceptance multiplier based on pace.
+
+        Higher multiplier means more willingness to walk even if transit
+        is faster. Relaxed travelers tolerate 2x transit time walking.
+        """
+        return {
+            Pace.RELAXED: 2.0,
+            Pace.MODERATE: 1.5,
+            Pace.PACKED: 1.2,
+        }.get(pace, 1.5)
+
+    @classmethod
+    def _pick_best_route(cls, candidates: list[Route], pace: Pace = Pace.MODERATE) -> Route:
         """Pick the best route from candidates using actual Google travel times.
 
         Priority:
@@ -974,20 +1007,24 @@ class DayPlanOrchestrator:
         fastest_other = min(others, key=lambda r: r.duration_seconds) if others else None
 
         if walk:
+            threshold = cls._walk_threshold_seconds(pace)
+            multiplier = cls._walk_multiplier(pace)
             # Short walk — always prefer
-            if walk.duration_seconds <= 1200:  # 20 minutes
+            if walk.duration_seconds <= threshold:
                 return walk
             # Walk is only slightly slower than fastest alternative
-            if fastest_other and walk.duration_seconds <= fastest_other.duration_seconds * 1.5:
+            if fastest_other and walk.duration_seconds <= fastest_other.duration_seconds * multiplier:
                 return walk
 
         # Return the fastest overall
         return min(candidates, key=lambda r: r.duration_seconds)
 
-    @staticmethod
+    @classmethod
     def _pick_best_mode_from_matrix(
+        cls,
         matrices: list,
         leg_index: int,
+        pace: Pace = Pace.MODERATE,
     ) -> TravelMode:
         """Pick best travel mode for a leg using matrix distance/duration data.
 
@@ -1020,9 +1057,11 @@ class DayPlanOrchestrator:
         fastest_other = min(others, key=lambda x: x[1]) if others else None
 
         if walk:
-            if walk[1] <= 1200:  # 20 min
+            threshold = cls._walk_threshold_seconds(pace)
+            multiplier = cls._walk_multiplier(pace)
+            if walk[1] <= threshold:
                 return TravelMode.WALK
-            if fastest_other and walk[1] <= fastest_other[1] * 1.5:
+            if fastest_other and walk[1] <= fastest_other[1] * multiplier:
                 return TravelMode.WALK
 
         return min(candidates, key=lambda x: x[1])[0]
@@ -1033,6 +1072,14 @@ class DayPlanOrchestrator:
         "park", "garden", "nature", "beach", "national_park", "campground",
         "zoo", "scenic_spot", "viewpoint", "trail", "hiking_area",
         "amusement_park", "tourist_attraction", "stadium",
+        "marina", "waterfall", "lake", "mountain", "plaza",
+    }
+
+    _OUTDOOR_NAME_HINTS: set[str] = {
+        "park", "garden", "beach", "trail", "lake", "river",
+        "mountain", "forest", "waterfall", "promenade", "boardwalk",
+        "pier", "harbour", "harbor", "marina", "viewpoint", "lookout",
+        "plaza", "square", "terrace", "rooftop",
     }
 
     @classmethod
@@ -1048,20 +1095,30 @@ class DayPlanOrchestrator:
 
             is_outdoor = (
                 category in cls._OUTDOOR_CATEGORIES
-                or any(kw in name_lower for kw in ("park", "garden", "beach", "trail", "lake", "river", "mountain", "forest"))
+                or any(kw in name_lower for kw in cls._OUTDOOR_NAME_HINTS)
             )
             if not is_outdoor:
                 continue
 
             warnings: list[str] = []
-            if forecast.precipitation_chance_percent >= 60:
-                warnings.append(
-                    f"Rain likely ({forecast.precipitation_chance_percent}%) — bring umbrella or consider indoor alternative"
-                )
-            if forecast.temperature_high_c >= 35:
-                warnings.append(
-                    f"Extreme heat ({forecast.temperature_high_c:.0f}°C) — stay hydrated, wear sunscreen"
-                )
+            # Graduated precipitation warnings
+            precip = forecast.precipitation_chance_percent
+            if precip >= 80:
+                warnings.append(f"High rain chance ({precip}%) — strongly consider indoor alternative")
+            elif precip >= 60:
+                warnings.append(f"Rain likely ({precip}%) — bring umbrella or consider indoor alternative")
+            elif precip >= 40:
+                warnings.append(f"Possible rain ({precip}%) — have a backup plan")
+
+            # Graduated temperature warnings
+            temp = forecast.temperature_high_c
+            if temp >= 38:
+                warnings.append(f"Extreme heat ({temp:.0f}°C) — limit outdoor exposure, stay hydrated")
+            elif temp >= 35:
+                warnings.append(f"Very hot ({temp:.0f}°C) — stay hydrated, wear sunscreen")
+            elif temp >= 32:
+                warnings.append(f"Hot weather ({temp:.0f}°C) — bring water and sun protection")
+
             if forecast.uv_index is not None and forecast.uv_index >= 8:
                 warnings.append(
                     f"Very high UV ({forecast.uv_index}) — wear sun protection"
@@ -1073,10 +1130,13 @@ class DayPlanOrchestrator:
 
             # Evening activities: check nighttime forecast
             if is_outdoor and activity.time_start >= "18:00":
-                if forecast.night_precipitation_chance_percent >= 60:
-                    warnings.append(
-                        f"Evening rain likely ({forecast.night_precipitation_chance_percent}%) — consider indoor alternative"
-                    )
+                night_precip = forecast.night_precipitation_chance_percent
+                if night_precip >= 80:
+                    warnings.append(f"Evening rain very likely ({night_precip}%) — consider indoor alternative")
+                elif night_precip >= 60:
+                    warnings.append(f"Evening rain likely ({night_precip}%) — consider indoor alternative")
+                elif night_precip >= 40:
+                    warnings.append(f"Possible evening rain ({night_precip}%) — have a backup plan")
 
             if warnings:
                 activity.weather_warning = " | ".join(warnings)

@@ -38,10 +38,11 @@ Each place has coordinates (lat, lng). Group places that are close together on t
 
 ## MEAL PLACEMENT RULES
 - Every day MUST have exactly 2 dining places: one for lunch, one for dinner. No exceptions.
-- The FIRST dining place in each day's list = LUNCH (scheduled ~12:30)
-- The LAST dining place in each day's list = DINNER (scheduled ~18:30)
+- The FIRST dining place in each day's list = LUNCH (mid-day, following local customs)
+- The LAST dining place in each day's list = DINNER (evening, following local customs)
 - Place lunch restaurant AFTER 2-3 morning attractions
 - Place dinner restaurant LAST or second-to-last in the day
+{meal_time_guidance}
 
 NOTE: Famous/historic restaurants (like Le Procope, Café de Flore) can BE an attraction!
 If a restaurant is a destination in itself, it counts as both dining AND cultural experience.
@@ -75,16 +76,8 @@ If a restaurant is a destination in itself, it counts as both dining AND cultura
 }}
 ```
 
-## DURATION GUIDELINES (estimate realistic visit times in minutes)
-- Major museums: 90-180 (Louvre 180, smaller museums 90)
-- Historical landmarks/monuments: 30-60
-- Parks/gardens: 45-90
-- Restaurants (lunch): 60-75
-- Restaurants (dinner): 75-90
-- Cafés: 30-45
-- Churches/temples: 30-45
-- Shopping areas: 60-90
-- Markets: 45-75
+## DURATION GUIDELINES
+Estimate realistic visit times based on each specific place's size, significance, and the traveler's pace. Use the candidate data (reviews, ratings, description) to inform your estimates. Larger and more famous venues naturally need more time. Dining durations should reflect local meal culture.
 
 ## BUDGET & COST CONTEXT
 

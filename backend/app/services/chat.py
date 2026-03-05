@@ -20,55 +20,15 @@ from app.services.llm.base import LLMService
 
 logger = logging.getLogger(__name__)
 
-# Keywords that indicate the user wants to add or change places.
-_PLACE_KEYWORDS: set[str] = {
-    "add",
-    "visit",
-    "try",
-    "go to",
-    "restaurant",
-    "cafe",
-    "coffee",
-    "hotel",
-    "museum",
-    "park",
-    "temple",
-    "church",
-    "mosque",
-    "bar",
-    "club",
-    "nightlife",
-    "market",
-    "shop",
-    "shopping",
-    "gallery",
-    "beach",
-    "spa",
-    "attraction",
-    "landmark",
-    "monument",
-    "food",
-    "eat",
-    "dine",
-    "dining",
-    "brunch",
-    "lunch",
-    "dinner",
-    "breakfast",
-    "bakery",
-    "zoo",
-    "aquarium",
-    "theater",
-    "theatre",
-    "stadium",
-    "garden",
-}
-
 
 def _needs_place_search(message: str) -> bool:
-    """Return True if the user message suggests a place-related edit."""
-    lower = message.lower()
-    return any(kw in lower for kw in _PLACE_KEYWORDS)
+    """Return True if the user message may benefit from place search context.
+
+    Uses a permissive approach — false positives are harmless (we just do an
+    extra Google Places search), while false negatives mean we miss relevant
+    place context for the LLM. Any non-trivial message gets place context.
+    """
+    return len(message.strip()) > 10
 
 
 def _format_journey_for_prompt(journey: JourneyPlan) -> str:

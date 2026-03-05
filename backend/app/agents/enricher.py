@@ -424,7 +424,7 @@ class EnricherAgent:
         """Find the best transit route matching the requested mode.
 
         Filters transit routes by vehicle type and picks the one with
-        the shortest duration. Rejects routes that take more than 3x
+        the shortest duration. Rejects routes that take more than 4x
         the driving time (likely indirect/absurd routings).
 
         Returns:
@@ -441,10 +441,12 @@ class EnricherAgent:
         }
         target_types = vehicle_type_map.get(mode, set())
 
-        # Max acceptable duration: 3x driving time, or 24 hours as absolute cap.
-        max_duration = 24 * 3600  # 24 hours absolute cap
+        # Max acceptable duration: 4x driving time (allows scenic/slow routes),
+        # or 6x for potential overnight routes (sleeper trains, long ferries).
+        # 24 hours absolute cap.
+        max_duration = 24 * 3600
         if driving_seconds and driving_seconds > 0:
-            max_duration = min(max_duration, driving_seconds * 3)
+            max_duration = min(max_duration, driving_seconds * 4)
 
         matching = []
         for route in transit_routes:
