@@ -13,6 +13,12 @@ PACE: {pace}
 - "relaxed": MUST have 3-5 activities per day (slow, easy-going)
 Failing to meet the activity count for the selected pace is a critical error.
 
+**Note on durations:** Your duration estimates will be adjusted by a pace multiplier after you submit:
+- "packed": durations scaled ×0.8 (shorter visits, move faster)
+- "moderate": durations unchanged (×1.0)
+- "relaxed": durations scaled ×1.3 (longer, more leisurely visits)
+Estimate for a MODERATE baseline. The system handles pace adjustment.
+
 {time_constraints_section}
 
 === ATTRACTIONS (pick from these for sightseeing) ===

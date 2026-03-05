@@ -337,3 +337,12 @@ class DayPlannerAgent:
                     [f"Day {i + 1} ({group.theme}) has no places after orphan removal"],
                     1,
                 )
+
+        # Warn if any day has very few activities
+        for i, group in enumerate(plan.day_groups):
+            valid_place_ids = [pid for pid in group.place_ids if pid in valid_ids]
+            if 0 < len(valid_place_ids) < 3:
+                logger.warning(
+                    "[DayPlanner] Day %d (%s) has only %d activities — below minimum for any pace",
+                    i + 1, group.theme, len(valid_place_ids),
+                )
