@@ -8,6 +8,7 @@ import { WizardForm } from '@/components/trip/WizardForm';
 import { PlanningDashboard } from '@/components/trip/PlanningDashboard';
 import { JourneyDashboard } from '@/components/trip/JourneyDashboard';
 import { SharedTrip } from '@/pages/SharedTrip';
+import { SignIn } from '@/pages/SignIn';
 import { useStreamingPlan } from '@/hooks/useStreamingPlan';
 import { useStreamingDayPlans } from '@/hooks/useStreamingDayPlans';
 import { useUIStore } from '@/stores/uiStore';
@@ -87,6 +88,7 @@ function App() {
       </a>
       <Routes>
         <Route path="/shared/:token" element={<SharedTrip />} />
+        <Route path="/signin" element={<SignIn />} />
         <Route path="*" element={
           <>
             <Header />
