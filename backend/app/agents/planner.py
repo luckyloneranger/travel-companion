@@ -48,6 +48,10 @@ class PlannerAgent:
 
         self._validate_plan(fixed)
 
+        # Ensure total_days is set (LLM may omit it)
+        if not fixed.total_days:
+            fixed.total_days = request.total_days
+
         fixed.route = (
             " → ".join([request.origin] + [c.name for c in fixed.cities])
             if request.origin

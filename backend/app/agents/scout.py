@@ -89,6 +89,10 @@ class ScoutAgent:
 
         self._validate_plan(plan)
 
+        # Ensure total_days is set (LLM may omit it)
+        if not plan.total_days:
+            plan.total_days = request.total_days
+
         # Build route string
         plan.route = (
             " → ".join([request.origin] + [c.name for c in plan.cities])
