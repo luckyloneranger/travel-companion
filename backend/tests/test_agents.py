@@ -17,6 +17,7 @@ from app.models.journey import (
     ReviewIssue,
     TravelLeg,
 )
+from app.models.trip import TripRequest
 from app.services.llm.exceptions import LLMValidationError
 
 
