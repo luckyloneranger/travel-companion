@@ -29,7 +29,7 @@ npm run build     # TypeScript check + production build
 npm run lint      # ESLint
 ```
 
-### Tests (Backend only, 164 tests)
+### Tests (Backend only, 199 tests)
 ```bash
 cd backend
 source venv/bin/activate
@@ -46,23 +46,23 @@ Test files: `test_api.py` (API endpoints), `test_agents.py` (Scout/Reviewer agen
 ### Code Flow
 `routers/` -> `orchestrators/` -> `agents/` + `services/` + `algorithms/`
 
-- **Routers** (`app/routers/`): FastAPI endpoints — `trips.py` (journey plan, day plans, chat, tips, sharing, CRUD), `places.py` (place search), `auth.py` (OAuth login/callback/logout), `export.py` (PDF/calendar export)
+- **Routers** (`app/routers/`): FastAPI endpoints — `trips.py` (journey plan, day plans, chat, tips, sharing, CRUD), `places.py` (place search, photo proxy), `auth.py` (OAuth login/callback/logout), `export.py` (PDF/calendar export)
 - **Orchestrators** (`app/orchestrators/`): Pipeline coordination
   - `journey.py` — JourneyOrchestrator: Scout(LLM) -> Enrich(Google APIs) -> Review(LLM, score>=70?) -> Planner(LLM, fix issues) -> loop (tracks best plan across iterations, max 3)
-  - `day_plan.py` — DayPlanOrchestrator: discover -> AI plan (with time constraints for arrival/departure days) -> TSP optimize -> schedule (smart meal placement) -> auto-select transport mode -> weather integration per city
-- **Agents** (`app/agents/`): LLM-powered components — `scout.py` (city selection + accommodation + travel legs), `enricher.py` (Google API grounding), `reviewer.py` (quality scoring 0-100), `planner.py` (fix review issues), `day_planner.py` (activity selection + day theming)
+  - `day_plan.py` — DayPlanOrchestrator: discover -> AI plan (with time constraints for arrival/departure days, regional meal guidance) -> TSP optimize -> schedule (culture-aware meal placement) -> pace-aware transport mode selection -> route computation -> graduated weather warnings per city
+- **Agents** (`app/agents/`): LLM-powered components — `scout.py` (city selection + accommodation + travel legs), `enricher.py` (Google API grounding, transit cap 4x driving), `reviewer.py` (quality scoring 0-100), `planner.py` (fix review issues), `day_planner.py` (activity selection + day theming + regional meal guidance)
 - **Services** (`app/services/`):
-  - `llm/` — Abstract `LLMService` base, `AzureOpenAILLMService` (supports reasoning models: o1, o3, gpt-5), `AnthropicLLMService` (tool_use for structured output), `GeminiLLMService` (response_json_schema), `factory.py` for provider switching
+  - `llm/` — Abstract `LLMService` base, `AzureOpenAILLMService` (supports reasoning models: o1, o3, gpt-5, with exponential backoff retry for transient errors), `AnthropicLLMService` (tool_use for structured output), `GeminiLLMService` (response_json_schema), `factory.py` for provider switching. All providers strip null characters from output.
   - `google/` — `GooglePlacesService` (discovery, geocoding, lodging), `GoogleRoutesService` (single/batch routes, distance matrices), `GoogleDirectionsService` (transit details, fares, transfers), `GoogleWeatherService` (daily forecasts)
   - `chat.py` — ChatService for journey/day-plan editing via natural language
   - `tips.py` — TipsService for activity tips generation
   - `export.py` — PDF (weasyprint) and calendar (.ics) export
-- **Algorithms** (`app/algorithms/`): Deterministic computation — `tsp.py` (nearest-neighbor route optimizer), `scheduler.py` (time-slot builder with smart meal placement, pace multipliers), `quality/` (7-metric evaluator: meal timing 20%, clustering 15%, efficiency 15%, variety 15%, theme 15%, hours 10%, duration 10%)
+- **Algorithms** (`app/algorithms/`): Deterministic computation — `tsp.py` (nearest-neighbor route optimizer), `scheduler.py` (time-slot builder with culture-aware meal placement across ~80 countries/10 regional profiles, pace multipliers, LLM meal window overrides via `from_context()`), `quality/` (7 context-aware evaluators: meal timing 20%, clustering 15% with auto city-scale detection, efficiency 15%, variety 15%, opening hours 15%, theme 10%, duration 10%)
 - **Models** (`app/models/`): Pydantic v2 models — `common.py` (Location, Pace, TravelMode, TransportMode, Budget enums), `journey.py` (JourneyPlan, CityStop, TravelLeg, Accommodation, ReviewResult), `day_plan.py` (DayPlan, Activity, Place, Route, Weather), `trip.py` (TripRequest, TripResponse, TripSummary, Travelers), `chat.py`, `progress.py`, `quality.py`, `internal.py`, `user.py`
 - **Database** (`app/db/`): SQLAlchemy 2.0 async + asyncpg (PostgreSQL) — `engine.py` (auto-SSL for remote hosts), `models.py` (Trip, User, TripShare tables), `repository.py` (TripRepository with CRUD + sharing). Alembic for schema migrations (`backend/alembic/`)
 - **Prompts** (`app/prompts/`): 14 Markdown templates loaded via `PromptLoader` in `loader.py` — journey (scout_system/user, reviewer_system/user, planner_system/user), day_plan (planning_system/user), chat (journey_edit_system/user, day_plan_edit_system/user), tips (tips_system/user)
-- **Config** (`app/config/`): Settings (Pydantic BaseSettings), planning configs (`planning.py` — pace configs, duration by place type, interest-to-place-type mapping), regional transport guidance (`regional_transport.py` — 45+ regional profiles)
-- **Core** (`app/core/`): JWT auth (`auth.py`), shared HTTP client with retry/exponential backoff (`http.py`), request tracing middleware (`middleware.py`), per-user sliding window rate limiting (`rate_limit.py` — plan, day_plan, chat, tips endpoints)
+- **Config** (`app/config/`): Settings (Pydantic BaseSettings), planning configs (`planning.py` — pace configs, fallback duration-by-type table, interest-to-place-type seed mapping, adaptive place filters, haversine fallback computation), regional transport guidance (`regional_transport.py` — LLM-driven prompt guidance instead of hardcoded profiles)
+- **Core** (`app/core/`): JWT auth (`auth.py`), shared HTTP client with retry/exponential backoff (`http.py`), request tracing middleware with security headers (`middleware.py` — X-Request-ID, X-Content-Type-Options, X-Frame-Options, Referrer-Policy), global exception handler (`main.py`), per-user sliding window rate limiting (`rate_limit.py` — plan, day_plan, chat, tips endpoints)
 - **Dependencies** (`app/dependencies.py`): FastAPI `Depends()` wiring for all services, orchestrators, auth, and DB sessions
 
 ### Key Patterns
@@ -105,7 +105,7 @@ user = day_plan_prompts.load("planning_user")
 - `uiStore.ts` — phase management (input -> planning -> preview -> day-plans), wizard step tracking, day plans generating state, progress tracking, chat toggles, browser history integration, per-day map visibility
 - `authStore.ts` — user authentication state, JWT capture from OAuth redirect URL params, periodic token refresh (30 min), auto-logout on 401
 
-**Request Tracing** — `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs. `RequestLoggingFilter` injects `request_id` into log records.
+**Request Tracing** — `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs, plus security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`). `RequestLoggingFilter` injects `request_id` into log records. Global exception handler in `main.py` prevents stack trace leaks.
 
 **Authentication (Dual Auth)** — OAuth (Google/GitHub) via authlib. Supports two auth mechanisms:
 - **Cookie auth** (same-origin / web): JWT stored as httpOnly cookie, set during OAuth callback
@@ -117,7 +117,7 @@ user = day_plan_prompts.load("planning_user")
 
 **Rate Limiting** — per-user sliding window rate limiter (`app/core/rate_limit.py`) protects expensive endpoints. Configurable via `RATE_LIMIT_{PLAN,DAY_PLAN,CHAT,TIPS}_{REQUESTS,WINDOW_SECONDS}` env vars (defaults: plan 5/10min, day_plan 10/10min, chat 30/10min, tips 30/10min).
 
-**Design Principles** — Prefer LLM prompt updates and Google API grounding over hardcoded heuristics. Cost estimates, geographic diversity, destination validity, and activity planning are all LLM-driven via prompt guidance rather than deterministic rules.
+**Design Principles** — Prefer LLM prompt updates and Google API grounding over hardcoded heuristics. Deterministic layers (scheduler, quality evaluators, route selection) serve as context-aware guardrails with generous defaults — they accept overrides from LLM responses and API data via context dicts. Duration estimation priority: 1) LLM estimate, 2) Google Places `suggested_duration_minutes`, 3) fallback table. Meal windows adapt to ~80 countries via 10 regional profiles and accept LLM overrides via `ScheduleConfig.from_context()`. Place quality filters adapt to result density via `get_adaptive_place_filters()`. Walk/drive selection is pace-aware (relaxed=25min walk threshold, packed=15min). Prompt templates use `{meal_time_guidance}` placeholder for regional context injection rather than hardcoded meal times. Dining classification uses substring matching to catch all regional types (e.g. `sushi_restaurant`, `bar_and_grill`).
 
 ## Code Style
 
@@ -160,6 +160,7 @@ user = day_plan_prompts.load("planning_user")
 
 ### Other
 - `GET /api/places/search` — search places (Google Places)
+- `GET /api/places/photo/{ref}` — proxy Google Places photos (SSRF-validated)
 - `GET /api/shared/{token}` — get shared trip (no auth)
 - `GET /health` — health check (status, version, LLM provider)
 
