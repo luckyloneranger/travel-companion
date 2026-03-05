@@ -64,6 +64,120 @@ class DayPlanOrchestrator:
         self.optimizer = RouteOptimizer()
         self.scheduler = ScheduleBuilder()
 
+    # ------------------------------------------------------------------
+    # Excursion scheduling helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _extract_excursions(
+        highlights: list[CityHighlight],
+    ) -> list[CityHighlight]:
+        """Filter highlights that have an excursion_type set."""
+        return [h for h in highlights if h.excursion_type is not None]
+
+    @staticmethod
+    def _build_excursion_day_plan(
+        excursion: CityHighlight,
+        date_str: str,
+        day_number: int,
+        city_name: str,
+        day_label: str = "",
+    ) -> DayPlan:
+        """Build a pre-built DayPlan for an excursion day.
+
+        Args:
+            excursion: The CityHighlight representing the excursion.
+            date_str: ISO date string for this day.
+            day_number: 1-based day number across the entire trip.
+            city_name: Name of the city this excursion belongs to.
+            day_label: Optional label like "Day 1 of 2" for multi-day excursions.
+
+        Returns:
+            A DayPlan with is_excursion=True and a single all-day activity.
+        """
+        excursion_name = (
+            f"{excursion.name} — {day_label}" if day_label else excursion.name
+        )
+
+        place = Place(
+            place_id=f"excursion-{excursion.name.lower().replace(' ', '-')}",
+            name=excursion.name,
+            location=Location(lat=0, lng=0),
+            category=excursion.category or "excursion",
+        )
+
+        activity = Activity(
+            time_start="09:00",
+            time_end="18:00",
+            duration_minutes=540,
+            place=place,
+            notes=excursion.description,
+        )
+
+        return DayPlan(
+            date=date_str,
+            day_number=day_number,
+            theme=excursion.name,
+            activities=[activity],
+            city_name=city_name,
+            is_excursion=True,
+            excursion_name=excursion_name,
+        )
+
+    @staticmethod
+    def _compute_excursion_schedule(
+        excursions: list[CityHighlight],
+        num_days: int,
+    ) -> tuple[dict[int, CityHighlight], dict[int, CityHighlight]]:
+        """Compute which days are blocked or partially blocked by excursions.
+
+        Multi-day excursions are placed at the END of the city stay.
+        Full-day excursions are placed at the end of remaining days.
+        Half-day and evening excursions are placed on the earliest free days.
+
+        Args:
+            excursions: List of excursion CityHighlights.
+            num_days: Total number of days in this city stay.
+
+        Returns:
+            A tuple of (blocked, partial) where both map day_index to the
+            excursion CityHighlight occupying that day.
+        """
+        blocked: dict[int, CityHighlight] = {}
+        partial: dict[int, CityHighlight] = {}
+
+        # First pass: multi-day (placed at end)
+        next_blocked_from_end = num_days - 1
+        for exc in excursions:
+            if exc.excursion_type == "multi_day":
+                days_needed = exc.excursion_days or 2
+                for d in range(days_needed):
+                    idx = next_blocked_from_end - (days_needed - 1 - d)
+                    if 0 <= idx < num_days:
+                        blocked[idx] = exc
+                next_blocked_from_end -= days_needed
+
+        # Second pass: full-day (placed at end of remaining)
+        for exc in excursions:
+            if exc.excursion_type == "full_day":
+                while next_blocked_from_end in blocked and next_blocked_from_end >= 0:
+                    next_blocked_from_end -= 1
+                if next_blocked_from_end >= 0:
+                    blocked[next_blocked_from_end] = exc
+                    next_blocked_from_end -= 1
+
+        # Third pass: half-day/evening on earliest free days
+        free_days = sorted(i for i in range(num_days) if i not in blocked)
+        partial_excs = [
+            e
+            for e in excursions
+            if e.excursion_type in ("half_day_morning", "half_day_afternoon", "evening")
+        ]
+        for exc, day_idx in zip(partial_excs, free_days):
+            partial[day_idx] = exc
+
+        return blocked, partial
+
     async def generate_stream(
         self,
         journey: JourneyPlan,
