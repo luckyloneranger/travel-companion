@@ -213,6 +213,58 @@ class DayPlanOrchestrator:
                 )
 
                 # ----------------------------------------------------------
+                # 0. Handle excursions
+                # ----------------------------------------------------------
+                excursions = self._extract_excursions(city.highlights)
+                blocked_days: dict[int, CityHighlight] = {}
+                partial_days: dict[int, CityHighlight] = {}
+                excursion_plans: list[DayPlan] = []
+
+                if excursions:
+                    blocked_days, partial_days = self._compute_excursion_schedule(
+                        excursions, city.days,
+                    )
+                    for day_idx, exc in sorted(blocked_days.items()):
+                        schedule_date = request.start_date + timedelta(days=day_offset + day_idx)
+                        if exc.excursion_type == "multi_day":
+                            multi_indices = sorted(k for k, v in blocked_days.items() if v is exc)
+                            pos = multi_indices.index(day_idx) + 1
+                            total = len(multi_indices)
+                            day_label = f"Day {pos} of {total}"
+                        else:
+                            day_label = ""
+                        excursion_plans.append(
+                            self._build_excursion_day_plan(
+                                excursion=exc,
+                                date_str=str(schedule_date),
+                                day_number=day_offset + day_idx + 1,
+                                city_name=city_name,
+                                day_label=day_label,
+                            )
+                        )
+                    logger.info(
+                        "[DayPlanOrchestrator] %s: %d excursion days blocked, %d partial",
+                        city_name, len(blocked_days), len(partial_days),
+                    )
+
+                free_day_count = city.days - len(blocked_days)
+
+                # If ALL days are excursions, skip discovery + planning
+                if free_day_count <= 0:
+                    all_plans.extend(sorted(excursion_plans, key=lambda dp: dp.day_number))
+                    day_offset += city.days
+                    yield ProgressEvent(
+                        phase="city_complete",
+                        message=f"{city_name} planned (excursions only)",
+                        progress=pct_end,
+                        data={
+                            "city": city_name,
+                            "day_plans": [dp.model_dump() for dp in excursion_plans],
+                        },
+                    )
+                    continue
+
+                # ----------------------------------------------------------
                 # 1. Discover places
                 # ----------------------------------------------------------
                 if city.location is None:
@@ -304,12 +356,33 @@ class DayPlanOrchestrator:
                                 "available_hours": available,
                             })
 
+                # Add time constraints from partial excursions (half-day/evening)
+                for d_idx, exc in partial_days.items():
+                    if exc.excursion_type == "half_day_morning":
+                        time_constraints.append({
+                            "day_num": d_idx + 1,
+                            "reason": f"{exc.name} (morning excursion)",
+                            "available_hours": 5,
+                        })
+                    elif exc.excursion_type == "half_day_afternoon":
+                        time_constraints.append({
+                            "day_num": d_idx + 1,
+                            "reason": f"{exc.name} (afternoon excursion)",
+                            "available_hours": 4,
+                        })
+                    elif exc.excursion_type == "evening":
+                        time_constraints.append({
+                            "day_num": d_idx + 1,
+                            "reason": f"{exc.name} (evening excursion)",
+                            "available_hours": 8,
+                        })
+
                 from app.services.llm.exceptions import LLMValidationError
                 try:
                     ai_plan = await self.day_planner.plan_days(
                         candidates=candidates,
                         city_name=city_name,
-                        num_days=city.days,
+                        num_days=free_day_count,
                         interests=request.interests,
                         pace=request.pace.value,
                         budget=request.budget.value if hasattr(request, 'budget') else "moderate",
@@ -327,7 +400,7 @@ class DayPlanOrchestrator:
                         ai_plan = await self.day_planner.plan_days(
                             candidates=candidates,
                             city_name=city_name,
-                            num_days=city.days,
+                            num_days=free_day_count,
                             interests=request.interests,
                             pace=request.pace.value,
                             budget=request.budget.value if hasattr(request, 'budget') else "moderate",
@@ -500,6 +573,11 @@ class DayPlanOrchestrator:
                             daily_cost_usd=daily_cost if daily_cost > 0 else None,
                         )
                     )
+
+                # Merge excursion plans with city plans
+                if excursion_plans:
+                    city_plans.extend(excursion_plans)
+                    city_plans.sort(key=lambda dp: dp.day_number)
 
                 all_plans.extend(city_plans)
                 day_offset += city.days
