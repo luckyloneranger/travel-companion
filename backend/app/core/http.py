@@ -11,6 +11,14 @@ MAX_RETRIES = 3
 RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
+def _load_defaults():
+    """Load timeout/retry config from planning module."""
+    global DEFAULT_TIMEOUT, MAX_RETRIES
+    from app.config.planning import HTTP_DEFAULT_TIMEOUT, HTTP_MAX_RETRIES
+    DEFAULT_TIMEOUT = HTTP_DEFAULT_TIMEOUT
+    MAX_RETRIES = HTTP_MAX_RETRIES
+
+
 async def get_http_client() -> httpx.AsyncClient:
     global _client
     if _client is None or _client.is_closed:

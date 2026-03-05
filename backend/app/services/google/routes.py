@@ -19,7 +19,7 @@ from app.models.day_plan import Route
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://routes.googleapis.com"
-REQUEST_TIMEOUT = 15.0
+from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT
 
 # Fallback values when the API call fails or returns no data.
 FALLBACK_DISTANCE_METERS = 800

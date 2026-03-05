@@ -3,8 +3,7 @@ import { api } from '@/services/api';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import type { TripRequest, JourneyPlan } from '@/types';
-
-const STALL_TIMEOUT_MS = 180_000;
+import { SSE_STALL_TIMEOUT_MS } from '@/constants';
 
 export function useStreamingPlan() {
   const abortRef = useRef<AbortController | null>(null);
@@ -36,7 +35,7 @@ export function useStreamingPlan() {
         if (!controller.signal.aborted) {
           setError('Planning is taking longer than expected. You can wait or cancel and try again.');
         }
-      }, STALL_TIMEOUT_MS);
+      }, SSE_STALL_TIMEOUT_MS);
     };
 
     try {

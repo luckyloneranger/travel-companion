@@ -31,12 +31,13 @@ class ReviewerAgent:
             travel_detail=travel_detail,
         )
 
+        from app.config.planning import LLM_REVIEWER_MAX_TOKENS, LLM_REVIEWER_TEMPERATURE
         data = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=ReviewResult,
-            max_tokens=4000,
-            temperature=0.3,
+            max_tokens=LLM_REVIEWER_MAX_TOKENS,
+            temperature=LLM_REVIEWER_TEMPERATURE,
         )
 
         return self._parse_result(data, iteration)

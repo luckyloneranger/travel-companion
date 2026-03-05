@@ -15,14 +15,10 @@ from app.services.llm.base import LLMService
 logger = logging.getLogger(__name__)
 
 # Pace → stops-per-day guidance (attractions, dining, total)
-_PACE_GUIDE: dict[str, dict[str, int]] = {
-    "relaxed": {"total": 5, "attractions": 3, "dining": 2},
-    "moderate": {"total": 7, "attractions": 5, "dining": 2},
-    "packed": {"total": 9, "attractions": 7, "dining": 2},
-}
+from app.config.planning import DAY_PLANNER_PACE_GUIDE as _PACE_GUIDE, DINING_TYPES
 
-# Dining-related type identifiers (mirrors scheduler._MEAL_TYPES)
-_DINING_TYPES: set[str] = {"restaurant", "cafe", "bakery", "bar", "food", "dining"}
+# Dining-related type identifiers
+_DINING_TYPES: set[str] = DINING_TYPES
 
 
 def _is_dining(candidate: PlaceCandidate) -> bool:
@@ -82,12 +78,13 @@ class DayPlannerAgent:
             pace,
         )
 
+        from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_DEFAULT_TEMPERATURE
         data = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=AIPlan,
-            max_tokens=8000,
-            temperature=0.7,
+            max_tokens=LLM_DEFAULT_MAX_TOKENS,
+            temperature=LLM_DEFAULT_TEMPERATURE,
         )
 
         plan = self._parse_plan(data, num_days)

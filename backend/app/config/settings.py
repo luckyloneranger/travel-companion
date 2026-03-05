@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ret"
 
+    # Rate limits (per user, sliding window)
+    rate_limit_plan_requests: int = 5
+    rate_limit_plan_window_seconds: int = 600
+    rate_limit_day_plan_requests: int = 10
+    rate_limit_day_plan_window_seconds: int = 600
+    rate_limit_chat_requests: int = 30
+    rate_limit_chat_window_seconds: int = 600
+    rate_limit_tips_requests: int = 30
+    rate_limit_tips_window_seconds: int = 600
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

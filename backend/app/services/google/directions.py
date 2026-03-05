@@ -20,7 +20,7 @@ from app.models.common import Location
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://maps.googleapis.com/maps/api/directions/json"
-REQUEST_TIMEOUT = 15.0
+from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT
 
 
 # ── Internal data classes (not API-facing) ──────────────────────────────

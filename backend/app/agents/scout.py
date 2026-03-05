@@ -84,12 +84,13 @@ class ScoutAgent:
             request.destination,
         )
 
+        from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_SCOUT_TEMPERATURE
         data = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=JourneyPlan,
-            max_tokens=8000,
-            temperature=0.8,
+            max_tokens=LLM_DEFAULT_MAX_TOKENS,
+            temperature=LLM_SCOUT_TEMPERATURE,
         )
 
         plan = self._parse_plan(data, request)

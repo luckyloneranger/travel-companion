@@ -11,6 +11,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Optional
 
 from app.models.common import Pace
+from app.config.planning import PACE_CONFIGS, DINING_TYPES as _DINING_TYPES_SET
 from app.models.day_plan import Activity, Place, Route
 from app.models.internal import DayGroup, PlaceCandidate
 
@@ -64,9 +65,7 @@ DURATION_BY_CATEGORY: dict[str, int] = {
 }
 
 PACE_MULTIPLIERS: dict[Pace, float] = {
-    Pace.RELAXED: 1.3,
-    Pace.MODERATE: 1.0,
-    Pace.PACKED: 0.8,
+    p: PACE_CONFIGS[p.value].duration_multiplier for p in Pace
 }
 
 
@@ -77,7 +76,7 @@ def _parse_time_str(time_str: str) -> time:
 
 
 # Meal-related type identifiers
-_MEAL_TYPES: set[str] = {"restaurant", "cafe", "bakery", "bar", "food", "dining"}
+_MEAL_TYPES: set[str] = _DINING_TYPES_SET
 
 
 @dataclass

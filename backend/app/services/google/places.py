@@ -18,7 +18,7 @@ from app.models.internal import OpeningHours, PlaceCandidate
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://places.googleapis.com/v1"
-REQUEST_TIMEOUT = 15.0
+from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT, PLACES_MIN_RATING as MIN_RATING, PLACES_MIN_RATINGS_COUNT as MIN_RATINGS_COUNT, PLACES_DISCOVERY_RADIUS_KM
 
 # ── Interest-to-place-type mapping ─────────────────────────────────────
 INTEREST_TYPE_MAP: dict[str, list[str]] = {
@@ -45,10 +45,6 @@ ESSENTIAL_TYPES: list[str] = [
 ]
 
 DINING_TYPES: list[str] = ["restaurant", "cafe", "bakery"]
-
-# Minimum thresholds for quality filtering.
-MIN_RATING = 3.5
-MIN_RATINGS_COUNT = 30
 
 
 class GooglePlacesService:
@@ -121,7 +117,7 @@ class GooglePlacesService:
         self,
         location: Location,
         interests: list[str],
-        radius_km: float = 5.0,
+        radius_km: float = PLACES_DISCOVERY_RADIUS_KM,
     ) -> list[PlaceCandidate]:
         """Discover places near *location* based on interests.
 

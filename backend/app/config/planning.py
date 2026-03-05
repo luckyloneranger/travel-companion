@@ -1,10 +1,56 @@
 """Centralized configuration for itinerary planning parameters.
 
-Pace configs, duration-by-type mappings, and interest-to-place-type mappings
+Pace configs, duration-by-type mappings, interest-to-place-type mappings,
+journey thresholds, service timeouts, LLM defaults, and place quality filters
 used by generators and services throughout the planning pipeline.
 """
 
 from dataclasses import dataclass
+
+
+# ---------------------------------------------------------------------------
+# Journey orchestration
+# ---------------------------------------------------------------------------
+MAX_JOURNEY_ITERATIONS: int = 3
+MIN_JOURNEY_SCORE: int = 70
+
+# ---------------------------------------------------------------------------
+# Service timeouts (seconds)
+# ---------------------------------------------------------------------------
+HTTP_DEFAULT_TIMEOUT: float = 30.0
+HTTP_MAX_RETRIES: int = 3
+GOOGLE_API_TIMEOUT: float = 15.0
+WEATHER_API_TIMEOUT: float = 10.0
+
+# ---------------------------------------------------------------------------
+# LLM defaults
+# ---------------------------------------------------------------------------
+LLM_DEFAULT_MAX_TOKENS: int = 8000
+LLM_DEFAULT_TEMPERATURE: float = 0.7
+LLM_SCOUT_TEMPERATURE: float = 0.8
+LLM_REVIEWER_MAX_TOKENS: int = 4000
+LLM_REVIEWER_TEMPERATURE: float = 0.3
+
+# ---------------------------------------------------------------------------
+# Place quality filters
+# ---------------------------------------------------------------------------
+PLACES_MIN_RATING: float = 3.5
+PLACES_MIN_RATINGS_COUNT: int = 30
+PLACES_DISCOVERY_RADIUS_KM: float = 5.0
+
+# ---------------------------------------------------------------------------
+# Dining type identifiers (shared by scheduler, day_planner, places)
+# ---------------------------------------------------------------------------
+DINING_TYPES: set[str] = {"restaurant", "cafe", "bakery", "bar", "food", "dining"}
+
+# ---------------------------------------------------------------------------
+# Day planner pace guide (stops per day)
+# ---------------------------------------------------------------------------
+DAY_PLANNER_PACE_GUIDE: dict[str, dict[str, int]] = {
+    "relaxed": {"total": 5, "attractions": 3, "dining": 2},
+    "moderate": {"total": 7, "attractions": 5, "dining": 2},
+    "packed": {"total": 9, "attractions": 7, "dining": 2},
+}
 
 
 @dataclass(frozen=True)

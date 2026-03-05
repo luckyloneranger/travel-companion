@@ -18,7 +18,7 @@ from app.models.chat import ChatEditRequest, ChatEditResponse
 from app.models.journey import JourneyPlan
 from app.models.trip import TripRequest, TripResponse, TripSummary
 from app.agents.enricher import EnricherAgent
-from app.core.rate_limit import plan_limiter, day_plan_limiter, chat_limiter, tips_limiter
+from app.core.rate_limit import get_plan_limiter, get_day_plan_limiter, get_chat_limiter, get_tips_limiter
 from app.orchestrators.day_plan import DayPlanOrchestrator
 from app.orchestrators.journey import JourneyOrchestrator
 from app.services.chat import ChatService
@@ -142,7 +142,7 @@ async def plan_trip_stream(
     user: dict = Depends(require_user),
 ):
     """Stream journey planning via SSE."""
-    plan_limiter.check(user["sub"])
+    get_plan_limiter().check(user["sub"])
 
     async def event_generator():
         try:
@@ -171,6 +171,7 @@ async def generate_day_plans_stream(
     user: dict = Depends(require_user),
 ):
     """Stream day plan generation for a saved trip."""
+    day_plan_limiter = get_day_plan_limiter()
     day_plan_limiter.check(user["sub"])
     trip = await repo.get_trip(trip_id)
     if not trip:
@@ -203,7 +204,7 @@ async def chat_edit(
     enricher: EnricherAgent = Depends(get_enricher),
     user: dict = Depends(require_user),
 ) -> ChatEditResponse:
-    chat_limiter.check(user["sub"])
+    get_chat_limiter().check(user["sub"])
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
@@ -286,7 +287,7 @@ async def generate_tips(
     if not trip:
         raise HTTPException(404, "Trip not found")
     await _check_trip_ownership(repo, trip_id, user["sub"])
-    tips_limiter.check(user["sub"])
+    get_tips_limiter().check(user["sub"])
     return await tips_service.generate_tips(activities, trip.request.destination)
 
 

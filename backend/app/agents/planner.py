@@ -41,12 +41,13 @@ class PlannerAgent:
             travel_detail=travel_detail,
         )
 
+        from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_DEFAULT_TEMPERATURE
         data = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=JourneyPlan,
-            max_tokens=8000,
-            temperature=0.7,
+            max_tokens=LLM_DEFAULT_MAX_TOKENS,
+            temperature=LLM_DEFAULT_TEMPERATURE,
         )
 
         return self._parse_plan(data, plan)

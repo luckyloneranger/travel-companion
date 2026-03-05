@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import type { User } from '@/types';
 import { api } from '@/services/api';
 
-const TOKEN_KEY = 'tc_auth_token';
+import { AUTH_TOKEN_KEY, AUTH_REFRESH_INTERVAL_MS } from '@/constants';
+
+const TOKEN_KEY = AUTH_TOKEN_KEY;
 
 /** Capture token from OAuth redirect URL (?token=xxx) and store it. */
 function captureTokenFromUrl(): void {

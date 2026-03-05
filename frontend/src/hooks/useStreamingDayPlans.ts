@@ -3,8 +3,7 @@ import { api } from '@/services/api';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import type { DayPlan } from '@/types';
-
-const STALL_TIMEOUT_MS = 180_000;
+import { SSE_STALL_TIMEOUT_MS } from '@/constants';
 
 export function useStreamingDayPlans() {
   const abortRef = useRef<AbortController | null>(null);
@@ -37,7 +36,7 @@ export function useStreamingDayPlans() {
         if (!controller.signal.aborted) {
           setError('Day plan generation is taking longer than expected. You can wait or cancel.');
         }
-      }, STALL_TIMEOUT_MS);
+      }, SSE_STALL_TIMEOUT_MS);
     };
 
     try {

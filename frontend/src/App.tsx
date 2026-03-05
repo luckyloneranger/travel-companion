@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { ChatPanel } from '@/components/trip/ChatPanel';
+import { AUTH_REFRESH_INTERVAL_MS } from '@/constants';
 import { WizardForm } from '@/components/trip/WizardForm';
 import { PlanningDashboard } from '@/components/trip/PlanningDashboard';
 import { JourneyDashboard } from '@/components/trip/JourneyDashboard';
@@ -38,7 +39,7 @@ function App() {
 
   useEffect(() => {
     fetchUser();
-    const interval = setInterval(fetchUser, 30 * 60 * 1000);
+    const interval = setInterval(fetchUser, AUTH_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [fetchUser]);
 

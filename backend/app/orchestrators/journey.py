@@ -52,6 +52,9 @@ class JourneyOrchestrator:
         routes: GoogleRoutesService,
         directions: GoogleDirectionsService,
     ):
+        from app.config.planning import MAX_JOURNEY_ITERATIONS, MIN_JOURNEY_SCORE
+        self.MAX_ITERATIONS = MAX_JOURNEY_ITERATIONS
+        self.MIN_SCORE = MIN_JOURNEY_SCORE
         self.scout = ScoutAgent(llm)
         self.enricher = EnricherAgent(places, routes, directions)
         self.reviewer = ReviewerAgent(llm)

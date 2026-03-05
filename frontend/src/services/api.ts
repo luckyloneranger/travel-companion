@@ -12,11 +12,13 @@ export interface TipsResponse {
   tips: Record<string, string>;
 }
 
+import { AUTH_TOKEN_KEY } from '@/constants';
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 /** Return Bearer header if a token is stored (cross-origin / mobile). */
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('tc_auth_token');
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

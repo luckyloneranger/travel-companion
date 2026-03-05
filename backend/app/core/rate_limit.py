@@ -2,7 +2,9 @@
 
 import time
 from collections import defaultdict
-from fastapi import HTTPException, Request
+from functools import lru_cache
+
+from fastapi import HTTPException
 
 
 class RateLimiter:
@@ -32,14 +34,30 @@ class RateLimiter:
         self._requests[user_id].append(now)
 
 
-# Journey planning: 5 requests per 10 minutes per user
-plan_limiter = RateLimiter(max_requests=5, window_seconds=600)
+@lru_cache
+def _get_limiters():
+    """Create rate limiters from settings (lazy, cached)."""
+    from app.config.settings import get_settings
+    s = get_settings()
+    return {
+        "plan": RateLimiter(s.rate_limit_plan_requests, s.rate_limit_plan_window_seconds),
+        "day_plan": RateLimiter(s.rate_limit_day_plan_requests, s.rate_limit_day_plan_window_seconds),
+        "chat": RateLimiter(s.rate_limit_chat_requests, s.rate_limit_chat_window_seconds),
+        "tips": RateLimiter(s.rate_limit_tips_requests, s.rate_limit_tips_window_seconds),
+    }
 
-# Day plan generation: 10 requests per 10 minutes per user
-day_plan_limiter = RateLimiter(max_requests=10, window_seconds=600)
 
-# Chat editing: 30 requests per 10 minutes per user
-chat_limiter = RateLimiter(max_requests=30, window_seconds=600)
+def get_plan_limiter() -> RateLimiter:
+    return _get_limiters()["plan"]
 
-# Tips generation: 30 requests per 10 minutes per user
-tips_limiter = RateLimiter(max_requests=30, window_seconds=600)
+
+def get_day_plan_limiter() -> RateLimiter:
+    return _get_limiters()["day_plan"]
+
+
+def get_chat_limiter() -> RateLimiter:
+    return _get_limiters()["chat"]
+
+
+def get_tips_limiter() -> RateLimiter:
+    return _get_limiters()["tips"]
