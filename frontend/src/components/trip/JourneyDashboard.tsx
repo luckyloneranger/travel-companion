@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CompactCityCard } from '@/components/trip/CompactCityCard';
 import { BudgetSummary } from '@/components/trip/BudgetSummary';
-import { TripMap } from '@/components/maps';
+import { TripMap, TripMapLegend } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import { api } from '@/services/api';
@@ -325,11 +325,14 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
             </Card>
 
             {/* Map preview */}
-            <Suspense fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted animate-pulse" />}>
-              <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default cursor-pointer" onClick={() => setActiveTab('map')}>
-                <TripMap journey={journey} />
-              </div>
-            </Suspense>
+            <div>
+              <Suspense fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted animate-pulse" />}>
+                <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default cursor-pointer" onClick={() => setActiveTab('map')}>
+                  <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
+                </div>
+              </Suspense>
+              <TripMapLegend />
+            </div>
 
             {/* City highlights */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -413,9 +416,10 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           <div className="animate-fade-in-up">
             <Suspense fallback={<div className="h-[60vh] rounded-lg bg-surface-muted animate-pulse" />}>
               <div className="h-[60vh] rounded-lg overflow-hidden border border-border-default">
-                <TripMap journey={journey} />
+                <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
               </div>
             </Suspense>
+            <TripMapLegend />
           </div>
         )}
       </div>

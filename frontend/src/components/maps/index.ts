@@ -7,3 +7,6 @@ export const TripMap = lazy(() =>
 export const DayMap = lazy(() =>
   import('./DayMap').then(m => ({ default: m.DayMap })),
 );
+
+export { TripMapLegend } from './TripMap';
+export { DayMapLegend } from './DayMap';

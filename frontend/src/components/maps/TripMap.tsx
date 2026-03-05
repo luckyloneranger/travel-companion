@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { Map, AdvancedMarker, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Map, AdvancedMarker, InfoWindow, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
 import type { JourneyPlan, CityStop, Location } from '@/types';
 
 interface TripMapProps {
   journey: JourneyPlan;
+  onCityClick?: (cityName: string) => void;
 }
 
 const MAP_ID = 'DEMO_MAP_ID';
 
 /** Journey-level map showing all cities, hotels, and travel connections. */
-export function TripMap({ journey }: TripMapProps) {
+export function TripMap({ journey, onCityClick }: TripMapProps) {
   const map = useMap('trip-map');
   const coreLib = useMapsLibrary('core');
+  const [selectedCity, setSelectedCity] = useState<CityStop | null>(null);
+  const [selectedHotel, setSelectedHotel] = useState<{ name: string; rating?: number; price?: number; location: Location } | null>(null);
 
   // Filter cities that have valid locations
   const citiesWithLocation = useMemo(
@@ -96,8 +99,9 @@ export function TripMap({ journey }: TripMapProps) {
           key={`city-${idx}`}
           position={{ lat: city.location.lat, lng: city.location.lng }}
           title={city.name}
+          onClick={() => { setSelectedCity(city); setSelectedHotel(null); }}
         >
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center cursor-pointer">
             <span className="mb-1 rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white shadow-md whitespace-nowrap max-w-[160px] truncate">
               {city.name}
             </span>
@@ -105,6 +109,34 @@ export function TripMap({ journey }: TripMapProps) {
           </div>
         </AdvancedMarker>
       ))}
+
+      {/* City info window */}
+      {selectedCity?.location && (
+        <InfoWindow
+          position={{ lat: selectedCity.location.lat, lng: selectedCity.location.lng }}
+          onCloseClick={() => setSelectedCity(null)}
+          pixelOffset={[0, -30]}
+        >
+          <div className="p-1 min-w-[180px] max-w-[240px]">
+            <h3 className="font-semibold text-sm text-gray-900">{selectedCity.name}, {selectedCity.country}</h3>
+            <p className="text-xs text-gray-500 mt-0.5">{selectedCity.days} {selectedCity.days === 1 ? 'day' : 'days'}</p>
+            {selectedCity.why_visit && (
+              <p className="text-xs text-gray-600 mt-1 line-clamp-2">{selectedCity.why_visit}</p>
+            )}
+            {selectedCity.accommodation && (
+              <p className="text-xs text-gray-500 mt-1">🏨 {selectedCity.accommodation.name}</p>
+            )}
+            {onCityClick && (
+              <button
+                onClick={() => { onCityClick(selectedCity.name); setSelectedCity(null); }}
+                className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+              >
+                View itinerary →
+              </button>
+            )}
+          </div>
+        </InfoWindow>
+      )}
 
       {/* Hotel / accommodation markers */}
       {citiesWithLocation.map((city, idx) => {
@@ -116,8 +148,9 @@ export function TripMap({ journey }: TripMapProps) {
             key={`hotel-${idx}`}
             position={{ lat: accom.location.lat, lng: accom.location.lng }}
             title={accom.name}
+            onClick={() => { setSelectedHotel({ name: accom.name, rating: accom.rating, price: accom.estimated_nightly_usd, location: accom.location! }); setSelectedCity(null); }}
           >
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center cursor-pointer">
               <span className="mb-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-medium text-white shadow whitespace-nowrap max-w-[160px] truncate">
                 {accom.name}
               </span>
@@ -135,7 +168,44 @@ export function TripMap({ journey }: TripMapProps) {
           </AdvancedMarker>
         );
       })}
+
+      {/* Hotel info window */}
+      {selectedHotel && (
+        <InfoWindow
+          position={{ lat: selectedHotel.location.lat, lng: selectedHotel.location.lng }}
+          onCloseClick={() => setSelectedHotel(null)}
+          pixelOffset={[0, -30]}
+        >
+          <div className="p-1 min-w-[160px]">
+            <h3 className="font-semibold text-sm text-gray-900">{selectedHotel.name}</h3>
+            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+              {selectedHotel.rating && <span>⭐ {selectedHotel.rating.toFixed(1)}</span>}
+              {selectedHotel.price && <span>${selectedHotel.price}/night</span>}
+            </div>
+          </div>
+        </InfoWindow>
+      )}
     </Map>
+  );
+}
+
+/** Map legend overlay. */
+export function TripMapLegend() {
+  return (
+    <div className="flex items-center gap-4 px-3 py-2 text-xs text-text-muted">
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 rounded-full bg-indigo-500 border border-white shadow-sm" />
+        City
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="h-3 w-3 rounded-full bg-amber-500 border border-white shadow-sm" />
+        Hotel
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="w-4 border-t-2 border-dashed border-indigo-400" />
+        Route
+      </span>
+    </div>
   );
 }
 

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DayTimeline } from '@/components/trip/DayTimeline';
-import { DayMap } from '@/components/maps';
+import { DayMap, DayMapLegend } from '@/components/maps';
 import type { CityStop, TravelLeg, DayPlan } from '@/types';
 
 interface CompactCityCardProps {
@@ -231,6 +231,9 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
             <Suspense fallback={<div className="h-full w-full bg-surface-muted animate-pulse" />}>
               <DayMap dayPlan={mapDayPlan} mapInstanceId={`day-map-overlay-${mapDayPlan.day_number}`} />
             </Suspense>
+            <div className="absolute bottom-3 left-3 z-10 rounded-lg bg-surface/90 backdrop-blur-sm shadow-sm">
+              <DayMapLegend />
+            </div>
           </div>
         </div>
       )}
