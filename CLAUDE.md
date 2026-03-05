@@ -62,7 +62,7 @@ Test files: `test_api.py` (API endpoints), `test_agents.py` (Scout/Reviewer agen
 - **Database** (`app/db/`): SQLAlchemy 2.0 async + asyncpg (PostgreSQL) — `engine.py` (auto-SSL for remote hosts), `models.py` (Trip, User, TripShare tables), `repository.py` (TripRepository with CRUD + sharing). Alembic for schema migrations (`backend/alembic/`)
 - **Prompts** (`app/prompts/`): 14 Markdown templates loaded via `PromptLoader` in `loader.py` — journey (scout_system/user, reviewer_system/user, planner_system/user), day_plan (planning_system/user), chat (journey_edit_system/user, day_plan_edit_system/user), tips (tips_system/user)
 - **Config** (`app/config/`): Settings (Pydantic BaseSettings), planning configs (`planning.py` — pace configs, duration by place type, interest-to-place-type mapping), regional transport guidance (`regional_transport.py` — 45+ regional profiles)
-- **Core** (`app/core/`): JWT auth (`auth.py`), shared HTTP client with retry/exponential backoff (`http.py`), request tracing middleware (`middleware.py`)
+- **Core** (`app/core/`): JWT auth (`auth.py`), shared HTTP client with retry/exponential backoff (`http.py`), request tracing middleware (`middleware.py`), per-user sliding window rate limiting (`rate_limit.py` — plan, day_plan, chat, tips endpoints)
 - **Dependencies** (`app/dependencies.py`): FastAPI `Depends()` wiring for all services, orchestrators, auth, and DB sessions
 
 ### Key Patterns
@@ -115,6 +115,8 @@ user = day_plan_prompts.load("planning_user")
 
 **Database SSL** — `engine.py` auto-enables SSL for remote PostgreSQL hosts (Azure, Supabase). Local connections (localhost) skip SSL.
 
+**Rate Limiting** — per-user sliding window rate limiter (`app/core/rate_limit.py`) protects expensive endpoints. Configurable via `RATE_LIMIT_{PLAN,DAY_PLAN,CHAT,TIPS}_{REQUESTS,WINDOW_SECONDS}` env vars (defaults: plan 5/10min, day_plan 10/10min, chat 30/10min, tips 30/10min).
+
 **Design Principles** — Prefer LLM prompt updates and Google API grounding over hardcoded heuristics. Cost estimates, geographic diversity, destination validity, and activity planning are all LLM-driven via prompt guidance rather than deterministic rules.
 
 ## Code Style
@@ -163,7 +165,7 @@ user = day_plan_prompts.load("planning_user")
 
 ## Environment Variables
 
-**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`, `JWT_EXPIRE_MINUTES`, `COOKIE_DOMAIN`, `APP_URL`, `BACKEND_URL`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`
+**Backend** (`backend/.env`): `LLM_PROVIDER`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GITHUB_OAUTH_CLIENT_ID`, `GITHUB_OAUTH_CLIENT_SECRET`, `JWT_SECRET_KEY`, `JWT_EXPIRE_MINUTES`, `COOKIE_DOMAIN`, `APP_URL`, `BACKEND_URL`, `APP_ENV`, `DEBUG`, `CORS_ORIGINS`, `LOG_LEVEL`, `DATABASE_URL`, `RATE_LIMIT_PLAN_REQUESTS`, `RATE_LIMIT_PLAN_WINDOW_SECONDS`, `RATE_LIMIT_DAY_PLAN_REQUESTS`, `RATE_LIMIT_DAY_PLAN_WINDOW_SECONDS`, `RATE_LIMIT_CHAT_REQUESTS`, `RATE_LIMIT_CHAT_WINDOW_SECONDS`, `RATE_LIMIT_TIPS_REQUESTS`, `RATE_LIMIT_TIPS_WINDOW_SECONDS`
 
 **Frontend** (`frontend/.env.local`): `VITE_GOOGLE_MAPS_API_KEY`
 
@@ -180,11 +182,11 @@ Supports multiple deployment modes via dual auth (cookie + Bearer token):
 | Mode | Auth | Config |
 |------|------|--------|
 | **Dev (Vite proxy)** | Cookie (same-origin) | No changes needed |
-| **Single container** | Cookie (same-origin) | `docker build .` — Dockerfile builds frontend + backend into one image, serves frontend from `static/` |
+| **Single container** | Cookie (same-origin) | `docker build .` — Dockerfile runs backend only; pre-build frontend and place in `static/` |
 | **Split deploy (same domain)** | Cookie (cross-subdomain) | Set `COOKIE_DOMAIN=.example.com` |
 | **Split deploy (different domains)** | Bearer token | Set `VITE_API_BASE_URL`, `CORS_ORIGINS`, `APP_URL` |
 | **Mobile app** | Bearer token | Use `Authorization: Bearer` header from OAuth `?token=` redirect |
 
 **Key settings:** `COOKIE_DOMAIN` (empty = same-origin only, `.example.com` = cross-subdomain), `APP_URL` (frontend URL for OAuth redirects), `BACKEND_URL` (backend URL for OAuth callbacks, empty = auto-detect), `CORS_ORIGINS` (allowed frontend origins).
 
-**Dockerfile** (project root): Multi-stage build — Stage 1: Node 20 builds frontend, Stage 2: Python 3.11-slim runs backend + serves built frontend from `static/`. Backend auto-mounts `static/` as SPA when `static/index.html` exists. System deps included for weasyprint (pango, cairo, gdk-pixbuf).
+**Dockerfile** (project root): Single-stage Python 3.11-slim build — runs backend only, serves pre-built frontend from `static/` when `static/index.html` exists. Runs Alembic migrations on startup. System deps included for weasyprint (pango, cairo, gdk-pixbuf).
