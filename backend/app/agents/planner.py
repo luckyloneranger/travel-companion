@@ -1,16 +1,12 @@
 import logging
 
-from app.models.common import TransportMode
 from app.models.journey import (
     JourneyPlan,
-    CityStop,
-    CityHighlight,
-    TravelLeg,
-    Accommodation,
     ReviewResult,
 )
 from app.models.trip import TripRequest
 from app.services.llm.base import LLMService
+from app.services.llm.exceptions import LLMValidationError
 from app.prompts import journey_prompts
 
 logger = logging.getLogger(__name__)
@@ -42,7 +38,7 @@ class PlannerAgent:
         )
 
         from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_DEFAULT_TEMPERATURE
-        data = await self.llm.generate_structured(
+        fixed = await self.llm.generate_structured(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema=JourneyPlan,
@@ -50,7 +46,15 @@ class PlannerAgent:
             temperature=LLM_DEFAULT_TEMPERATURE,
         )
 
-        return self._parse_plan(data, plan)
+        self._validate_plan(fixed)
+
+        fixed.route = (
+            " → ".join([request.origin] + [c.name for c in fixed.cities])
+            if request.origin
+            else " → ".join(c.name for c in fixed.cities)
+        )
+
+        return fixed
 
     def _format_cities(self, plan: JourneyPlan) -> str:
         """Format city details for the prompt."""
@@ -86,55 +90,24 @@ class PlannerAgent:
                 lines.append(f"  Suggested fix: {issue.suggested_fix}")
         return "\n".join(lines)
 
-    def _parse_plan(self, data: dict, original: JourneyPlan) -> JourneyPlan:
-        """Parse fixed plan from LLM response. Falls back to original on parse errors."""
-        try:
-            cities = []
-            for city_data in data.get("cities", []):
-                highlights = [
-                    CityHighlight(
-                        name=h.get("name", ""),
-                        description=h.get("description", ""),
-                        category=h.get("category", ""),
-                    )
-                    for h in city_data.get("highlights", [])
-                ]
-                accommodation = None
-                acc = city_data.get("accommodation")
-                if acc and isinstance(acc, dict):
-                    accommodation = Accommodation(name=acc.get("name", ""))
-                cities.append(CityStop(
-                    name=city_data.get("name", ""),
-                    country=city_data.get("country", ""),
-                    days=city_data.get("days", 1),
-                    highlights=highlights,
-                    why_visit=city_data.get("why_visit", ""),
-                    accommodation=accommodation,
-                ))
+    def _validate_plan(self, plan: JourneyPlan) -> None:
+        """Semantic validation of a journey plan.
 
-            travel_legs = []
-            for leg_data in data.get("travel_legs", []):
-                try:
-                    mode = TransportMode(leg_data.get("mode", "drive").lower())
-                except ValueError:
-                    mode = TransportMode.DRIVE
-                travel_legs.append(TravelLeg(
-                    from_city=leg_data.get("from_city", ""),
-                    to_city=leg_data.get("to_city", ""),
-                    mode=mode,
-                    duration_hours=leg_data.get("duration_hours", 0),
-                    notes=leg_data.get("notes", ""),
-                ))
+        Args:
+            plan: The JourneyPlan to validate.
 
-            return JourneyPlan(
-                theme=data.get("theme", original.theme),
-                summary=data.get("summary", original.summary),
-                origin=data.get("origin", original.origin),
-                cities=cities if cities else original.cities,
-                travel_legs=travel_legs if travel_legs else original.travel_legs,
-                total_days=data.get("total_days", original.total_days),
-                route=" → ".join([original.origin] + [c.name for c in cities]) if cities else original.route,
+        Raises:
+            LLMValidationError: If semantic checks fail.
+        """
+        if not plan.cities:
+            raise LLMValidationError("JourneyPlan", ["No cities in plan"], 1)
+        for i, city in enumerate(plan.cities):
+            if not city.name.strip():
+                raise LLMValidationError("JourneyPlan", [f"City at index {i} has empty name"], 1)
+        expected_legs = len(plan.cities) - 1
+        if expected_legs > 0 and len(plan.travel_legs) != expected_legs:
+            raise LLMValidationError(
+                "JourneyPlan",
+                [f"Expected {expected_legs} travel legs for {len(plan.cities)} cities, got {len(plan.travel_legs)}"],
+                1,
             )
-        except Exception as e:
-            logger.error(f"Failed to parse fixed plan, returning original: {e}")
-            return original
