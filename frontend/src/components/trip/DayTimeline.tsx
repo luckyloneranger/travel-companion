@@ -137,6 +137,34 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
 }
 
 export function DayTimeline({ dayPlan, tips }: DayTimelineProps) {
+  // Excursion day — simplified card rendering
+  if (dayPlan.is_excursion) {
+    return (
+      <div className="rounded-lg border-2 border-accent-300 dark:border-accent-700 bg-accent-50 dark:bg-accent-950/30 p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">&#x1F3AF;</span>
+          <h4 className="text-sm font-semibold text-text-primary">
+            {dayPlan.excursion_name || dayPlan.theme}
+          </h4>
+        </div>
+        {dayPlan.activities.length > 0 && dayPlan.activities[0].notes && (
+          <p className="text-sm text-text-secondary leading-relaxed">
+            {dayPlan.activities[0].notes}
+          </p>
+        )}
+        {dayPlan.daily_cost_usd != null && dayPlan.daily_cost_usd > 0 && (
+          <p className="text-sm text-text-muted flex items-center gap-1">
+            <DollarSign className="h-3.5 w-3.5" />
+            Estimated cost: ~${dayPlan.daily_cost_usd.toFixed(0)}
+          </p>
+        )}
+        <p className="text-sm text-text-muted">
+          Full-day experience &mdash; no individual activity scheduling
+        </p>
+      </div>
+    );
+  }
+
   const visibleActivities = dayPlan.activities.filter(a => a.duration_minutes > 0);
 
   if (visibleActivities.length === 0) {
