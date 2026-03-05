@@ -247,7 +247,10 @@ class GooglePlacesService:
                 "places.location,places.types,places.rating,"
                 "places.userRatingCount,places.priceLevel,"
                 "places.regularOpeningHours,places.photos,"
-                "places.websiteUri,places.editorialSummary"
+                "places.websiteUri,places.editorialSummary,"
+                "places.goodForChildren,places.goodForGroups,"
+                "places.servesVegetarianFood,places.servesBrunch,"
+                "places.servesLunch,places.servesDinner"
             ),
         }
         body: dict[str, Any] = {
@@ -406,7 +409,10 @@ class GooglePlacesService:
                 "places.userRatingCount,places.priceLevel,"
                 "places.regularOpeningHours,places.currentOpeningHours,"
                 "places.photos,places.websiteUri,places.editorialSummary,"
-                "places.businessStatus"
+                "places.businessStatus,"
+                "places.goodForChildren,places.goodForGroups,"
+                "places.servesVegetarianFood,places.servesBrunch,"
+                "places.servesLunch,places.servesDinner"
             ),
         }
         body: dict[str, Any] = {
@@ -484,6 +490,12 @@ class GooglePlacesService:
                 if raw.get("editorialSummary")
                 else None
             ),
+            good_for_children=raw.get("goodForChildren"),
+            good_for_groups=raw.get("goodForGroups"),
+            serves_vegetarian_food=raw.get("servesVegetarianFood"),
+            serves_brunch=raw.get("servesBrunch"),
+            serves_lunch=raw.get("servesLunch"),
+            serves_dinner=raw.get("servesDinner"),
         )
 
     @staticmethod

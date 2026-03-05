@@ -222,6 +222,18 @@ class DayPlannerAgent:
             if c.editorial_summary:
                 entry["description"] = c.editorial_summary
 
+            if c.good_for_children is not None:
+                entry["good_for_children"] = c.good_for_children
+            if c.good_for_groups is not None:
+                entry["good_for_groups"] = c.good_for_groups
+            if _is_dining(c):
+                if c.serves_vegetarian_food is not None:
+                    entry["serves_vegetarian"] = c.serves_vegetarian_food
+                if c.serves_lunch is not None:
+                    entry["serves_lunch"] = c.serves_lunch
+                if c.serves_dinner is not None:
+                    entry["serves_dinner"] = c.serves_dinner
+
             if _is_dining(c):
                 dining.append(entry)
             elif any(
