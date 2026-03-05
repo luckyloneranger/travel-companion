@@ -53,11 +53,6 @@ export const useUIStore = create<UIState>((set) => ({
     set({ phase });
     if (phase !== 'planning') {
       sessionStorage.setItem('tc_phase', phase);
-      // Push browser history state so back/forward buttons navigate phases
-      const currentState = history.state?.phase;
-      if (currentState !== phase) {
-        history.pushState({ phase }, '', undefined);
-      }
     }
   },
 

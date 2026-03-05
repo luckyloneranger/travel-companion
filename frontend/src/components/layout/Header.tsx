@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Compass, Moon, Sun, Check, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AuthButton } from '@/components/auth/AuthButton';
@@ -16,6 +17,8 @@ export function Header() {
   const tripId = useTripStore((s) => s.tripId);
   const phase = useUIStore((s) => s.phase);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (dark) {
       document.documentElement.classList.add('dark');
@@ -31,14 +34,15 @@ export function Header() {
   const handleNewTrip = useCallback(() => {
     useTripStore.getState().reset();
     useUIStore.getState().resetUI();
-  }, []);
+    navigate('/');
+  }, [navigate]);
 
   const handleGoHome = useCallback(() => {
     if (phase !== 'input') {
-      // If viewing a trip, just navigate back to input — don't reset
       useUIStore.getState().setPhase('input');
+      navigate('/');
     }
-  }, [phase]);
+  }, [phase, navigate]);
 
   const showTripContext = phase === 'preview' && journey;
   const showNewTrip = phase === 'preview';

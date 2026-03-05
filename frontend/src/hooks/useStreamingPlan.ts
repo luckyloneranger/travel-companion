@@ -19,6 +19,7 @@ export function useStreamingPlan() {
     setPhase('planning');
     setLoading(true);
     setError(null);
+    sessionStorage.setItem('tc_planning', 'true');
 
     let stallTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -74,6 +75,7 @@ export function useStreamingPlan() {
     } finally {
       clearStallTimer();
       setLoading(false);
+      sessionStorage.removeItem('tc_planning');
       abortRef.current = null;
     }
   }, [setJourney, setPhase, setProgress, setLoading, setError]);

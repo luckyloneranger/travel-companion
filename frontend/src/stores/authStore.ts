@@ -52,5 +52,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     localStorage.removeItem(TOKEN_KEY);
     set({ user: null });
+    // Clear trip and UI state so stale data doesn't linger
+    const { useTripStore } = await import('./tripStore');
+    const { useUIStore } = await import('./uiStore');
+    useTripStore.getState().reset();
+    useUIStore.getState().resetUI();
   },
 }));

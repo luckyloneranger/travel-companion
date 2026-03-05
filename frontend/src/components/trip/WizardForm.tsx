@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FolderOpen, MapPin, Loader2, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,18 +40,36 @@ interface WizardFormProps {
 }
 
 export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
+  const navigate = useNavigate();
+
+  // Restore wizard state from sessionStorage if available
+  const saved = (() => {
+    try {
+      const raw = sessionStorage.getItem('tc_wizard');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  })();
+
   // Form state
-  const [destination, setDestination] = useState('');
-  const [origin, setOrigin] = useState('');
-  const [startDate, setStartDate] = useState(getTomorrowDate());
-  const [totalDays, setTotalDays] = useState(3);
-  const [interests, setInterests] = useState<string[]>([]);
-  const [pace, setPace] = useState<Pace>('moderate');
-  const [mustInclude, setMustInclude] = useState<string[]>([]);
-  const [avoid, setAvoid] = useState<string[]>([]);
-  const [budget, setBudget] = useState<Budget>('moderate');
-  const [budgetUsd, setBudgetUsd] = useState('');
-  const [travelers, setTravelers] = useState<Travelers>({ adults: 1, children: 0, infants: 0 });
+  const [destination, setDestination] = useState(saved?.destination ?? '');
+  const [origin, setOrigin] = useState(saved?.origin ?? '');
+  const [startDate, setStartDate] = useState(saved?.startDate ?? getTomorrowDate());
+  const [totalDays, setTotalDays] = useState(saved?.totalDays ?? 3);
+  const [interests, setInterests] = useState<string[]>(saved?.interests ?? []);
+  const [pace, setPace] = useState<Pace>(saved?.pace ?? 'moderate');
+  const [mustInclude, setMustInclude] = useState<string[]>(saved?.mustInclude ?? []);
+  const [avoid, setAvoid] = useState<string[]>(saved?.avoid ?? []);
+  const [budget, setBudget] = useState<Budget>(saved?.budget ?? 'moderate');
+  const [budgetUsd, setBudgetUsd] = useState(saved?.budgetUsd ?? '');
+  const [travelers, setTravelers] = useState<Travelers>(saved?.travelers ?? { adults: 1, children: 0, infants: 0 });
+
+  // Persist wizard state on change
+  useEffect(() => {
+    sessionStorage.setItem('tc_wizard', JSON.stringify({
+      destination, origin, startDate, totalDays, interests, pace,
+      mustInclude, avoid, budget, budgetUsd, travelers,
+    }));
+  }, [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, budget, budgetUsd, travelers]);
 
   // Saved trips
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -115,6 +134,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       try {
         await loadTrip(trip.id);
         setPhase(trip.has_day_plans ? 'day-plans' : 'preview');
+        navigate(`/trips/${trip.id}`);
       } catch {
         // loadTrip already logs the error
       } finally {

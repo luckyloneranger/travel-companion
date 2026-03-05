@@ -108,6 +108,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     set({ journey: null, dayPlans: null, tripId: null, travelers: { adults: 1, children: 0, infants: 0 }, tips: {}, costBreakdown: null });
     sessionStorage.removeItem('tc_tripId');
     sessionStorage.removeItem('tc_phase');
+    sessionStorage.removeItem('tc_wizard');
   },
 
   loadTrips: async () => {
