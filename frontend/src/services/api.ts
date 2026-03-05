@@ -22,6 +22,16 @@ function getAuthHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** Handle 401 responses: logout + redirect to sign-in. */
+async function handle401(res: Response): Promise<void> {
+  if (res.status === 401) {
+    const { useAuthStore } = await import('@/stores/authStore');
+    useAuthStore.getState().logout();
+    window.location.href = '/signin';
+    throw new Error('Session expired. Please sign in again.');
+  }
+}
+
 /**
  * Parse and yield Server-Sent Events from a streaming POST endpoint.
  */
@@ -39,9 +49,7 @@ async function* streamSSE(
   });
 
   if (response.status === 401) {
-    const { useAuthStore } = await import('@/stores/authStore');
-    useAuthStore.getState().logout();
-    throw new Error('Session expired. Please sign in again.');
+    await handle401(response);
   }
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   if (!response.body) throw new Error('No response body');
@@ -96,9 +104,7 @@ export const api = {
       credentials: 'include',
     });
     if (res.status === 401) {
-      const { useAuthStore } = await import('@/stores/authStore');
-      useAuthStore.getState().logout();
-      throw new Error('Session expired. Please sign in again.');
+      await handle401(res);
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<ChatEditResponse>;
@@ -112,9 +118,7 @@ export const api = {
       credentials: 'include',
     });
     if (res.status === 401) {
-      const { useAuthStore } = await import('@/stores/authStore');
-      useAuthStore.getState().logout();
-      throw new Error('Session expired. Please sign in again.');
+      await handle401(res);
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TripSummary[]>;
@@ -125,6 +129,9 @@ export const api = {
       headers: getAuthHeaders(),
       credentials: 'include',
     });
+    if (res.status === 401) {
+      await handle401(res);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TripResponse>;
   },
@@ -136,9 +143,7 @@ export const api = {
       credentials: 'include',
     });
     if (res.status === 401) {
-      const { useAuthStore } = await import('@/stores/authStore');
-      useAuthStore.getState().logout();
-      throw new Error('Session expired. Please sign in again.');
+      await handle401(res);
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
   },
@@ -157,6 +162,9 @@ export const api = {
       headers: getAuthHeaders(),
       credentials: 'include',
     });
+    if (res.status === 401) {
+      await handle401(res);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<Place[]>;
   },
@@ -173,6 +181,9 @@ export const api = {
       body: JSON.stringify(activities),
       credentials: 'include',
     });
+    if (res.status === 401) {
+      await handle401(res);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<TipsResponse>;
   },
@@ -205,9 +216,7 @@ export const api = {
       credentials: 'include',
     });
     if (res.status === 401) {
-      const { useAuthStore } = await import('@/stores/authStore');
-      useAuthStore.getState().logout();
-      throw new Error('Session expired. Please sign in again.');
+      await handle401(res);
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<{ token: string; url: string }>;
@@ -226,6 +235,9 @@ export const api = {
       headers: getAuthHeaders(),
       credentials: 'include',
     });
+    if (res.status === 401) {
+      await handle401(res);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -241,6 +253,9 @@ export const api = {
       headers: getAuthHeaders(),
       credentials: 'include',
     });
+    if (res.status === 401) {
+      await handle401(res);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
