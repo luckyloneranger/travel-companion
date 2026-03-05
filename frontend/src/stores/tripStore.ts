@@ -108,7 +108,10 @@ export const useTripStore = create<TripState>((set, get) => ({
 
   loadTrips: async () => {
     const { useAuthStore } = await import('./authStore');
-    if (!useAuthStore.getState().user) return;
+    if (!useAuthStore.getState().user) {
+      set({ savedTrips: [] });
+      return;
+    }
     try {
       const trips = await api.listTrips();
       set({ savedTrips: trips });
