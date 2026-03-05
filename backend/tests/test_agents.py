@@ -387,3 +387,31 @@ class TestDayPlannerValidation:
         )
         assert len(result.day_groups) == 2
         assert len(result.selected_place_ids) == 3
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CityHighlight excursion fields
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestCityHighlightExcursion:
+    def test_excursion_fields_default_none(self):
+        from app.models.journey import CityHighlight
+        h = CityHighlight(name="Test")
+        assert h.excursion_type is None
+        assert h.excursion_days is None
+
+    def test_excursion_fields_set(self):
+        from app.models.journey import CityHighlight
+        h = CityHighlight(
+            name="Ha Long Bay Cruise", category="adventure",
+            excursion_type="multi_day", excursion_days=2,
+        )
+        assert h.excursion_type == "multi_day"
+        assert h.excursion_days == 2
+
+    def test_full_day_excursion(self):
+        from app.models.journey import CityHighlight
+        h = CityHighlight(name="Disney", excursion_type="full_day")
+        assert h.excursion_type == "full_day"
+        assert h.excursion_days is None

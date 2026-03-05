@@ -19,6 +19,8 @@ class CityHighlight(BaseModel):
     description: str = ""
     category: str = ""
     suggested_duration_hours: float | None = None
+    excursion_type: str | None = None
+    excursion_days: int | None = None
 
 
 class CityStop(BaseModel):
