@@ -13,6 +13,7 @@ import {
 } from '@/components/trip/wizard';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
 import type { TripRequest, TripSummary, Pace, Budget, Travelers } from '@/types';
 
 function getTomorrowDate(): string {
@@ -58,10 +59,11 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
   const { savedTrips, loadTrips, loadTrip, deleteTrip } = useTripStore();
   const { wizardStep, setWizardStep, setPhase } = useUIStore();
   const setStoreTravelers = useTripStore((s) => s.setTravelers);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     loadTrips();
-  }, [loadTrips]);
+  }, [loadTrips, user]);
 
   const handleNext = useCallback(() => {
     setWizardStep(Math.min(wizardStep + 1, 5));
