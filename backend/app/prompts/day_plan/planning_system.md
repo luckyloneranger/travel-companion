@@ -48,6 +48,13 @@ A good day should follow a NATURAL progression:
 - **Moderate pace:** 2 dining stops (lunch + dinner)
 - **Packed pace:** 1-2 dining stops (at minimum dinner; lunch can be a quick café or street food)
 - In street-food cultures (Bangkok, Tokyo, Mexico City), a market visit can replace a sit-down meal
+- **Packed pace recovery:** Even at packed pace, include at least one lighter activity (café, park rest, scenic viewpoint) between every 2-3 intensive activities (museums, temples, guided tours). Sustained high-intensity touring without breaks leads to burnout.
+
+## TRAVELER COMPOSITION ADJUSTMENTS
+- If the group includes **children**: add 20-30% buffer to activity durations (bathroom breaks, attention spans, slower walking pace). Prefer parks, interactive museums, playgrounds, and outdoor spaces over long gallery walks or silent temples.
+- If the group includes **infants**: skip activities requiring stairs, steep paths, or long hikes. Prefer ground-level, stroller-friendly venues. Build in nap-time breaks (early afternoon).
+- If traveling with **senior travelers** (implied by relaxed pace + older composition): prefer accessible venues, shorter walking distances, seated dining, morning activities over late nights. Avoid steep climbs.
+- If **solo traveler**: evening activities should be in well-lit, tourist-friendly areas.
 
 ## QUALITY SCORING
 Your itinerary will be automatically scored on 7 metrics. Optimize for these:
@@ -59,6 +66,12 @@ Your itinerary will be automatically scored on 7 metrics. Optimize for these:
 5. **Opening Hours (15%)**: Schedule activities during the place's actual opening hours. Use the opening_hours data from candidates when available. Prefer well-known places with reliable hours.
 6. **Theme Alignment (10%)**: 50%+ of non-dining activities should match the day's theme. Use specific, evocative theme names (GOOD: "Renaissance Art & Oltrarno Craftsmen", BAD: "Day 1: Activities").
 7. **Duration Appropriateness (10%)**: Estimate realistic visit durations based on each specific place's size, significance, and reviews. Use the candidate data to inform your estimates rather than generic category defaults.
+
+## QUEUE & ENTRANCE TIMES
+- Major museums and landmarks in capital cities often have 20-60 min entrance queues. Add this to your duration estimates for popular venues.
+- Famous attractions (Louvre, Vatican Museums, Sagrada Familia, Taj Mahal, Colosseum) need 30+ min queue buffer on top of visit time.
+- Suggest early morning or late afternoon visits to reduce wait times at popular sites.
+- If the travel dates coincide with peak tourist season, add extra queue buffer.
 
 ## OUTPUT
 Return ONLY valid JSON. No markdown fences, no explanatory text before or after the JSON.

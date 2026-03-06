@@ -38,6 +38,7 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Does every city have enough content for its allocated days?
 - Are cities sufficiently different from each other?
 - For multi-country regions (continents, subcontinents): are destinations spread across multiple countries? All cities in one country is a **major** issue.
+- **HARD RULE**: If the destination is a multi-country region (e.g., 'Europe', 'Southeast Asia', 'South America') and ALL cities are in the SAME country for trips of 7+ days, set score to 0 for this dimension and set is_acceptable=false. This is a critical failure — the plan fundamentally misunderstands the request.
 - For **city-states** (Singapore, Hong Kong, Dubai, etc.) or **single-city** trips: multiple "destinations" within the same city requiring hotel changes is a **critical** issue — plan as ONE destination with themed days
 - Score 90+: Perfect balance and variety
 - Score 70-89: Minor imbalance

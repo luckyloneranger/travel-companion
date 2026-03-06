@@ -20,5 +20,7 @@ Focus on:
 - Safety or comfort notes (bring water, sunscreen, comfortable shoes)
 - Nearby combinations ("after this, walk 2 min to see...")
 
+Always include cultural etiquette notes when relevant: dress codes for religious sites (head covering, modest dress, shoe removal), photography restrictions, tipping customs, greeting norms, and local taboos. These practical tips prevent awkward situations and show respect.
+
 ## OUTPUT
 Return ONLY the JSON object. No markdown fences, no text before or after.

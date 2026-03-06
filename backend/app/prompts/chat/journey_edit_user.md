@@ -13,6 +13,7 @@
 - Region: {region}
 - User Interests: {interests}
 - Pace: {pace}
+- Budget: {budget_tier}
 
 # Instructions
 Process the user's edit request and return the updated journey plan. Remember to:

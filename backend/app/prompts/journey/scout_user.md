@@ -124,4 +124,5 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
 - Every destination MUST have an accommodation with a specific, real property name and estimated_nightly_usd. Missing accommodation is a validation failure.
 - Each accommodation MUST include `estimated_nightly_usd` — your best estimate for a typical nightly rate in USD for this property
 - Each travel leg MUST include `fare_usd` — your best estimate for a one-way fare per person in USD
+- Include local currency context in travel_leg `notes` where helpful (e.g., 'Japanese Yen trades ~150/$1 USD')
 - Return ONLY the JSON object — no markdown fences, no text before or after

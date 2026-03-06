@@ -91,6 +91,7 @@ class ChatService:
         region = ""
         interests = ", ".join(request.interests) if request and request.interests else "general"
         pace = request.pace.value if request else "moderate"
+        budget_tier = request.budget.value if request and request.budget else "moderate"
 
         user_prompt = user_template.format(
             current_journey=_format_journey_for_prompt(journey),
@@ -99,6 +100,7 @@ class ChatService:
             region=region,
             interests=interests,
             pace=pace,
+            budget_tier=budget_tier,
         )
 
         logger.info("Journey edit request: %s", message)

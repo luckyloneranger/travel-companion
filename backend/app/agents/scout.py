@@ -137,6 +137,30 @@ class ScoutAgent:
         # Collapse city-state / single-city multi-destination plans into one
         self._collapse_city_state_destinations(plan)
 
+        # Validate excursion days don't exceed city allocation
+        for city in plan.cities:
+            excursion_days = 0
+            for h in city.highlights:
+                if h.excursion_type == "full_day":
+                    excursion_days += 1
+                elif h.excursion_type == "multi_day":
+                    excursion_days += h.excursion_days or 2
+            if excursion_days > city.days:
+                logger.warning(
+                    "[Scout] %s: excursion days (%d) exceed city days (%d) — trimming excursions",
+                    city.name, excursion_days, city.days,
+                )
+                # Remove excess excursions (keep the first ones)
+                kept = 0
+                for h in city.highlights:
+                    if h.excursion_type in ("full_day", "multi_day"):
+                        days_needed = (h.excursion_days or 1) if h.excursion_type == "multi_day" else 1
+                        if kept + days_needed > city.days:
+                            h.excursion_type = None
+                            h.excursion_days = None
+                        else:
+                            kept += days_needed
+
         expected_legs = len(plan.cities) - 1
         if expected_legs > 0 and len(plan.travel_legs) != expected_legs:
             raise LLMValidationError(
