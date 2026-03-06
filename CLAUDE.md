@@ -150,8 +150,8 @@ user = day_plan_prompts.load("planning_user")
 - `POST /api/trips/{trip_id}/days/stream` — stream day plan generation (SSE)
 - `POST /api/trips/{trip_id}/chat` — edit journey or day plans via chat
 - `POST /api/trips/{trip_id}/tips` — generate tips for activities
-- `PUT /api/trips/{trip_id}/quick-edit` — quick activity edits (remove, ±duration) with time cascade
-- `PUT /api/trips/{trip_id}/reorder` — reorder activities within a day (recalculates times + routes)
+- `PUT /api/trips/{trip_id}/quick-edit` — quick activity edits (remove, ±duration) with time cascade + hotel re-anchoring
+- `PUT /api/trips/{trip_id}/reorder` — reorder activities within a day (recalculates times + routes + hotel bookends)
 - `GET /api/trips` — list saved trips
 - `GET /api/trips/{trip_id}` — get full trip details
 - `DELETE /api/trips/{trip_id}` — delete a trip
