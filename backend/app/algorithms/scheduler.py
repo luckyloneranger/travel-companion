@@ -485,6 +485,10 @@ class ScheduleBuilder:
                 if place_type in DURATION_BY_CATEGORY:
                     base_duration = DURATION_BY_CATEGORY[place_type]
                     break
+            logger.debug(
+                "[Scheduler] No LLM/Google duration for %s (%s) — using fallback %d min",
+                place.name, place.types[0] if place.types else "unknown", base_duration,
+            )
 
         # Apply pace multiplier
         multiplier = PACE_MULTIPLIERS.get(pace, 1.0)

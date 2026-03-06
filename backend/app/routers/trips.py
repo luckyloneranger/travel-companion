@@ -97,8 +97,21 @@ def _merge_enriched_data(original: JourneyPlan, updated: JourneyPlan) -> Journey
     for city in updated.cities:
         orig = original_cities.get(city.name.lower())
         if orig:
-            # Preserve enriched accommodation if LLM didn't provide full details
-            if orig.accommodation and (not city.accommodation or not city.accommodation.place_id):
+            # Preserve Google-enriched accommodation fields that the LLM won't regenerate
+            if orig.accommodation and city.accommodation:
+                if not city.accommodation.place_id and orig.accommodation.place_id:
+                    city.accommodation.place_id = orig.accommodation.place_id
+                if not city.accommodation.photo_url and orig.accommodation.photo_url:
+                    city.accommodation.photo_url = orig.accommodation.photo_url
+                if not city.accommodation.location and orig.accommodation.location:
+                    city.accommodation.location = orig.accommodation.location
+                if not city.accommodation.rating and orig.accommodation.rating:
+                    city.accommodation.rating = orig.accommodation.rating
+                if not city.accommodation.price_level and orig.accommodation.price_level:
+                    city.accommodation.price_level = orig.accommodation.price_level
+                if not city.accommodation.address and orig.accommodation.address:
+                    city.accommodation.address = orig.accommodation.address
+            elif orig.accommodation and not city.accommodation:
                 city.accommodation = orig.accommodation
             # Preserve location if not set
             if not city.location and orig.location:

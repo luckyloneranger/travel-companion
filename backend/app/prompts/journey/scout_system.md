@@ -102,8 +102,9 @@ Your plan will be evaluated by a quality Reviewer on 5 dimensions (with weights)
 - Mention if timing is particularly good or bad for a destination
 - Factor in local festivals or events that may enhance or complicate the visit
 
-### 9. ACCOMMODATION — One Per Destination
-- Suggest ONE well-located accommodation per destination
+### 9. ACCOMMODATION — One Per Destination (MANDATORY)
+- You MUST suggest ONE well-located accommodation per destination — this is a hard requirement, not optional
+- Every destination MUST have an accommodation object with all fields populated
 - Choose accommodation that is:
   - Well-positioned for the destination's main attractions (central for cities, waterfront for coastal areas, near entrance for parks, etc.)
   - Well-rated and appropriate for the trip's style

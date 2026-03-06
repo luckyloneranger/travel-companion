@@ -396,6 +396,7 @@ def _build_trip_html(trip: TripResponse) -> str:
             if city.accommodation.estimated_nightly_usd:
                 nightly = f" ~ ${city.accommodation.estimated_nightly_usd:.0f}/night"
             accom = f'<div class="accom">Stay: {city.accommodation.name}{rating}{nightly}</div>'
+            # TODO: Render accommodation photo in PDF (needs absolute URL or base64 embedding)
 
         highlights = ""
         for h in city.highlights[:5]:

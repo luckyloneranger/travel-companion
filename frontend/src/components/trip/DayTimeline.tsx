@@ -391,6 +391,10 @@ function TimelineActivity({
                 ~{Math.round(activity.route_to_next.distance_meters / 0.75).toLocaleString()} steps · ~{Math.round(activity.route_to_next.distance_meters * 0.05)} cal
               </span>
             )}
+            {/* Route fallback indicator */}
+            {activity.route_to_next.distance_meters === 0 && activity.route_to_next.duration_seconds === 0 && (
+              <span className="text-text-muted/50 text-xs">(estimated)</span>
+            )}
           </div>
         )}
       </div>
@@ -537,6 +541,11 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
             </button>
           )}
         </div>
+      )}
+
+      {/* Weather unavailable note */}
+      {!dayPlan.weather && dayPlan.activities.length > 0 && (
+        <p className="text-xs text-text-muted mb-2">Weather data unavailable for this day</p>
       )}
 
       {/* Activities with time gap detection — conditionally wrapped in DndContext */}
