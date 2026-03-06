@@ -46,7 +46,7 @@ Test files: `test_api.py` (API endpoints), `test_agents.py` (Scout/Reviewer agen
 ### Code Flow
 `routers/` -> `orchestrators/` -> `agents/` + `services/` + `algorithms/`
 
-- **Routers** (`app/routers/`): FastAPI endpoints — `trips.py` (journey plan, day plans, chat, tips, sharing, CRUD), `places.py` (place search, photo proxy), `auth.py` (OAuth login/callback/logout), `export.py` (PDF/calendar export)
+- **Routers** (`app/routers/`): FastAPI endpoints — `trips.py` (journey plan, day plans, chat, tips, sharing, quick-edit, reorder, CRUD), `places.py` (place search, photo proxy, hotel alternatives), `auth.py` (OAuth login/callback/logout), `export.py` (PDF trip book/calendar export)
 - **Orchestrators** (`app/orchestrators/`): Pipeline coordination
   - `journey.py` — JourneyOrchestrator: Scout(LLM) -> Enrich(Google APIs) -> Review(LLM, score>=70?) -> Planner(LLM, fix issues) -> loop (tracks best plan across iterations, max 3)
   - `day_plan.py` — DayPlanOrchestrator: discover -> AI plan (with time constraints for arrival/departure days, regional meal guidance) -> TSP optimize -> schedule (culture-aware meal placement) -> pace-aware transport mode selection -> route computation -> graduated weather warnings per city
@@ -56,7 +56,7 @@ Test files: `test_api.py` (API endpoints), `test_agents.py` (Scout/Reviewer agen
   - `google/` — `GooglePlacesService` (discovery, geocoding, lodging), `GoogleRoutesService` (single/batch routes, distance matrices), `GoogleDirectionsService` (transit details, fares, transfers), `GoogleWeatherService` (daily forecasts)
   - `chat.py` — ChatService for journey/day-plan editing via natural language
   - `tips.py` — TipsService for activity tips generation
-  - `export.py` — PDF (weasyprint) and calendar (.ics) export
+  - `export.py` — PDF trip book (weasyprint with cover page, daily spreads, weather) and calendar (.ics) export
 - **Algorithms** (`app/algorithms/`): Deterministic computation — `tsp.py` (nearest-neighbor route optimizer), `scheduler.py` (time-slot builder with culture-aware meal placement across ~80 countries/10 regional profiles, pace multipliers, LLM meal window overrides via `from_context()`), `quality/` (7 context-aware evaluators: meal timing 20%, clustering 15% with auto city-scale detection, efficiency 15%, variety 15%, opening hours 15%, theme 10%, duration 10%)
 - **Models** (`app/models/`): Pydantic v2 models — `common.py` (Location, Pace, TravelMode, TransportMode, Budget enums), `journey.py` (JourneyPlan, CityStop, TravelLeg, Accommodation, ReviewResult), `day_plan.py` (DayPlan, Activity, Place, Route, Weather), `trip.py` (TripRequest, TripResponse, TripSummary, Travelers), `chat.py`, `progress.py`, `quality.py`, `internal.py`, `user.py`
 - **Database** (`app/db/`): SQLAlchemy 2.0 async + asyncpg (PostgreSQL) — `engine.py` (auto-SSL for remote hosts), `models.py` (Trip, User, TripShare tables), `repository.py` (TripRepository with CRUD + sharing). Alembic for schema migrations (`backend/alembic/`)
@@ -101,8 +101,8 @@ user = day_plan_prompts.load("planning_user")
 **SSE Streaming** — endpoints yield `data: {json}\n\n` events via `ProgressEvent` model with phases: `scouting`, `enriching`, `reviewing`, `planning`, `improving`, `complete`, `error`. Day plan generation runs in background (no phase switch). Frontend consumes via async generator in `api.ts` with AbortController. Stall timeout (180s) warns users on slow connections.
 
 **Zustand Stores** — frontend state management via three stores:
-- `tripStore.ts` — journey plan, day plans, travelers (adults/children/infants), saved trips CRUD, cost breakdown (accommodation + transport + dining + activities, costs are total-for-group), tips cache
-- `uiStore.ts` — phase management (input -> planning -> preview -> day-plans), wizard step tracking, day plans generating state, progress tracking, chat toggles, browser history integration, per-day map visibility
+- `tripStore.ts` — journey plan, day plans, travelers (adults/children/infants), saved trips CRUD, cost breakdown (accommodation + transport + dining + activities, costs are total-for-group), tips cache, recent changes tracking (visual diff after chat edits)
+- `uiStore.ts` — phase management (input -> planning -> preview -> day-plans -> live), wizard step tracking, day plans generating state, progress tracking, chat toggles with prefill support, browser history integration, per-day map visibility
 - `authStore.ts` — user authentication state, JWT capture from OAuth redirect URL params, periodic token refresh (30 min), auto-logout on 401
 
 **Request Tracing** — `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs, plus security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`). `RequestLoggingFilter` injects `request_id` into log records. Global exception handler in `main.py` prevents stack trace leaks.
@@ -135,7 +135,9 @@ user = day_plan_prompts.load("planning_user")
 - Path alias: `@/*` maps to `src/*`
 - Tailwind CSS v4 with shadcn/ui + Radix UI components
 - Zustand 5 for state management
+- @dnd-kit for drag-and-drop activity reordering
 - Design: Inter (body) + Plus Jakarta Sans (display), Indigo primary, Orange accent
+- PWA: manifest.json for installability, theme-color meta tag
 
 ## API Endpoints
 
@@ -144,12 +146,14 @@ user = day_plan_prompts.load("planning_user")
 - `POST /api/trips/{trip_id}/days/stream` — stream day plan generation (SSE)
 - `POST /api/trips/{trip_id}/chat` — edit journey or day plans via chat
 - `POST /api/trips/{trip_id}/tips` — generate tips for activities
+- `PUT /api/trips/{trip_id}/quick-edit` — quick activity edits (remove, ±duration)
+- `PUT /api/trips/{trip_id}/reorder` — reorder activities within a day
 - `GET /api/trips` — list saved trips
 - `GET /api/trips/{trip_id}` — get full trip details
 - `DELETE /api/trips/{trip_id}` — delete a trip
 - `POST /api/trips/{trip_id}/share` — create shareable link
 - `DELETE /api/trips/{trip_id}/share` — revoke sharing
-- `GET /api/trips/{trip_id}/export/pdf` — download PDF
+- `GET /api/trips/{trip_id}/export/pdf` — download PDF trip book
 - `GET /api/trips/{trip_id}/export/calendar` — download .ics
 
 ### Auth (`/api/auth`)
@@ -160,7 +164,8 @@ user = day_plan_prompts.load("planning_user")
 
 ### Other
 - `GET /api/places/search` — search places (Google Places)
-- `GET /api/places/photo/{ref}` — proxy Google Places photos (SSRF-validated)
+- `GET /api/places/photo/{ref}?w=800` — proxy Google Places photos (SSRF-validated, configurable width 100-1600)
+- `GET /api/places/alternatives` — get alternative hotels near a location
 - `GET /api/shared/{token}` — get shared trip (no auth)
 - `GET /health` — health check (status, version, LLM provider)
 
