@@ -62,6 +62,13 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - For family groups with children/infants, are activities age-appropriate and accessible?
 - If any critical seasonal or safety issue is found, add it as a **critical** issue with category `seasonal` or `safety` — this WILL set is_acceptable=false regardless of score.
 
+### 7. HIGHLIGHT & EXCURSION VALIDATION (does not contribute to score, but flag as issues)
+- Verify total highlight hours per city ≤ 70% of available day hours (city.days × 8h)
+- Verify max 1 multi_day excursion per destination
+- Verify full_day excursions ≤ 50% of city days
+- Verify accommodation price aligns with budget tier (budget: <$100/night, moderate: $100-300/night, luxury: $300+/night)
+- Flag mismatches as **major** issues with category `balance`
+
 ## SEVERITY LEVELS
 - **critical**: Makes trip impossible (not enough time, missed connections, border issues, **non-existent or unverifiable destination**)
 - **major**: Significantly degrades experience (very long travel days, poor routing, wrong season)

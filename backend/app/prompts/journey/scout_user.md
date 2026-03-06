@@ -83,6 +83,10 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
       "days": 2,
       "why_visit": "Why this destination fits the traveler's interests — be specific",
       "best_time_to_visit": "Morning/Evening recommendations for this destination",
+      "seasonal_notes": "Brief seasonal guidance for the travel dates",
+      "visa_notes": "Entry requirements for this destination",
+      "altitude_meters": 0,
+      "safety_notes": "Safety context for the traveler profile",
       "highlights": [
         {{
           "name": "Attraction or Experience Name",
@@ -108,7 +112,8 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
       "notes": "Specific service name, departure recommendations, comfort level",
       "estimated_cost": "Local currency estimate",
       "fare_usd": 85,
-      "booking_tip": "How/where to book, how far in advance"
+      "booking_tip": "How/where to book, how far in advance",
+      "visa_requirement": "Entry requirement for this border crossing"
     }}
   ]
 }}
@@ -126,3 +131,7 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
 - Each travel leg MUST include `fare_usd` — your best estimate for a one-way fare per person in USD
 - Include local currency context in travel_leg `notes` where helpful (e.g., 'Japanese Yen trades ~150/$1 USD')
 - Return ONLY the JSON object — no markdown fences, no text before or after
+- Each city MUST include `seasonal_notes`, `visa_notes`, and `safety_notes` (even if brief)
+- `altitude_meters` is required (use approximate elevation above sea level, e.g. Paris = 35)
+- Each accommodation MUST include `why` explaining the hotel choice
+- Each cross-country travel leg MUST include `visa_requirement`

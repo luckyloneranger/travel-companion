@@ -28,6 +28,9 @@ Fix this journey plan based on the review feedback:
 3. Verify total days still equal {total_days}
 4. Write a reasoning entry for each issue explaining your fix
 5. Output the complete revised plan
+6. When fixing TIME FEASIBILITY: reduce the longest highlights first, or remove an excursion
+7. When fixing BUDGET issues: suggest cheaper accommodation or remove expensive excursions
+8. Preserve seasonal_notes, visa_notes, altitude_meters, safety_notes from the original plan
 
 Return the COMPLETE fixed plan in JSON:
 ```json

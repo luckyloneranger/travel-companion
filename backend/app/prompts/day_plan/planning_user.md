@@ -31,6 +31,12 @@ Estimate for a MODERATE baseline. The system handles pace adjustment.
 
 {must_include_section}
 
+{scout_highlights_section}
+
+{scheduling_hints}
+
+{hotel_section}
+
 ## GEOGRAPHIC CLUSTERING GUIDE
 Each place has coordinates (lat, lng). Group places that are close together on the SAME DAY.
 - Places within ~2km of each other = great for same day

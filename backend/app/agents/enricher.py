@@ -243,8 +243,10 @@ class EnricherAgent:
 
                 # Preserve LLM's cost estimate from the Scout agent
                 llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
+                llm_why = city.accommodation.why if city.accommodation else ""
                 city.accommodation = Accommodation(
                     name=result.name,
+                    why=llm_why,
                     address=result.address,
                     location=result.location,
                     place_id=result.place_id,
@@ -287,6 +289,8 @@ class EnricherAgent:
         Resolves city names to locations, fetches transport options via
         the Directions API, and updates the leg in-place.
         """
+        original_booking_tip = leg.booking_tip
+
         origin_loc = self._find_city_location(leg.from_city, plan)
         dest_loc = self._find_city_location(leg.to_city, plan)
 
@@ -343,6 +347,9 @@ class EnricherAgent:
                 leg.to_city,
                 to_country,
             )
+
+        if not leg.booking_tip and original_booking_tip:
+            leg.booking_tip = original_booking_tip
 
     async def _geocode_origin(self, origin_name: str) -> Location | None:
         """Geocode the origin city if it's not in the plan's destinations."""

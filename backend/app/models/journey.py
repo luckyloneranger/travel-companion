@@ -5,6 +5,7 @@ from .common import Location, TransportMode
 
 class Accommodation(BaseModel):
     name: str
+    why: str = ""
     address: str = ""
     location: Location | None = None
     place_id: str | None = None

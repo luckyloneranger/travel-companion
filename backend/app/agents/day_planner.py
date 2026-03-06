@@ -99,6 +99,9 @@ class DayPlannerAgent:
         time_constraints: list[dict] | None = None,
         travelers_description: str = "1 adult",
         country: str = "",
+        highlights: list | None = None,
+        best_time_to_visit: str = "",
+        hotel_location=None,
     ) -> AIPlan:
         """Given discovered place candidates, select and group into themed days.
 
@@ -124,6 +127,9 @@ class DayPlannerAgent:
             must_include=must_include, time_constraints=time_constraints,
             travelers_description=travelers_description,
             country=country,
+            highlights=highlights,
+            best_time_to_visit=best_time_to_visit,
+            hotel_location=hotel_location,
         )
 
         logger.info(
@@ -261,6 +267,9 @@ class DayPlannerAgent:
         time_constraints: list[dict] | None = None,
         travelers_description: str = "1 adult",
         country: str = "",
+        highlights: list | None = None,
+        best_time_to_visit: str = "",
+        hotel_location=None,
     ) -> str:
         """Format the user prompt template with candidate data."""
         guide = _PACE_GUIDE.get(pace, _PACE_GUIDE["moderate"])
@@ -351,6 +360,27 @@ class DayPlannerAgent:
                     lines.append(f"- Day {day_num}: only ~{available_hours:.0f} hours available ({reason}). Scale activity count proportionally.")
             time_constraints_section = "\n".join(lines)
 
+        # Build Scout highlights section
+        scout_highlights_section = ""
+        if highlights:
+            hl_lines = ["## SCOUT'S RECOMMENDED HIGHLIGHTS (prioritize including these)",
+                        "These attractions were specifically curated for this trip. Try to include them in your day plan:"]
+            for h in highlights:
+                dur = f", {h.suggested_duration_hours}h" if hasattr(h, 'suggested_duration_hours') and h.suggested_duration_hours else ""
+                desc = f': "{h.description}"' if hasattr(h, 'description') and h.description else ""
+                cat = h.category if hasattr(h, 'category') and h.category else "attraction"
+                exc = f" [{h.excursion_type}]" if hasattr(h, 'excursion_type') and h.excursion_type else ""
+                hl_lines.append(f"- {h.name}{desc} ({cat}{dur}){exc}")
+            scout_highlights_section = "\n".join(hl_lines)
+
+        scheduling_hints = ""
+        if best_time_to_visit:
+            scheduling_hints = f"## SCHEDULING HINTS\n{best_time_to_visit}"
+
+        hotel_section = ""
+        if hotel_location and hasattr(hotel_location, 'lat') and hasattr(hotel_location, 'lng'):
+            hotel_section = f"## HOTEL LOCATION\nHotel at ({hotel_location.lat:.4f}, {hotel_location.lng:.4f}) — cluster Day 1 morning activities near hotel for easy start"
+
         return day_plan_prompts.load("planning_user").format(
             num_days=num_days,
             destination=city_name,
@@ -370,6 +400,9 @@ class DayPlannerAgent:
             time_constraints_section=time_constraints_section,
             travelers_description=travelers_description,
             meal_time_guidance=meal_time_guidance,
+            scout_highlights_section=scout_highlights_section,
+            scheduling_hints=scheduling_hints,
+            hotel_section=hotel_section,
         )
 
     def _validate_ai_plan(self, plan: AIPlan, valid_ids: set[str]) -> None:

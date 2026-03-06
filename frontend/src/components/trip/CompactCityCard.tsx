@@ -122,6 +122,12 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                   {city.why_visit}
                 </p>
               )}
+              {city.best_time_to_visit && (
+                <p className="text-xs text-text-muted mt-0.5 flex items-center gap-1">
+                  <Clock className="h-3 w-3 shrink-0" />
+                  {city.best_time_to_visit}
+                </p>
+              )}
             </div>
           </div>
 
@@ -159,7 +165,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
               />
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text-primary break-words">{city.accommodation.name}</p>
+              <p className="text-sm font-medium text-text-primary break-words" title={city.accommodation.why || undefined}>{city.accommodation.name}</p>
               <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
                 {city.accommodation.rating && (
                   <span className="flex items-center gap-0.5">
@@ -223,6 +229,27 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                 </div>
               )}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Altitude / Seasonal / Visa badges ─────────────────── */}
+      {(city.altitude_meters && city.altitude_meters > 2000 || city.seasonal_notes || city.visa_notes) && (
+        <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+          {city.altitude_meters && city.altitude_meters > 2000 && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+              {city.altitude_meters.toFixed(0)}m altitude
+            </span>
+          )}
+          {city.seasonal_notes && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300" title={city.seasonal_notes}>
+              Seasonal info
+            </span>
+          )}
+          {city.visa_notes && (
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300" title={city.visa_notes}>
+              Visa info
+            </span>
           )}
         </div>
       )}
