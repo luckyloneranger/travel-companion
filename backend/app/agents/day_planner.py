@@ -145,6 +145,11 @@ class DayPlannerAgent:
             temperature=LLM_DEFAULT_TEMPERATURE,
         )
 
+        if not plan.durations:
+            logger.warning("[DayPlanner] LLM returned empty durations dict for %s — scheduler will use fallbacks", city_name)
+        if not plan.cost_estimates:
+            logger.warning("[DayPlanner] LLM returned empty cost_estimates for %s — costs will be $0", city_name)
+
         # Derive selected_place_ids from day_groups if empty
         if not plan.selected_place_ids and plan.day_groups:
             seen: set[str] = set()
@@ -166,7 +171,7 @@ class DayPlannerAgent:
         # Clean orphan IDs (soft — not a hard error)
         orphan_ids = [pid for pid in plan.selected_place_ids if pid not in valid_ids]
         if orphan_ids:
-            logger.warning("[DayPlanner] %d orphan place_ids: %s", len(orphan_ids), orphan_ids[:5])
+            logger.warning("[DayPlanner] %d orphan place_ids removed (LLM hallucinated IDs): %s", len(orphan_ids), orphan_ids)
             plan.selected_place_ids = [pid for pid in plan.selected_place_ids if pid in valid_ids]
             for group in plan.day_groups:
                 group.place_ids = [pid for pid in group.place_ids if pid in valid_ids]

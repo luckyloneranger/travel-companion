@@ -121,7 +121,7 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
 - The origin ({origin}) is the departure point — only include it in destinations if it matches the destination type AND has tourist value for day activities
 - Travel legs connect destination1 to destination2 to destination3 and so on (first leg is from first destination to second destination)
 - Choose transport modes that are ACTUALLY available and popular in {region} — include ferries/boats for coastal and island destinations
-- Each destination MUST have an accommodation suggestion with a specific, real property name
+- Every destination MUST have an accommodation with a specific, real property name and estimated_nightly_usd. Missing accommodation is a validation failure.
 - Each accommodation MUST include `estimated_nightly_usd` — your best estimate for a typical nightly rate in USD for this property
 - Each travel leg MUST include `fare_usd` — your best estimate for a one-way fare per person in USD
 - Return ONLY the JSON object — no markdown fences, no text before or after

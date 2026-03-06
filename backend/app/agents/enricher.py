@@ -139,7 +139,31 @@ class EnricherAgent:
                     "[Enricher] Geocode attempt failed for %r: %s", query, e
                 )
 
-        logger.warning("[Enricher] Failed to geocode %s (tried %s)", city.name, queries)
+        logger.warning("[Enricher] Failed to geocode %s (tried %s), attempting broader fallback", city.name, queries)
+
+        # Fallback: try with country suffix if not already tried
+        if city.country:
+            fallback_query = f"{city.name}, {city.country}"
+            if fallback_query not in queries:
+                logger.info("[Enricher] Retrying geocode with: %s", fallback_query)
+                try:
+                    result = await self.places.geocode(fallback_query)
+                    lat = result.get("lat", 0.0)
+                    lng = result.get("lng", 0.0)
+                    if lat and lng:
+                        city.location = Location(lat=lat, lng=lng)
+                        city.place_id = result.get("place_id")
+                        logger.info(
+                            "[Enricher] Fallback geocode succeeded for %s: (%.4f, %.4f)",
+                            city.name, lat, lng,
+                        )
+                        return
+                except Exception as e:
+                    logger.debug(
+                        "[Enricher] Fallback geocode failed for %r: %s", fallback_query, e
+                    )
+
+        logger.warning("[Enricher] All geocode attempts failed for %s", city.name)
 
     # ── Accommodation enrichment ─────────────────────────────────────────
 

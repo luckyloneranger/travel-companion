@@ -329,7 +329,7 @@ class DayPlanOrchestrator:
                     day_offset += city.days
                     yield ProgressEvent(
                         phase="city_complete",
-                        message=f"{city_name}: no places found",
+                        message=f"{city_name}: no suitable places found — try adjusting interests or pace",
                         progress=pct_end,
                         data={"city": city_name, "day_plans": []},
                     )

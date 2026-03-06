@@ -88,6 +88,19 @@ class ReviewIssue(BaseModel):
 class ReviewResult(BaseModel):
     is_acceptable: bool
     score: int = Field(..., ge=0, le=100)
+
+    @field_validator("score", mode="before")
+    @classmethod
+    def coerce_score(cls, v):
+        """Handle LLM returning score as string or float."""
+        if isinstance(v, str):
+            try:
+                return int(float(v))
+            except (ValueError, TypeError):
+                return 50  # Safe middle-ground default
+        if isinstance(v, float):
+            return int(v)
+        return v
     issues: list[ReviewIssue] = []
     summary: str = ""
     iteration: int = 1

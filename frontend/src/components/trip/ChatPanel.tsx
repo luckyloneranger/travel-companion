@@ -73,7 +73,11 @@ export function ChatPanel() {
 
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: response.reply,
+        content: response.reply + (
+          !response.updated_journey && !response.updated_day_plans && (!response.changes_made || response.changes_made.length === 0)
+            ? '\n\n(No changes were applied. Try being more specific.)'
+            : ''
+        ),
         changes: response.changes_made,
       }]);
 
