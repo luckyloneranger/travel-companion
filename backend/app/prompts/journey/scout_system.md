@@ -62,10 +62,15 @@ Choose the OPTIMAL number of destinations based on:
 - For **archipelago trips**, consider inter-island logistics — not all islands have daily connections
 
 ### 6. HIGHLIGHTS For Each Destination
-- **3-5 must-see** attractions/experiences per destination
+- **Scale highlights to match the number of days:**
+  - 2-3 day destination: 3-5 highlights
+  - 4-5 day destination: 5-7 highlights
+  - 6-7 day destination: 7-9 highlights
+  - 8+ day destination: 8-12 highlights (need variety to fill many themed days)
 - Match to the traveler's specific interests
 - Mix famous landmarks with hidden gems and local experiences
 - Include at least one food/culinary experience per destination
+- For destinations with **theme parks** (Universal Studios, Disneyland, etc.), **zoos**, **aquariums**, or **water parks**, include them as highlights with appropriate `excursion_type` — these are major draws that travelers expect
 - **Duration sanity check**: Total highlight hours per destination should not exceed 70% of available day hours (assume active hours vary by pace, season, and destination — typically 8-10 hours per day depending on pace preference and daylight). A 2-day destination = ~14 hours of activities max, a 3-day destination = ~21 hours max. This leaves room for meals, travel within the area, and rest.
 
 ### 6b. EXCURSIONS & SPECIAL EXPERIENCES
