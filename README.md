@@ -21,9 +21,9 @@ Scout (LLM picks cities + estimates costs) → Enrich (Google APIs ground with r
 **Day plan pipeline (per city, runs in background):**
 
 ```
-Discover places (Google) → AI plans days (with arrival/departure time constraints)
-  → TSP optimizes routes → Schedule builder assigns time slots (smart meal placement)
-  → Auto-select best transport mode → Attach weather forecasts → Weather warnings for outdoor activities
+Discover places (Google) → AI plans days (with regional meal guidance + time constraints)
+  → TSP optimizes routes → Schedule builder assigns time slots (culture-aware meal placement, ~80 countries)
+  → Pace-aware transport mode selection → Attach weather forecasts → Graduated weather warnings
 ```
 
 ## Features
@@ -34,34 +34,44 @@ Discover places (Google) → AI plans days (with arrival/departure time constrai
 - **Unified trip view** — journey overview and day plans on a single page, no context switching
 - **Inline day plans** — generated in background, rendered per-city inside collapsible city cards
 - **Per-day timeline** — activities with time, duration, cost, rating, photos, address, weather, and tips shown inline
-- **Smart transport selection** — walks short distances, drives or transits for longer legs (based on real Google travel times)
-- **Regional transport guidance** — 45+ region profiles with mode recommendations, operators, and booking tips for inter-city travel
-- **Weather integration** — daily forecasts per city, inline warnings for outdoor activities in bad weather
-- **Budget tracking** — cost breakdown across accommodation, transport, dining, and activities — all costs reflect total for the group
-- **Interactive maps** — journey-level city map + per-day route maps with color-coded transport modes
-- **Chat editing** — modify journeys and day plans via natural language with context-aware suggestion chips
+- **Smart transport selection** — pace-aware: walks short distances (relaxed=25min, packed=15min), drives or transits for longer legs (based on real Google travel times)
+- **Regional transport guidance** — LLM-driven prompt guidance for inter-city travel, adapted to each region's actual transport norms
+- **Weather integration** — daily forecasts per city, graduated warnings (advisory/warning/severe) for outdoor activities, "suggest indoor alternatives" link when rain ≥50%
+- **Budget tracking** — cost breakdown across accommodation, transport, dining, and activities with confidence badges (Google data vs AI estimate), daily cost progress bars, all costs reflect total for the group
+- **Interactive maps** — journey-level city map + per-day route maps with color-coded transport modes, unified map tab with day selector, "Click to explore" overlay, "What's nearby" Google Maps link
+- **Chat editing** — modify journeys and day plans via natural language with context-aware suggestion chips, contextual chat (tap any activity to pre-fill), visual diff highlighting ("New" badge) after edits
+- **Quick edit actions** — ±15min duration adjustment, activity removal with confirmation, drag-and-drop reorder via @dnd-kit
 - **User accounts** — OAuth login via Google or GitHub, trip ownership; all trip endpoints require authentication
-- **Trip sharing** — shareable links for read-only access with inline day plans
-- **Export** — PDF itinerary and .ics calendar export
+- **Trip sharing** — shareable links for read-only access with inline day plans, "Go to My Trips" for authenticated viewers
+- **Export** — PDF trip book (cover page, daily spreads with weather, indigo brand styling) and .ics calendar export with toast notifications
 - **Activity tips** — LLM-generated insider tips for each place, shown inline
-- **Dark mode** — full component coverage with system preference detection
-- **Session persistence** — refreshing the page restores your current trip
-- **Quality scoring** — 7 weighted metrics: meal timing (20%), geographic clustering (15%), route efficiency (15%), activity variety (15%), theme alignment (15%), opening hours (10%), duration realism (10%)
-- **Place filtering** — filters out closed/low-rated places, prefers current opening hours over regular
+- **Dark mode** — full component coverage with system preference detection, theme-aware map InfoWindows
+- **Session persistence** — refreshing the page restores your current trip, tab state persisted in URL (?tab=cities)
+- **Quality scoring** — 7 context-aware weighted metrics: meal timing (20%), geographic clustering with auto city-scale detection (15%), route efficiency (15%), activity variety (15%), theme alignment (15%), opening hours (10%), duration realism (10%)
+- **Place filtering** — adaptive filters that adjust to result density (wider for sparse results, tighter for dense), filters out closed/low-rated places
+- **Accommodation comparison** — view 3 alternative hotels per city with ratings, prices, and Google Maps links
+- **Full-screen day view** — swipeable single-day view with prev/next navigation
+- **Navigation sidebar** — floating action button with city/day tree for quick jump-to-day
+- **Live trip mode** — "Today" view highlighting current activity with Google Maps navigation link
+- **Walking route preview** — estimated step count and calories for walking segments
+- **"Why this place?" tooltips** — hover to see why each activity was selected (rating, theme match, category)
+- **Accessibility** — prefers-reduced-motion, aria-labels, focus rings, focus traps, 44px touch targets, semantic roles
+- **PWA** — installable via Add to Home Screen (manifest.json)
+- **Toast notifications** — user feedback for copy, share, export, errors, and destructive action confirmations
 
 ## Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
 | Backend | FastAPI 0.109+, Python 3.11+, Pydantic v2, SQLAlchemy 2.0 async + asyncpg (PostgreSQL 16) |
-| Frontend | React 19, TypeScript (strict), Vite 6, Tailwind CSS v4, shadcn/ui + Radix UI, Zustand 5 |
+| Frontend | React 19, TypeScript (strict), Vite 6, Tailwind CSS v4, shadcn/ui + Radix UI, Zustand 5, @dnd-kit |
 | LLM | Azure OpenAI (GPT-4o/GPT-5/o1/o3), Anthropic Claude, or Google Gemini (switchable via config) |
 | APIs | Google Places (New), Routes, Directions (transit/ferry), Weather |
-| Auth | OAuth (Google/GitHub) via authlib, dual auth: JWT httpOnly cookies + Bearer tokens |
+| Auth | OAuth (Google/GitHub) via authlib, dual auth: JWT httpOnly cookies + Bearer tokens (hash fragment delivery) |
 | Maps | Google Maps via @vis.gl/react-google-maps |
-| Streaming | Server-Sent Events (SSE) with AbortController + 180s stall timeout |
-| Export | weasyprint (PDF), icalendar (.ics) |
-| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 164 tests |
+| Streaming | Server-Sent Events (SSE) with AbortController + 180s stall timeout + pre-stream token refresh |
+| Export | weasyprint (PDF trip book with cover page) + icalendar (.ics) |
+| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 199 tests |
 
 ## Quick Start
 
@@ -164,12 +174,14 @@ See `backend/.env.example` and `frontend/.env.example` for templates.
 | POST | `/api/trips/{id}/days/stream` | Stream day plan generation (SSE) |
 | POST | `/api/trips/{id}/chat` | Edit journey or day plans via chat |
 | POST | `/api/trips/{id}/tips` | Generate activity tips |
-| GET | `/api/trips` | List saved trips |
+| PUT | `/api/trips/{id}/quick-edit` | Quick activity edits (remove, ±duration) |
+| PUT | `/api/trips/{id}/reorder` | Reorder activities within a day |
+| GET | `/api/trips` | List saved trips (paginated: `?limit=50&offset=0`) |
 | GET | `/api/trips/{id}` | Get full trip details |
 | DELETE | `/api/trips/{id}` | Delete a trip |
 | POST | `/api/trips/{id}/share` | Create shareable link |
 | DELETE | `/api/trips/{id}/share` | Revoke sharing |
-| GET | `/api/trips/{id}/export/pdf` | Download PDF itinerary |
+| GET | `/api/trips/{id}/export/pdf` | Download PDF trip book |
 | GET | `/api/trips/{id}/export/calendar` | Download .ics calendar |
 
 ### Auth (`/api/auth`)
@@ -186,6 +198,8 @@ See `backend/.env.example` and `frontend/.env.example` for templates.
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/places/search` | Search places (Google Places) |
+| GET | `/api/places/alternatives` | Get alternative hotels near a location |
+| GET | `/api/places/photo/{ref}?w=800` | Proxy Google Places photos (SSRF-validated, 100-1600px) |
 | GET | `/api/shared/{token}` | Get shared trip (no auth required) |
 | GET | `/health` | Health check (status, version, provider) |
 
@@ -221,12 +235,12 @@ travel-companion/
 │   │   ├── dependencies.py           # Depends() wiring for all services
 │   │   ├── config/
 │   │   │   ├── settings.py            # Pydantic BaseSettings (env vars)
-│   │   │   ├── planning.py            # Pace configs, durations by place type, interest mappings
-│   │   │   └── regional_transport.py  # 45+ regional transport profiles
+│   │   │   ├── planning.py            # Pace configs, fallback durations, adaptive place filters, interest mappings
+│   │   │   └── regional_transport.py  # LLM-driven transport guidance (replaces hardcoded profiles)
 │   │   ├── core/
 │   │   │   ├── auth.py                # JWT create/decode
 │   │   │   ├── http.py                # Shared httpx client with retry (exponential backoff)
-│   │   │   └── middleware.py          # Request tracing (X-Request-ID) + timing logs
+│   │   │   └── middleware.py          # Request tracing (X-Request-ID) + security headers + timing logs
 │   │   ├── db/
 │   │   │   ├── engine.py              # Async SQLAlchemy engine (auto-SSL for remote hosts)
 │   │   │   ├── models.py             # Trip, User, TripShare tables
@@ -242,10 +256,10 @@ travel-companion/
 │   │   │   ├── internal.py           # Internal pipeline models
 │   │   │   └── user.py               # UserResponse
 │   │   ├── routers/
-│   │   │   ├── trips.py              # Journey plan, day plans, chat, tips, CRUD, sharing
+│   │   │   ├── trips.py              # Journey plan, day plans, chat, tips, quick-edit, reorder, CRUD, sharing
 │   │   │   ├── auth.py               # OAuth login/callback/logout/me
-│   │   │   ├── places.py             # Place search
-│   │   │   └── export.py             # PDF + calendar export
+│   │   │   ├── places.py             # Place search, photo proxy, hotel alternatives
+│   │   │   └── export.py             # PDF trip book + calendar export
 │   │   ├── orchestrators/
 │   │   │   ├── journey.py            # Scout → Enrich → Review → Planner loop
 │   │   │   └── day_plan.py           # Discover → AI plan → TSP → Schedule → Routes → Weather
@@ -263,19 +277,19 @@ travel-companion/
 │   │   │   └── export.py             # PDF (weasyprint) + calendar (.ics) generation
 │   │   ├── algorithms/
 │   │   │   ├── tsp.py                # Nearest-neighbor TSP with custom distance functions
-│   │   │   ├── scheduler.py          # Time-slot builder (smart meal placement, pace multipliers)
-│   │   │   └── quality/              # 7-metric evaluator (meal timing, clustering, efficiency, variety, hours, theme, duration)
+│   │   │   ├── scheduler.py          # Time-slot builder (culture-aware meal placement ~80 countries, pace multipliers)
+│   │   │   └── quality/              # 7 context-aware evaluators (meal timing, clustering, efficiency, variety, hours, theme, duration)
 │   │   └── prompts/                   # 14 Markdown templates (journey, day_plan, chat, tips)
-│   └── tests/                         # 164 tests (pytest + testcontainers PostgreSQL)
+│   └── tests/                         # 199 tests (pytest + testcontainers PostgreSQL)
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx                    # Phase-based SPA (input → planning → preview/day-plans)
 │   │   ├── components/
-│   │   │   ├── trip/                  # WizardForm, PlanningDashboard, JourneyDashboard, ChatPanel
+│   │   │   ├── trip/                  # WizardForm, PlanningDashboard, JourneyDashboard, ChatPanel, DayTimeline, RouteTimeline, FullDayView, NavigationSidebar, LiveTripView, BudgetSummary
 │   │   │   │   └── wizard/           # 5 wizard steps (Where/When/Style/Budget/Review)
 │   │   │   ├── maps/                  # TripMap (cities), DayMap (activities + routes)
 │   │   │   ├── layout/               # Header, PageContainer
-│   │   │   └── ui/                    # shadcn/ui primitives (button, card, input, sheet, etc.)
+│   │   │   └── ui/                    # shadcn/ui primitives (button, card, input, sheet, toast, etc.)
 │   │   ├── stores/                    # Zustand: tripStore, uiStore, authStore
 │   │   ├── hooks/                     # useStreamingPlan, useStreamingDayPlans (SSE + AbortController)
 │   │   ├── pages/                     # SharedTrip (public shared trip view)
@@ -295,7 +309,7 @@ Supports multiple deployment modes via dual auth (cookie + Bearer token):
 | **Single container** | Cookie (same-origin) | `docker build -t ret .` then run with env vars |
 | **Split deploy (same domain)** | Cookie (cross-subdomain) | Set `COOKIE_DOMAIN=.example.com` |
 | **Split deploy (different domains)** | Bearer token | Set `VITE_API_BASE_URL`, `CORS_ORIGINS`, `APP_URL` |
-| **Mobile app** | Bearer token | Use `Authorization: Bearer` header from OAuth `?token=` redirect |
+| **Mobile app** | Bearer token | Use `Authorization: Bearer` header from OAuth `#token=` hash fragment redirect |
 
 ### Single Container (Docker)
 
@@ -313,7 +327,7 @@ For separate frontend (e.g., Vercel) and backend (e.g., Azure App Service):
 1. Set `VITE_API_BASE_URL` in `frontend/.env.production` to the backend URL
 2. Set `CORS_ORIGINS` on the backend to include the frontend URL
 3. Set `APP_URL` on the backend to the frontend URL (for OAuth redirects)
-4. Auth works via Bearer tokens — the OAuth callback redirects with `?token=` in the URL, which the frontend captures and stores in localStorage
+4. Auth works via Bearer tokens — the OAuth callback redirects with `#token=` in the URL hash fragment (not query params — hash fragments are never sent to servers), which the frontend captures and stores in localStorage
 
 ## Testing
 
@@ -322,7 +336,7 @@ For separate frontend (e.g., Vercel) and backend (e.g., Azure App Service):
 ```bash
 cd backend && source venv/bin/activate
 
-# Run all tests (164 tests)
+# Run all tests (199 tests)
 pytest -v
 
 # Run specific test file
