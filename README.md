@@ -14,8 +14,11 @@ AI-powered multi-city travel planner that combines LLMs for creative planning de
 **Journey planning pipeline:**
 
 ```
-Scout (LLM picks cities + estimates costs) → Enrich (Google APIs ground with real data)
-  → Review (LLM scores quality ≥70) → Planner (LLM fixes issues) → loop (max 3 iterations, best attempt returned)
+Landmark Discovery (Google finds top attractions by review count)
+  → Scout (LLM picks cities + estimates costs, informed by landmark data)
+  → Enrich (Google APIs ground with real data)
+  → Review (LLM scores quality ≥70, validates landmark coverage)
+  → Planner (LLM fixes issues) → loop (max 3 iterations, best attempt returned)
 ```
 
 **Day plan pipeline (per city, runs in background):**
@@ -59,6 +62,7 @@ Discover places (Google) → AI plans days (with regional meal guidance + time c
 - **PWA** — installable via Add to Home Screen (manifest.json)
 - **Toast notifications** — user feedback for copy, share, export, errors, and destructive action confirmations
 - **LLM output robustness** — accommodation validation with placeholder fallback, fallback geocoding ("{city}, {country}"), reviewer score coercion (string/float), enriched data preservation after chat edits, orphan place ID detection, missing duration/cost logging
+- **Landmark discovery** — pre-Scout Google Places query discovers destination's top attractions by review count (multi-query: landmarks + best places + theme parks). Feeds to Scout (must-consider), Reviewer (validates coverage), Planner (fixes missing). Ensures iconic attractions like Universal Studios, major zoos, and famous landmarks are never missed — zero hardcoded attraction names
 
 ## Tech Stack
 

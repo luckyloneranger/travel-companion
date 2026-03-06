@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Regular Everyday Traveller (RET) — a hybrid AI + deterministic travel planning app. LLMs handle creative decisions (place selection, theming, descriptions, cost estimation for groups); deterministic layers handle calculations (distance, time, validation, scheduling, quality scoring).
 
-Unified pipeline: multi-city journey planning with Scout -> Enrich -> Review -> Planner loop (~2-5min), iterating until quality threshold (min 70 score, max 3 iterations, returns best attempt). Day plans are generated in background per-city with discover -> AI plan -> TSP optimize -> schedule -> auto-select transport mode -> route computation -> weather integration. All trip endpoints require authentication.
+Unified pipeline: multi-city journey planning with Landmark Discovery (Google) -> Scout -> Enrich -> Review -> Planner loop (~2-5min), iterating until quality threshold (min 70 score, max 3 iterations, returns best attempt). Day plans are generated in background per-city with discover -> AI plan -> TSP optimize -> schedule -> auto-select transport mode -> route computation -> weather integration. All trip endpoints require authentication.
 
 ## Build & Run Commands
 
@@ -48,7 +48,7 @@ Test files: `test_api.py` (API endpoints), `test_agents.py` (Scout/Reviewer agen
 
 - **Routers** (`app/routers/`): FastAPI endpoints — `trips.py` (journey plan, day plans, chat, tips, sharing, quick-edit, reorder, CRUD), `places.py` (place search, photo proxy, hotel alternatives), `auth.py` (OAuth login/callback/logout), `export.py` (PDF trip book/calendar export)
 - **Orchestrators** (`app/orchestrators/`): Pipeline coordination
-  - `journey.py` — JourneyOrchestrator: Scout(LLM) -> Enrich(Google APIs) -> Review(LLM, score>=70?) -> Planner(LLM, fix issues) -> loop (tracks best plan across iterations, max 3)
+  - `journey.py` — JourneyOrchestrator: Landmark Discovery(Google) -> Scout(LLM) -> Enrich(Google APIs) -> Review(LLM, score>=70?) -> Planner(LLM, fix issues) -> loop (tracks best plan across iterations, max 3). Landmark discovery queries Google for destination's top attractions by review count (multi-query: landmarks + best places + theme parks), feeds to all downstream agents.
   - `day_plan.py` — DayPlanOrchestrator: discover -> AI plan (with time constraints for arrival/departure days, regional meal guidance) -> TSP optimize -> schedule (culture-aware meal placement) -> pace-aware transport mode selection -> route computation -> graduated weather warnings per city
 - **Agents** (`app/agents/`): LLM-powered components — `scout.py` (city selection + accommodation + travel legs, validates accommodation per city with placeholder fallback, collapses city-state destinations), `enricher.py` (Google API grounding, transit cap 4x driving, fallback geocoding, preserves accommodation.why and booking_tip, ferry mode guard), `reviewer.py` (quality scoring 0-100 with full highlight details + time feasibility % + excursion validation + budget alignment, score coercion), `planner.py` (fix review issues with highlight durations for rebalancing), `day_planner.py` (activity selection + day theming + regional meal guidance + Scout highlights as must-consider context + scheduling hints + hotel proximity clustering)
 - **Services** (`app/services/`):
