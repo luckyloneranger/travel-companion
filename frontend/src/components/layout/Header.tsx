@@ -36,9 +36,14 @@ export function Header() {
     if (hasTrip && !window.confirm('Start a new trip? Your current trip is saved and you can find it in Recent Trips.')) {
       return;
     }
-    useTripStore.getState().reset();
-    useUIStore.getState().resetUI();
+    // Navigate FIRST, then reset — prevents TripLoader from re-loading
+    // the old trip via URL param before navigation completes
     navigate('/');
+    // Use setTimeout to ensure navigation happens before state reset
+    setTimeout(() => {
+      useTripStore.getState().reset();
+      useUIStore.getState().resetUI();
+    }, 0);
   }, [navigate]);
 
   const handleGoHome = useCallback(() => {
