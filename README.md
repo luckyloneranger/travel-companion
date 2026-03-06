@@ -58,6 +58,7 @@ Discover places (Google) → AI plans days (with regional meal guidance + time c
 - **Accessibility** — prefers-reduced-motion, aria-labels, focus rings, focus traps, 44px touch targets, semantic roles
 - **PWA** — installable via Add to Home Screen (manifest.json)
 - **Toast notifications** — user feedback for copy, share, export, errors, and destructive action confirmations
+- **LLM output robustness** — accommodation validation with placeholder fallback, fallback geocoding ("{city}, {country}"), reviewer score coercion (string/float), enriched data preservation after chat edits, orphan place ID detection, missing duration/cost logging
 
 ## Tech Stack
 
