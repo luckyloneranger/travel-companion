@@ -103,19 +103,23 @@ user = day_plan_prompts.load("planning_user")
 **Zustand Stores** — frontend state management via three stores:
 - `tripStore.ts` — journey plan, day plans, travelers (adults/children/infants), saved trips CRUD, cost breakdown (accommodation + transport + dining + activities, costs are total-for-group), tips cache, recent changes tracking (visual diff after chat edits)
 - `uiStore.ts` — phase management (input -> planning -> preview -> day-plans -> live), wizard step tracking, day plans generating state, progress tracking, chat toggles with prefill support, browser history integration, per-day map visibility
-- `authStore.ts` — user authentication state, JWT capture from OAuth redirect URL params, periodic token refresh (30 min), auto-logout on 401
+- `authStore.ts` — user authentication state, JWT capture from OAuth redirect hash fragment (`#token=`), periodic token refresh (30 min), auto-logout on 401
 
 **Request Tracing** — `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs, plus security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`). `RequestLoggingFilter` injects `request_id` into log records. Global exception handler in `main.py` prevents stack trace leaks.
 
 **Authentication (Dual Auth)** — OAuth (Google/GitHub) via authlib. Supports two auth mechanisms:
 - **Cookie auth** (same-origin / web): JWT stored as httpOnly cookie, set during OAuth callback
-- **Bearer token auth** (cross-origin / mobile): JWT returned as `?token=` query param in OAuth redirect, stored in localStorage by frontend, sent as `Authorization: Bearer` header
+- **Bearer token auth** (cross-origin / mobile): JWT returned as `#token=` hash fragment in OAuth redirect (not query param — hash fragments are never sent to servers), stored in localStorage by frontend, sent as `Authorization: Bearer` header
 
 `get_current_user()` in `dependencies.py` checks Bearer header first, falls back to cookie. All trip API endpoints require authentication; only `/health`, `/api/auth/me`, and `/api/shared/{token}` are public. Frontend auto-logout on 401.
 
 **Database SSL** — `engine.py` auto-enables SSL for remote PostgreSQL hosts (Azure, Supabase). Local connections (localhost) skip SSL.
 
-**Rate Limiting** — per-user sliding window rate limiter (`app/core/rate_limit.py`) protects expensive endpoints. Configurable via `RATE_LIMIT_{PLAN,DAY_PLAN,CHAT,TIPS}_{REQUESTS,WINDOW_SECONDS}` env vars (defaults: plan 5/10min, day_plan 10/10min, chat 30/10min, tips 30/10min).
+**Rate Limiting** — per-user sliding window rate limiter (`app/core/rate_limit.py`) protects expensive endpoints. Configurable via `RATE_LIMIT_{PLAN,DAY_PLAN,CHAT,TIPS}_{REQUESTS,WINDOW_SECONDS}` env vars (defaults: plan 5/10min, day_plan 10/10min, chat 30/10min, tips 30/10min). Trip list supports pagination via `limit`/`offset` query params (default 50, max 200).
+
+**Routing & Navigation** — Frontend uses React Router with phase-based rendering (`input` → `planning` → `preview` → `day-plans` → `live`). Active tab persisted in URL via `?tab=cities` for deep-linking. TripLoader guards against loading when `phase='input'` to prevent race conditions. Logo click preserves trip data (just navigates home), "New Trip" requires confirmation then resets via `setTimeout(0)` to avoid TripLoader reload race. API catch-all at `/api/{path}` returns JSON 404 instead of SPA fallback. OAuth token delivered via hash fragment (`#token=`). CORS restricted to explicit methods/headers. ErrorBoundary wraps trip routes.
+
+**Toast Notifications** — `showToast(message, type)` from `@/components/ui/toast` for user feedback on copy, share, export, errors. `<ToastContainer />` rendered in App root. Auto-dismisses after 4 seconds.
 
 **Design Principles** — Prefer LLM prompt updates and Google API grounding over hardcoded heuristics. Deterministic layers (scheduler, quality evaluators, route selection) serve as context-aware guardrails with generous defaults — they accept overrides from LLM responses and API data via context dicts. Duration estimation priority: 1) LLM estimate, 2) Google Places `suggested_duration_minutes`, 3) fallback table. Meal windows adapt to ~80 countries via 10 regional profiles and accept LLM overrides via `ScheduleConfig.from_context()`. Place quality filters adapt to result density via `get_adaptive_place_filters()`. Walk/drive selection is pace-aware (relaxed=25min walk threshold, packed=15min). Prompt templates use `{meal_time_guidance}` placeholder for regional context injection rather than hardcoded meal times. Dining classification uses substring matching to catch all regional types (e.g. `sushi_restaurant`, `bar_and_grill`).
 
