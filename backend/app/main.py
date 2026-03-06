@@ -61,8 +61,8 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
     )
     application.add_middleware(RequestTracingMiddleware)
 
@@ -87,6 +87,10 @@ def create_app() -> FastAPI:
             "version": "2.0.0",
             "llm_provider": settings.llm_provider,
         }
+
+    @application.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+    async def api_not_found(path: str):
+        return JSONResponse(status_code=404, content={"detail": f"API endpoint not found: /api/{path}"})
 
     # Serve built frontend in production (single-container deployment)
     static_dir = Path(__file__).resolve().parent.parent / "static"

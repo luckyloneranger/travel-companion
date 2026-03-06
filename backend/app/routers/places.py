@@ -27,6 +27,7 @@ async def search_places(
     When lat/lng are provided, the query is augmented with location context
     for more relevant results.
     """
+    # TODO: Add IP-based rate limiting (no user context available on this public endpoint)
     # text_search only accepts query and max_results; location filtering
     # is handled server-side by Google based on the query text.
     results = await places.text_search(query)
@@ -45,6 +46,7 @@ async def get_alternatives(
     Returns up to 3 lodging alternatives near the given coordinates,
     excluding the currently-selected hotel (identified by place_id).
     """
+    # TODO: Add IP-based rate limiting (no user context available on this public endpoint)
     from app.models.common import Location
 
     location = Location(lat=lat, lng=lng)

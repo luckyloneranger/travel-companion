@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { api } from '@/services/api';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
 import type { DayPlan } from '@/types';
 import { SSE_STALL_TIMEOUT_MS } from '@/constants';
 
@@ -16,6 +17,9 @@ export function useStreamingDayPlans() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+
+    // Refresh auth token before starting long-running stream
+    await useAuthStore.getState().fetchUser();
 
     // Stay on preview — generate in background
     setDayPlansGenerating(true);

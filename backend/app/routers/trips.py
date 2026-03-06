@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.db.repository import TripRepository
@@ -131,9 +131,12 @@ def _merge_enriched_data(original: JourneyPlan, updated: JourneyPlan) -> Journey
 
 
 async def _check_trip_ownership(repo: TripRepository, trip_id: str, user_id: str):
-    """Verify the user owns the trip. Allows access to ownerless legacy trips."""
+    """Verify the user owns the trip. Warns on ownerless legacy trips."""
     owner = await repo.get_trip_user_id(trip_id)
-    if owner is not None and owner != user_id:
+    if owner is None:
+        logger.warning("Ownerless trip %s accessed by user %s (legacy migration)", trip_id, user_id)
+        return  # Allow access to ownerless legacy trips
+    if owner != user_id:
         raise HTTPException(404, "Trip not found")
 
 
@@ -254,8 +257,10 @@ async def chat_edit(
 async def list_trips(
     repo: TripRepository = Depends(get_trip_repository),
     user: dict = Depends(require_user),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
 ) -> list[TripSummary]:
-    return await repo.list_trips(user_id=user["sub"])
+    return await repo.list_trips(user_id=user["sub"], limit=limit, offset=offset)
 
 
 @router.get("/{trip_id}")

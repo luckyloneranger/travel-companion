@@ -6,17 +6,17 @@ import { AUTH_TOKEN_KEY } from '@/constants';
 
 const TOKEN_KEY = AUTH_TOKEN_KEY;
 
-/** Capture token from OAuth redirect URL (?token=xxx) and store it. */
+/** Capture token from OAuth redirect URL (#token=xxx or ?token=xxx) and store it. */
 function captureTokenFromUrl(): void {
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('token');
+  // Read token from hash fragment (OAuth redirect) or query params (legacy)
+  const hash = window.location.hash;
+  const hashToken = hash.startsWith('#token=') ? hash.slice(7) : null;
+  const searchToken = new URLSearchParams(window.location.search).get('token');
+  const token = hashToken || searchToken;
   if (token) {
     localStorage.setItem(TOKEN_KEY, token);
     // Remove token from URL without reload
-    params.delete('token');
-    const clean = params.toString();
-    const newUrl = window.location.pathname + (clean ? `?${clean}` : '') + window.location.hash;
-    window.history.replaceState({}, '', newUrl);
+    window.history.replaceState({}, '', window.location.pathname);
   }
 }
 
