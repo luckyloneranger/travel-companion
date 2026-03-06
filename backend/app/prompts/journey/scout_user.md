@@ -113,7 +113,12 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
       "estimated_cost": "Local currency estimate",
       "fare_usd": 85,
       "booking_tip": "How/where to book, how far in advance",
-      "visa_requirement": "Entry requirement for this border crossing"
+      "visa_requirement": "Entry requirement for this border crossing",
+      "segments": [
+        {{"mode": "drive", "from_place": "CityName", "to_place": "CityName Airport", "duration_hours": 0.5}},
+        {{"mode": "flight", "from_place": "CityName Airport", "to_place": "Destination Airport", "duration_hours": 1.5, "notes": "Airline name"}},
+        {{"mode": "drive", "from_place": "Destination Airport", "to_place": "DestinationCity", "duration_hours": 0.5, "notes": "Taxi"}}
+      ]
     }}
   ]
 }}
@@ -135,3 +140,4 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
 - `altitude_meters` is required (use approximate elevation above sea level, e.g. Paris = 35)
 - Each accommodation MUST include `why` explaining the hotel choice
 - Each cross-country travel leg MUST include `visa_requirement`
+- For multi-modal legs (airports, ferries with drives, border crossings), include `segments` array. Direct single-mode legs don't need segments.

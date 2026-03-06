@@ -111,6 +111,7 @@ class GooglePlacesService:
             "lng": loc.get("longitude", 0.0),
             "country": country,
             "timezone": timezone,
+            "utc_offset_minutes": utc_offset,
         }
 
     async def discover_places(

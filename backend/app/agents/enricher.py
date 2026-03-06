@@ -134,6 +134,9 @@ class EnricherAgent:
                     city.place_id = result.get("place_id")
                     if not city.country and result.get("country"):
                         city.country = result["country"]
+                    utc_offset = result.get("utc_offset_minutes")
+                    if utc_offset is not None:
+                        city.timezone_offset_minutes = utc_offset
                     logger.debug(
                         "[Enricher] Geocoded %s (query=%r): (%.4f, %.4f)",
                         city.name, query, lat, lng,
@@ -163,6 +166,9 @@ class EnricherAgent:
                             city.location = None
                         else:
                             city.place_id = result.get("place_id")
+                            utc_offset = result.get("utc_offset_minutes")
+                            if utc_offset is not None:
+                                city.timezone_offset_minutes = utc_offset
                             logger.info(
                                 "[Enricher] Fallback geocode succeeded for %s: (%.4f, %.4f)",
                                 city.name, lat, lng,
@@ -253,6 +259,8 @@ class EnricherAgent:
                     rating=result.rating,
                     price_level=result.price_level,
                     estimated_nightly_usd=llm_nightly,
+                    website=result.website,
+                    editorial_summary=result.editorial_summary,
                     photo_url=(
                         self.places.get_photo_url(result.photo_reference)
                         if result.photo_reference
@@ -388,8 +396,15 @@ class EnricherAgent:
         is not available. Rejects transit routes that are absurdly long
         compared to driving.
         """
-        # For flights, keep LLM estimates (we don't have a flight API).
+        # If leg has segments, ground each non-flight segment
+        if leg.segments:
+            self._ground_segments(leg, options)
+            return
+
+        # For flights without segments, estimate distance from driving data
         if leg.mode == TransportMode.FLIGHT:
+            if options.driving:
+                leg.distance_km = round(options.driving.distance_meters / 1000, 1)
             return
 
         # Determine driving duration as a sanity baseline.
@@ -493,6 +508,48 @@ class EnricherAgent:
                 leg.duration_hours = round(
                     options.driving.duration_seconds / 3600, 2
                 )
+
+    def _ground_segments(
+        self, leg: TravelLeg, options: TransportOptions
+    ) -> None:
+        """Ground non-flight segments using available API data.
+
+        Flight segments are preserved as-is (no Google flight API).
+        Drive/transit segments use driving route data for distance estimation.
+        Marks grounded segments with is_grounded=True.
+        """
+        total_hours = 0.0
+
+        for segment in leg.segments:
+            if segment.mode == "flight":
+                # No API for flights — keep LLM estimate
+                total_hours += segment.duration_hours
+                continue
+
+            if segment.mode in ("drive", "walk"):
+                # Mark as grounded — driving data provides baseline validation
+                if options.driving:
+                    segment.is_grounded = True
+                total_hours += segment.duration_hours
+                continue
+
+            # bus/train/ferry segments — keep LLM estimates, mark as not grounded
+            total_hours += segment.duration_hours
+
+        # Update total leg duration from segment sum
+        if total_hours > 0:
+            leg.duration_hours = round(total_hours, 2)
+
+        # Use driving distance as baseline for total leg distance
+        if options.driving and not leg.distance_km:
+            leg.distance_km = round(options.driving.distance_meters / 1000, 1)
+
+        logger.info(
+            "[Enricher] Grounded %d/%d segments for %s → %s (%.1fh total)",
+            sum(1 for s in leg.segments if s.is_grounded),
+            len(leg.segments),
+            leg.from_city, leg.to_city, total_hours,
+        )
 
     @staticmethod
     def _try_parse_fare_usd(fare_string: str) -> float | None:

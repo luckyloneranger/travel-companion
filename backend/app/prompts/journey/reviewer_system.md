@@ -30,6 +30,8 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Are overnight journeys used wisely (not exhausting)?
 - **CRITICAL**: Does the destination actually have the infrastructure for the suggested mode? Flights require airports — many small towns (Hoi An, Sapa, Hampi, Ella) have NO airport. Flag as **critical** if a flight is suggested to a city without an airport.
 - For multi-modal legs (flight + ground transfer), verify the notes explain the full journey.
+- For multi-modal legs, verify `segments` include ground transfers to/from airports or ports. A flight leg without ground transfer segments is suspicious.
+- Verify total duration across segments is realistic (sum should roughly equal leg duration).
 - Score 90+: Perfect regional transport choices
 - Score 70-89: Good choices, minor optimization possible
 - Score 50-69: Some unrealistic or unavailable modes

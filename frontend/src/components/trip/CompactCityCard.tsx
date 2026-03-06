@@ -177,6 +177,11 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                   <span>${city.accommodation.estimated_nightly_usd}/night</span>
                 )}
               </div>
+              {city.accommodation.website && (
+                <a href={city.accommodation.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-0.5 block">
+                  Visit website
+                </a>
+              )}
             </div>
           </div>
           {city.accommodation.place_id && city.location && (
