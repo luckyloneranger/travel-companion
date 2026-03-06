@@ -30,7 +30,7 @@ class ScoutAgent:
     def __init__(self, llm: LLMService):
         self.llm = llm
 
-    async def generate_plan(self, request: TripRequest) -> JourneyPlan:
+    async def generate_plan(self, request: TripRequest, landmarks_context: str = "") -> JourneyPlan:
         """Generate initial journey plan from user request.
 
         The Scout decides the optimal number of cities based on total days,
@@ -70,6 +70,7 @@ class ScoutAgent:
             ),
             avoid=", ".join(request.avoid) if request.avoid else "none",
             transport_guidance=transport_guidance,
+            landmarks_context=landmarks_context,
         )
 
         logger.info(

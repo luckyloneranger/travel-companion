@@ -356,6 +356,23 @@ class GooglePlacesService:
             )
         return results
 
+    async def discover_landmarks(
+        self, destination: str, max_results: int = 10
+    ) -> list[dict[str, Any]]:
+        """Discover a destination's most popular attractions by review count.
+
+        Uses text search for the destination's top attractions and sorts
+        by user_ratings_total to surface iconic venues. No hardcoded names —
+        Google's prominence ranking determines what's iconic.
+        """
+        results = await self.text_search(
+            query=f"top attractions and landmarks in {destination}",
+            max_results=20,
+        )
+        # Sort by review count (prominence proxy)
+        results.sort(key=lambda p: p.get("user_ratings_total") or 0, reverse=True)
+        return results[:max_results]
+
     async def get_place_details(self, place_id: str) -> dict[str, Any]:
         """Fetch full details for a single place by its ID."""
         url = f"{BASE_URL}/places/{place_id}"

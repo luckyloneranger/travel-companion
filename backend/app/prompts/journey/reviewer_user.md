@@ -20,6 +20,8 @@ Review this {total_days}-day journey plan:
 **Travel Legs:**
 {travel_detail}
 
+{landmarks_context}
+
 **Step-by-step evaluation process:**
 1. Score each of the 5 dimensions (timing, routing, transport, balance, interest_alignment) from 0-100
 2. Compute the weighted final score

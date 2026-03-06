@@ -10,6 +10,8 @@ Travel dates: {travel_dates}
 
 {transport_guidance}
 
+{landmarks_context}
+
 **Your Task:**
 1. Decide the optimal number of destinations (you choose based on days, pace, and regional distances)
 2. Select destinations that best match the interests — include iconic landmarks, natural wonders, and cultural hubs, not just major cities

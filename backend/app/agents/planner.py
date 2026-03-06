@@ -16,7 +16,7 @@ class PlannerAgent:
     def __init__(self, llm: LLMService):
         self.llm = llm
 
-    async def fix_plan(self, plan: JourneyPlan, review: ReviewResult, request: TripRequest) -> JourneyPlan:
+    async def fix_plan(self, plan: JourneyPlan, review: ReviewResult, request: TripRequest, landmarks_context: str = "") -> JourneyPlan:
         """Fix a journey plan based on reviewer feedback."""
         system_prompt = journey_prompts.load("planner_system")
 
@@ -37,6 +37,7 @@ class PlannerAgent:
             budget_tier=request.budget.value if hasattr(request, 'budget') else "moderate",
             cities_detail=cities_detail,
             travel_detail=travel_detail,
+            landmarks_context=landmarks_context,
         )
 
         from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_DEFAULT_TEMPERATURE
