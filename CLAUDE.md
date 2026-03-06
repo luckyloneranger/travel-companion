@@ -195,8 +195,35 @@ Supports multiple deployment modes via dual auth (cookie + Bearer token):
 | **Single container** | Cookie (same-origin) | `docker build .` — Dockerfile runs backend only; pre-build frontend and place in `static/` |
 | **Split deploy (same domain)** | Cookie (cross-subdomain) | Set `COOKIE_DOMAIN=.example.com` |
 | **Split deploy (different domains)** | Bearer token | Set `VITE_API_BASE_URL`, `CORS_ORIGINS`, `APP_URL` |
-| **Mobile app** | Bearer token | Use `Authorization: Bearer` header from OAuth `?token=` redirect |
+| **Mobile app** | Bearer token | Use `Authorization: Bearer` header from OAuth `#token=` hash fragment redirect |
 
 **Key settings:** `COOKIE_DOMAIN` (empty = same-origin only, `.example.com` = cross-subdomain), `APP_URL` (frontend URL for OAuth redirects), `BACKEND_URL` (backend URL for OAuth callbacks, empty = auto-detect), `CORS_ORIGINS` (allowed frontend origins).
 
 **Dockerfile** (project root): Single-stage Python 3.11-slim build — runs backend only, serves pre-built frontend from `static/` when `static/index.html` exists. Runs Alembic migrations on startup. System deps included for weasyprint (pango, cairo, gdk-pixbuf).
+
+## Environment Quirks
+
+- **Python**: zsh aliases `python3` to system Python — always use `./venv/bin/python` for backend scripts (e.g. generating JWT tokens for curl testing)
+- **npm permissions**: If `npm install` fails with EACCES, run `sudo chown -R $(whoami) ~/.npm`
+- **Generate test JWT**: `./venv/bin/python -c "from app.core.auth import create_access_token; print(create_access_token({'sub':'test','email':'t@t.com','name':'Test'}))"` (run from `backend/`)
+- **Pre-push hook**: Runs `npm run build` in frontend — takes ~1-2s, blocks push until build passes
+- **TravelMode enum**: API accepts uppercase only (`WALK`, `DRIVE`, `TRANSIT`) — not lowercase transport modes like `train`, `bus`
+
+## Testing with curl
+
+```bash
+# Generate JWT token (run from backend/)
+TOKEN=$(./venv/bin/python -c "from app.core.auth import create_access_token; print(create_access_token({'sub':'test','email':'t@t.com','name':'Test'}))")
+
+# Test SSE stream — save output, parse last event
+curl -s --max-time 240 http://localhost:8000/api/trips/plan/stream \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"destination":"Spain","origin":"Madrid","total_days":5,"start_date":"2026-04-15","interests":["food"],"pace":"relaxed","travel_mode":"TRANSIT","budget":"moderate","travelers":{"adults":2}}' \
+  > /tmp/sse.txt && grep "^data:" /tmp/sse.txt | tail -1 | sed 's/^data: //' | python3 -m json.tool
+
+# Test health
+curl -s http://localhost:8000/health | python3 -m json.tool
+
+# Test place search
+curl -s "http://localhost:8000/api/places/search?query=restaurants+Tokyo" -H "Authorization: Bearer $TOKEN"
+```
