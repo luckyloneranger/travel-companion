@@ -22,6 +22,8 @@ Fix this journey plan based on the review feedback:
 **Current Travel:**
 {travel_detail}
 
+{landmarks_context}
+
 **Step-by-step process:**
 1. For each critical/major issue, determine the minimum change needed
 2. Check if the fix introduces new problems (e.g., changing a city breaks the route)
@@ -31,6 +33,7 @@ Fix this journey plan based on the review feedback:
 6. When fixing TIME FEASIBILITY: reduce the longest highlights first, or remove an excursion
 7. When fixing BUDGET issues: suggest cheaper accommodation or remove expensive excursions
 8. Preserve seasonal_notes, visa_notes, altitude_meters, safety_notes from the original plan
+9. When fixing INTEREST ALIGNMENT: check if top-5 landmarks from Google data are missing and add them as highlights with appropriate excursion_type
 
 Return the COMPLETE fixed plan in JSON:
 ```json

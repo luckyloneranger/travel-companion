@@ -73,6 +73,11 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Verify accommodation price aligns with budget tier (budget: <$100/night, moderate: $100-300/night, luxury: $300+/night)
 - Flag mismatches as **major** issues with category `balance`
 
+### 8. LANDMARK COVERAGE CHECK (does not contribute to score, but flag as issues)
+- Compare the plan's highlights against the destination's top 5 most-reviewed attractions listed in the landmark data above
+- If any top-5 attraction by review count is missing from ALL highlights across ALL cities, flag as a **major** issue with category `interest_alignment`
+- The traveler expects to see a destination's signature attractions — omitting them without explanation in `why_visit` is a plan quality failure
+
 ## SEVERITY LEVELS
 - **critical**: Makes trip impossible (not enough time, missed connections, border issues, **non-existent or unverifiable destination**)
 - **major**: Significantly degrades experience (very long travel days, poor routing, wrong season)

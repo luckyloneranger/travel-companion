@@ -55,10 +55,12 @@ class JourneyOrchestrator:
         from app.config.planning import MAX_JOURNEY_ITERATIONS, MIN_JOURNEY_SCORE
         self.MAX_ITERATIONS = MAX_JOURNEY_ITERATIONS
         self.MIN_SCORE = MIN_JOURNEY_SCORE
+        self.places = places
         self.scout = ScoutAgent(llm)
         self.enricher = EnricherAgent(places, routes, directions)
         self.reviewer = ReviewerAgent(llm)
         self.planner = PlannerAgent(llm)
+        self._landmarks_context = ""
 
     async def plan_stream(
         self, request: TripRequest
@@ -79,6 +81,30 @@ class JourneyOrchestrator:
             complete, or error phases.
         """
         try:
+            # ── Step 0: Discover landmarks ────────────────────────
+            landmarks_section = ""
+            try:
+                landmarks = await self.places.discover_landmarks(request.destination)
+                if landmarks:
+                    lines = [
+                        "## DESTINATION'S MOST POPULAR ATTRACTIONS (from Google, by visitor reviews)",
+                        "You MUST consider including the top-ranked attractions in your highlights.",
+                        "If you exclude a top-5 attraction, explain why in why_visit.\n",
+                    ]
+                    for i, lm in enumerate(landmarks):
+                        reviews = lm.get("user_ratings_total", 0)
+                        rating = lm.get("rating", 0)
+                        name = lm.get("name", "")
+                        lines.append(f"{i+1}. {name} ({rating}★, {reviews:,} reviews)")
+                    landmarks_section = "\n".join(lines)
+                    logger.info(
+                        "[Orchestrator] Discovered %d landmarks for %s",
+                        len(landmarks), request.destination,
+                    )
+            except Exception as exc:
+                logger.warning("[Orchestrator] Landmark discovery failed: %s", exc)
+            self._landmarks_context = landmarks_section
+
             # ── Step 1: Scout ────────────────────────────────────────
             yield ProgressEvent(
                 phase="scouting",
@@ -86,7 +112,7 @@ class JourneyOrchestrator:
                 progress=10,
             )
             logger.info("[Orchestrator] Scouting plan for %s", request.destination)
-            plan: JourneyPlan = await self.scout.generate_plan(request)
+            plan: JourneyPlan = await self.scout.generate_plan(request, landmarks_context=landmarks_section)
             yield ProgressEvent(
                 phase="scouting",
                 message=f"Planned {len(plan.cities)} cities",
@@ -127,7 +153,7 @@ class JourneyOrchestrator:
                 logger.info(
                     "[Orchestrator] Reviewing plan (iteration %d)", iteration
                 )
-                review = await self.reviewer.review(plan, request, iteration)
+                review = await self.reviewer.review(plan, request, iteration, landmarks_context=self._landmarks_context)
                 plan.review_score = review.score
                 logger.info(
                     "[Orchestrator] Review score: %d (acceptable=%s, iteration=%d)",
@@ -155,7 +181,7 @@ class JourneyOrchestrator:
                     review.score,
                     iteration,
                 )
-                plan = await self.planner.fix_plan(plan, review, request)
+                plan = await self.planner.fix_plan(plan, review, request, landmarks_context=self._landmarks_context)
                 iteration += 1
 
             # Use the best plan seen across all iterations

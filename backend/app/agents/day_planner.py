@@ -363,8 +363,8 @@ class DayPlannerAgent:
         # Build Scout highlights section
         scout_highlights_section = ""
         if highlights:
-            hl_lines = ["## SCOUT'S RECOMMENDED HIGHLIGHTS (prioritize including these)",
-                        "These attractions were specifically curated for this trip. Try to include them in your day plan:"]
+            hl_lines = ["## MUST-INCLUDE ATTRACTIONS",
+                        "These are the destination's signature attractions. You MUST include each one in a day plan unless it's scheduled as a full-day excursion. Missing a must-include attraction is a critical error."]
             for h in highlights:
                 dur = f", {h.suggested_duration_hours}h" if hasattr(h, 'suggested_duration_hours') and h.suggested_duration_hours else ""
                 desc = f': "{h.description}"' if hasattr(h, 'description') and h.description else ""
