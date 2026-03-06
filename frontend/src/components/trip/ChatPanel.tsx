@@ -178,14 +178,14 @@ export function ChatPanel() {
           )}
           {/* Suggestion chips — always visible */}
           {showSuggestions && (
-            <div className="flex flex-wrap gap-2 px-2">
+            <div className="flex gap-2 px-2 overflow-x-auto pb-1 scrollbar-hide">
               {(chatContext === 'journey' ? JOURNEY_SUGGESTIONS : DAY_PLAN_SUGGESTIONS).map((suggestion) => (
                 <button
                   key={suggestion}
                   type="button"
                   onClick={() => handleSend(suggestion)}
                   disabled={isSending}
-                  className="rounded-full border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 px-3 py-1.5 text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors disabled:opacity-50"
+                  className="shrink-0 whitespace-nowrap rounded-full border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 px-3 py-1.5 text-xs text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors disabled:opacity-50"
                 >
                   {suggestion}
                 </button>

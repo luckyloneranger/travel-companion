@@ -32,14 +32,18 @@ export function Header() {
   const toggleDark = useCallback(() => setDark((d) => !d), []);
 
   const handleNewTrip = useCallback(() => {
+    const hasTrip = !!useTripStore.getState().journey;
+    if (hasTrip && !window.confirm('Start a new trip? Your current trip is saved and you can find it in Recent Trips.')) {
+      return;
+    }
     useTripStore.getState().reset();
     useUIStore.getState().resetUI();
     navigate('/');
   }, [navigate]);
 
   const handleGoHome = useCallback(() => {
-    useTripStore.getState().reset();
-    useUIStore.getState().resetUI();
+    // Navigate home without destroying trip data — trip stays in "Recent Trips"
+    useUIStore.getState().setPhase('input');
     navigate('/');
   }, [navigate]);
 

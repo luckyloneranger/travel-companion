@@ -25,7 +25,7 @@ export function AuthButton() {
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-text-muted hidden sm:inline">{user.name}</span>
-      <Button variant="ghost" size="sm" onClick={logout}>
+      <Button variant="ghost" size="sm" onClick={() => { if (window.confirm('Sign out?')) logout(); }}>
         <LogOut className="h-4 w-4" />
         <span className="hidden sm:inline">Sign Out</span>
       </Button>

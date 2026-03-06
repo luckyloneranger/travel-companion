@@ -196,6 +196,15 @@
   animation: fade-in-up 0.35s ease-out;
 }
 
+/* Hide scrollbar (for horizontal-scroll containers) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Print styles */
 @media print {
   header, button, .sr-only {
