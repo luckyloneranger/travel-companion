@@ -84,6 +84,39 @@ def _compute_cost_breakdown(trip: TripResponse) -> dict[str, float] | None:
     return result
 
 
+from app.models.day_plan import Activity
+
+
+def _recalculate_times(activities: list[Activity]) -> list[Activity]:
+    """Recalculate time_start and time_end for reordered activities.
+
+    Preserves each activity's duration but assigns new sequential times
+    based on the new order and any route_to_next travel times.
+    """
+    if not activities:
+        return activities
+
+    # Find the start time from the first activity
+    current_time = datetime.strptime(activities[0].time_start, "%H:%M")
+
+    for i, activity in enumerate(activities):
+        # Set start time
+        activity.time_start = current_time.strftime("%H:%M")
+        # Set end time based on duration
+        end_time = current_time + timedelta(minutes=activity.duration_minutes)
+        activity.time_end = end_time.strftime("%H:%M")
+
+        # Add travel time to next if route exists
+        if i < len(activities) - 1 and activity.route_to_next:
+            travel_minutes = max(1, activity.route_to_next.duration_seconds // 60)
+            current_time = end_time + timedelta(minutes=travel_minutes)
+        else:
+            # Default 15 min gap between activities
+            current_time = end_time + timedelta(minutes=15)
+
+    return activities
+
+
 def _merge_enriched_data(original: JourneyPlan, updated: JourneyPlan) -> JourneyPlan:
     """Preserve enriched data (accommodation, fares, locations) from original plan.
 
@@ -221,6 +254,7 @@ async def chat_edit(
     chat: ChatService = Depends(get_chat_service),
     repo: TripRepository = Depends(get_trip_repository),
     enricher: EnricherAgent = Depends(get_enricher),
+    orchestrator: DayPlanOrchestrator = Depends(get_day_plan_orchestrator),
     user: dict = Depends(require_user),
 ) -> ChatEditResponse:
     get_chat_limiter().check(user["sub"])
@@ -238,6 +272,15 @@ async def chat_edit(
                 )
             response = await chat.edit_day_plans(request.message, trip.day_plans, trip.journey, trip.request)
             if response.updated_day_plans:
+                # Recompute routes for edited day plans
+                pace = trip.request.pace if trip.request else None
+                for dp in response.updated_day_plans:
+                    try:
+                        dp.activities = await orchestrator._compute_routes_via_matrix(
+                            dp.activities, pace=pace or "moderate",
+                        )
+                    except Exception as exc:
+                        logger.warning("Route recomputation after chat edit failed for day %d: %s", dp.day_number, exc)
                 await repo.update_day_plans(trip_id, response.updated_day_plans)
         else:
             response = await chat.edit_journey(request.message, trip.journey, trip.request)
@@ -334,6 +377,8 @@ async def quick_edit_activity(
 
     if action == "remove":
         day_plan.activities = [a for a in day_plan.activities if a.id != activity_id]
+        # Recalculate times for remaining activities
+        day_plan.activities = _recalculate_times(day_plan.activities)
         # Recalculate daily cost
         day_plan.daily_cost_usd = sum(
             a.estimated_cost_usd or 0 for a in day_plan.activities
@@ -343,13 +388,11 @@ async def quick_edit_activity(
         for a in day_plan.activities:
             if a.id == activity_id:
                 a.duration_minutes = max(15, a.duration_minutes + duration_change)
-                # Recalculate end time
-                start = datetime.strptime(a.time_start, "%H:%M")
-                end = start + timedelta(minutes=a.duration_minutes)
-                a.time_end = end.strftime("%H:%M")
                 break
         else:
             raise HTTPException(404, "Activity not found")
+        # Recalculate all times (duration change cascades to subsequent activities)
+        day_plan.activities = _recalculate_times(day_plan.activities)
     else:
         raise HTTPException(400, f"Unknown action: {action}")
 
@@ -362,9 +405,12 @@ async def reorder_activities(
     trip_id: str,
     body: dict,
     repo: TripRepository = Depends(get_trip_repository),
+    orchestrator: DayPlanOrchestrator = Depends(get_day_plan_orchestrator),
     user: dict = Depends(require_user),
 ):
     """Reorder activities within a day plan.
+
+    Recalculates time slots and routes after reordering.
 
     Body: { "day_number": int, "activity_ids": ["id1", "id2", ...] }
     """
@@ -389,10 +435,22 @@ async def reorder_activities(
     for aid in activity_ids:
         if aid in id_to_activity:
             reordered.append(id_to_activity[aid])
-    # Append any activities not in the reorder list (shouldn't happen, but safety)
+    # Append any activities not in the reorder list
     for a in day_plan.activities:
         if a.id not in {r.id for r in reordered}:
             reordered.append(a)
+
+    # Recalculate time slots for the new order
+    reordered = _recalculate_times(reordered)
+
+    # Recompute routes between consecutive activities
+    pace = trip.request.pace if trip.request else None
+    try:
+        reordered = await orchestrator._compute_routes_via_matrix(
+            reordered, pace=pace or "moderate",
+        )
+    except Exception as exc:
+        logger.warning("Route recomputation failed after reorder: %s", exc)
 
     day_plan.activities = reordered
 
