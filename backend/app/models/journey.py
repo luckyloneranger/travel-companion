@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from .common import Location, TransportMode
 
@@ -46,6 +46,30 @@ class TravelLeg(BaseModel):
     fare_usd: float | None = None
     operator: str | None = None
     booking_tip: str | None = None
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def normalize_mode(cls, v: str) -> str:
+        """Handle combined modes from LLM (e.g. 'drive+ferry' → 'ferry')."""
+        if not isinstance(v, str):
+            return v
+        v = v.strip().lower()
+        # If it's already a valid mode, return as-is
+        valid = {m.value for m in TransportMode}
+        if v in valid:
+            return v
+        # For combined modes like 'drive+ferry', 'bus+ferry', pick the more
+        # specific/interesting mode (ferry > train > flight > bus > drive)
+        priority = ["ferry", "train", "flight", "bus", "drive"]
+        parts = [p.strip() for p in v.replace("+", ",").replace("/", ",").replace(" and ", ",").split(",")]
+        for preferred in priority:
+            if preferred in parts:
+                return preferred
+        # Last resort: return first valid part
+        for part in parts:
+            if part in valid:
+                return part
+        return v  # Let Pydantic raise the validation error
     polyline: str | None = None
     num_transfers: int = 0
     departure_time: str | None = None
