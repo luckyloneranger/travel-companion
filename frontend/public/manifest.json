@@ -1,0 +1,16 @@
+{
+  "name": "Regular Everyday Traveller",
+  "short_name": "RET",
+  "description": "AI-powered travel planning companion",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4c6ef5",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

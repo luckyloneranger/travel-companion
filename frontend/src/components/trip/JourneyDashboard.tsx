@@ -1,8 +1,8 @@
 import { Suspense, useCallback, useState } from 'react';
 import {
-  MapPin, Calendar, Navigation, ArrowRight, Sparkles,
+  MapPin, Calendar, Navigation, Sparkles,
   MessageSquare, Copy, Check, Share2,
-  FileDown, CalendarPlus, ChevronDown, Car, Train, Bus, Plane, Ship,
+  FileDown, CalendarPlus, ChevronDown,
   Loader2, RefreshCw, Users, Map as MapIcon, DollarSign, LayoutList, Maximize2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -14,7 +14,8 @@ import { FullDayView } from '@/components/trip/FullDayView';
 import { BudgetSummary } from '@/components/trip/BudgetSummary';
 import { NavigationSidebar } from '@/components/trip/NavigationSidebar';
 import { LiveTripView } from '@/components/trip/LiveTripView';
-import { TripMap, TripMapLegend } from '@/components/maps';
+import { RouteTimeline } from '@/components/trip/RouteTimeline';
+import { TripMap, TripMapLegend, DayMap, DayMapLegend } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import { api } from '@/services/api';
@@ -23,17 +24,6 @@ interface JourneyDashboardProps {
   onGenerateDayPlans: () => void;
   onCancelDayPlans: () => void;
   onOpenChat: () => void;
-}
-
-const TRANSPORT_ICONS: Record<string, typeof Car> = {
-  drive: Car, train: Train, bus: Bus, flight: Plane, ferry: Ship,
-};
-
-function formatDuration(hours: number): string {
-  if (hours < 1) return `${Math.round(hours * 60)}m`;
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  return m > 0 ? `${h}h${m}m` : `${h}h`;
 }
 
 export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenChat }: JourneyDashboardProps) {
@@ -49,6 +39,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [allExpanded, setAllExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'budget' | 'map' | 'live'>('overview');
   const [fullDayViewDay, setFullDayViewDay] = useState<number | null>(null);
+  const [mapDayFilter, setMapDayFilter] = useState('journey');
 
   // Feature 19: Contextual chat — open chat pre-filled with activity context
   const handleChatAbout = useCallback((activityName: string, dayNumber: number) => {
@@ -318,35 +309,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
             <Card>
               <CardContent className="py-4">
                 <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Route</h3>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {journey.origin && (
-                    <span className="flex items-center gap-1.5">
-                      <Badge variant="outline" className="text-xs">{journey.origin}</Badge>
-                      <ArrowRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                    </span>
-                  )}
-                  {journey.cities.map((city, i) => {
-                    const leg = i > 0 ? journey.travel_legs.find(l => l.to_city === city.name) : (journey.origin ? journey.travel_legs.find(l => l.to_city === city.name) : null);
-                    const TransportIcon = leg ? (TRANSPORT_ICONS[leg.mode] ?? Car) : null;
-                    return (
-                      <span key={`${city.name}-${i}`} className="flex items-center gap-1.5">
-                        {(i > 0 || journey.origin) && leg && TransportIcon && (
-                          <span className="flex items-center gap-0.5 text-xs text-text-muted">
-                            <TransportIcon className="h-3 w-3" />
-                            <span>{formatDuration(leg.duration_hours)}</span>
-                            <ArrowRight className="h-3 w-3 shrink-0" />
-                          </span>
-                        )}
-                        {i > 0 && !leg && (
-                          <ArrowRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                        )}
-                        <Badge variant="secondary" className="text-sm cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/40" onClick={() => setActiveTab('cities')}>
-                          {city.name}
-                        </Badge>
-                      </span>
-                    );
-                  })}
-                </div>
+                <RouteTimeline journey={journey} onCityClick={() => setActiveTab('cities')} />
               </CardContent>
             </Card>
 
@@ -481,15 +444,63 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           </div>
         )}
 
-        {/* Map tab */}
+        {/* Map tab — Feature 16: Unified Map Mode + Feature 18: What's Nearby */}
         {activeTab === 'map' && (
-          <div className="animate-fade-in-up">
+          <div className="animate-fade-in-up space-y-3">
+            {dayPlans && dayPlans.length > 0 && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={mapDayFilter}
+                  onChange={(e) => setMapDayFilter(e.target.value)}
+                  className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-sm text-text-primary"
+                >
+                  <option value="journey">Full Journey Route</option>
+                  {dayPlans.map(dp => (
+                    <option key={dp.day_number} value={String(dp.day_number)}>
+                      Day {dp.day_number}: {dp.theme} ({dp.city_name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {/* Feature 18: What's Nearby link */}
+            {mapDayFilter !== 'journey' && (() => {
+              const dp = dayPlans?.find(d => d.day_number === Number(mapDayFilter));
+              const firstAct = dp?.activities.find(a => a.duration_minutes > 0);
+              if (!firstAct) return null;
+              const { lat, lng } = firstAct.place.location;
+              return (
+                <a
+                  href={`https://www.google.com/maps/search/restaurants+ATMs+pharmacy/@${lat},${lng},15z`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  <MapPin className="h-3.5 w-3.5" />Explore what&apos;s nearby on Google Maps
+                </a>
+              );
+            })()}
             <Suspense fallback={<div className="h-[60vh] rounded-lg bg-surface-muted animate-pulse" />}>
               <div className="h-[60vh] rounded-lg overflow-hidden border border-border-default">
-                <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
+                {mapDayFilter === 'journey' ? (
+                  <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
+                ) : (
+                  (() => {
+                    const dp = dayPlans?.find(d => d.day_number === Number(mapDayFilter));
+                    return dp ? (
+                      <DayMap dayPlan={dp} mapInstanceId="unified-day-map" />
+                    ) : (
+                      <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
+                    );
+                  })()
+                )}
               </div>
             </Suspense>
-            <TripMapLegend />
+            {mapDayFilter === 'journey' ? (
+              <TripMapLegend />
+            ) : (
+              <DayMapLegend />
+            )}
           </div>
         )}
 

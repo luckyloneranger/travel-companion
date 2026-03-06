@@ -1,7 +1,7 @@
 import {
   Clock, Star, MapPin, Navigation, ExternalLink, DollarSign,
   CloudRain, Lightbulb, Cloud, CloudLightning, Snowflake,
-  Droplets, Wind, Sun, Coffee, MessageSquare,
+  Droplets, Wind, Sun, Coffee, MessageSquare, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { DayPlan, Activity } from '@/types';
@@ -151,6 +151,27 @@ function TimelineActivity({
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              {/* Feature 9: Reorder buttons (coming soon) */}
+              <div className="flex flex-col gap-0.5">
+                <button
+                  type="button"
+                  disabled
+                  className="text-text-muted/30 cursor-not-allowed p-0.5"
+                  title="Reorder activities (coming soon)"
+                  aria-label="Move up"
+                >
+                  <ChevronUp className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="text-text-muted/30 cursor-not-allowed p-0.5"
+                  title="Reorder activities (coming soon)"
+                  aria-label="Move down"
+                >
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </div>
               {isNew && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium">
                   New
