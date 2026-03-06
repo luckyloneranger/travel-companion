@@ -87,6 +87,7 @@ async def get_alternatives(
 @router.get("/photo/{photo_ref:path}")
 async def proxy_photo(
     photo_ref: str,
+    w: int = Query(default=800, ge=100, le=1600),
     places: GooglePlacesService = Depends(get_places_service),
 ):
     """Proxy Google Places photos to avoid exposing the API key to clients."""
@@ -97,7 +98,7 @@ async def proxy_photo(
     if not decoded_ref.startswith("places/") or "/photos/" not in decoded_ref:
         raise HTTPException(400, "Invalid photo reference")
 
-    url = places.get_direct_photo_url(decoded_ref)
+    url = places.get_direct_photo_url(decoded_ref, max_width=w)
     try:
         resp = await places.client.get(url, timeout=10.0, follow_redirects=True)
         resp.raise_for_status()

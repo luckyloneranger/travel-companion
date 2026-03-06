@@ -115,15 +115,19 @@ function TimelineActivity({
       {/* Content */}
       <div className="flex-1 pb-4 min-w-0">
         <div className={`rounded-lg border ${isNew ? 'border-green-400 dark:border-green-600 ring-1 ring-green-200 dark:ring-green-800' : 'border-border-default'} bg-surface p-3 space-y-2`}>
-          {/* Feature 11: Photo hero */}
+          {/* Activity photo */}
           {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
-            <img
-              src={activity.place.photo_urls[0]}
-              alt={activity.place.name}
-              loading="lazy"
-              className="w-full h-32 sm:h-40 object-cover rounded-t-lg -m-3 mb-2"
-              style={{ width: 'calc(100% + 1.5rem)' }}
-            />
+            <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1">
+              {activity.place.photo_urls.slice(0, 3).map((url, i) => (
+                <img
+                  key={i}
+                  src={`${url}${url.includes('?') ? '&' : '?'}w=400`}
+                  alt={`${activity.place.name} photo ${i + 1}`}
+                  loading="lazy"
+                  className="h-20 w-28 sm:h-24 sm:w-32 rounded-md object-cover shrink-0"
+                />
+              ))}
+            </div>
           )}
 
           {/* Name + meta */}
