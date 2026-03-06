@@ -26,12 +26,14 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 
 ### 3. TRANSPORT APPROPRIATENESS (weight: 20%)
 - Are the transport modes actually available and popular in this region?
-- Are duration estimates realistic?
+- Are duration estimates realistic? A "1.5h flight" should be 4-5h door-to-door with transfers.
 - Are overnight journeys used wisely (not exhausting)?
+- **CRITICAL**: Does the destination actually have the infrastructure for the suggested mode? Flights require airports — many small towns (Hoi An, Sapa, Hampi, Ella) have NO airport. Flag as **critical** if a flight is suggested to a city without an airport.
+- For multi-modal legs (flight + ground transfer), verify the notes explain the full journey.
 - Score 90+: Perfect regional transport choices
 - Score 70-89: Good choices, minor optimization possible
 - Score 50-69: Some unrealistic or unavailable modes
-- Score <50: Transport choices don't exist for this region
+- Score <50: Transport choices don't exist or flights to cities without airports
 
 ### 4. CITY BALANCE (weight: 15%)
 - Is time distributed well across cities relative to their size/offerings?

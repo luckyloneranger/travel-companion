@@ -61,6 +61,16 @@ Choose the OPTIMAL number of destinations based on:
 - For **remote islands** (Maldives atolls, small Greek islands), verify ferry/seaplane availability before suggesting the route
 - For **archipelago trips**, consider inter-island logistics — not all islands have daily connections
 
+### 5a. TRANSPORT REALISM — CRITICAL
+- **NEVER suggest a flight to a city without an airport.** Many famous destinations (Hoi An, Sapa, Luang Namtha, Ella, Hampi, Cinque Terre) have NO airport. Use the nearest gateway airport and include ground transfer in the leg.
+  - Example: "Flight to Da Nang, then 30min drive to Hoi An" — set `from_city: "Luang Prabang"`, `to_city: "Hoi An"`, `mode: "flight"`, and include the ground transfer in `notes`
+- **Verify the transport mode actually exists** between two cities before suggesting it:
+  - No trains? Don't suggest train. Check if rail lines exist in that country/region.
+  - No direct buses? Note a connection or transfer is required.
+  - River/lake crossing? Consider ferry or boat instead of driving.
+- **Duration MUST include the full door-to-door time**: airport transfer + flight + airport transfer + ground transfer to hotel. A "1.5h flight" is really 4-5h door-to-door.
+- **For budget travelers**: prefer overnight buses/trains that save a hotel night. Mention this in `booking_tip`.
+
 ### 6. HIGHLIGHTS For Each Destination
 - **Scale highlights to match the number of days:**
   - 2-3 day destination: 3-5 highlights
