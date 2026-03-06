@@ -11,6 +11,8 @@ class Accommodation(BaseModel):
     place_id: str | None = None
     rating: float | None = None
     photo_url: str | None = None
+    website: str | None = None
+    editorial_summary: str | None = None
     price_level: int | None = None
     estimated_nightly_usd: float | None = None
 
@@ -40,6 +42,18 @@ class CityStop(BaseModel):
     visa_notes: str | None = None
     altitude_meters: float | None = None
     safety_notes: str | None = None
+    timezone_offset_minutes: int | None = None
+
+
+class TransportSegment(BaseModel):
+    """One segment of a multi-modal travel leg."""
+    mode: str  # "flight", "drive", "bus", "train", "ferry", "walk"
+    from_place: str
+    to_place: str
+    duration_hours: float = 0
+    distance_km: float | None = None
+    notes: str = ""
+    is_grounded: bool = False
 
 
 class TravelLeg(BaseModel):
@@ -53,6 +67,8 @@ class TravelLeg(BaseModel):
     fare_usd: float | None = None
     operator: str | None = None
     booking_tip: str | None = None
+
+    segments: list[TransportSegment] = []
 
     # Visa/border context from Scout
     visa_requirement: str | None = None

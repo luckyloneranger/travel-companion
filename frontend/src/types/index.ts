@@ -16,6 +16,16 @@ export type TransportMode = 'flight' | 'train' | 'bus' | 'drive' | 'ferry';
 
 export type Budget = 'budget' | 'moderate' | 'luxury';
 
+export interface TransportSegment {
+  mode: string;
+  from_place: string;
+  to_place: string;
+  duration_hours: number;
+  distance_km?: number;
+  notes?: string;
+  is_grounded?: boolean;
+}
+
 // ── journey.py ─────────────────────────────────────────────
 
 export interface Accommodation {
@@ -28,6 +38,8 @@ export interface Accommodation {
   photo_url: string | null;
   price_level: number | null;
   estimated_nightly_usd: number | null;
+  website?: string;
+  editorial_summary?: string;
 }
 
 export interface CityHighlight {
@@ -53,6 +65,7 @@ export interface CityStop {
   location: Location | null;
   place_id: string | null;
   accommodation: Accommodation | null;
+  timezone_offset_minutes?: number;
 }
 
 export interface TravelLeg {
@@ -71,6 +84,7 @@ export interface TravelLeg {
   num_transfers: number;
   departure_time: string | null;
   arrival_time: string | null;
+  segments?: TransportSegment[];
 }
 
 export interface ReviewIssue {

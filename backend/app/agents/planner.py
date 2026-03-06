@@ -117,6 +117,10 @@ class PlannerAgent:
                 lines.append(f"   Booking: {leg.booking_tip}")
             if leg.visa_requirement:
                 lines.append(f"   Visa: {leg.visa_requirement}")
+            if leg.segments:
+                for seg in leg.segments:
+                    grounded = " [grounded]" if seg.is_grounded else ""
+                    lines.append(f"     {seg.mode}: {seg.from_place} → {seg.to_place} ({seg.duration_hours}h){grounded}")
         return "\n".join(lines)
 
     def _format_issues(self, review: ReviewResult) -> str:

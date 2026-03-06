@@ -95,6 +95,20 @@ export function RouteTimeline({ journey, onCityClick }: RouteTimelineProps) {
                     </span>
                   )}
                 </div>
+                {leg.segments && leg.segments.length > 0 && (
+                  <div className="ml-8 mt-1 space-y-0.5">
+                    {leg.segments.map((seg, si) => {
+                      const icons: Record<string, string> = { flight: '\u2708\uFE0F', drive: '\uD83D\uDE97', bus: '\uD83D\uDE8C', train: '\uD83D\uDE86', ferry: '\u26F4\uFE0F', walk: '\uD83D\uDEB6' };
+                      const icon = icons[seg.mode] || '\uD83D\uDD04';
+                      return (
+                        <span key={si} className="text-xs text-text-muted block">
+                          {icon} {seg.from_place} → {seg.to_place} ({seg.duration_hours}h)
+                          {seg.is_grounded && <span className="text-green-500 ml-1">✓</span>}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

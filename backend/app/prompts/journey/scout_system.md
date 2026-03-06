@@ -70,6 +70,9 @@ Choose the OPTIMAL number of destinations based on:
   - River/lake crossing? Consider ferry or boat instead of driving.
 - **Duration MUST include the full door-to-door time**: airport transfer + flight + airport transfer + ground transfer to hotel. A "1.5h flight" is really 4-5h door-to-door.
 - **For budget travelers**: prefer overnight buses/trains that save a hotel night. Mention this in `booking_tip`.
+- For **multi-modal legs** (airport transfers, ferry + drive combos, border crossings), decompose the journey into `segments` in your travel leg output. Each segment has: mode, from_place, to_place, duration_hours, notes.
+- Example: Luang Prabang → Hoi An = 3 segments: (1) drive to airport 0.3h, (2) flight 1.5h, (3) drive from Da Nang airport to Hoi An 0.75h
+- Simple direct routes (Bangkok → Chiang Mai by train) do NOT need segments — only use segments when the journey involves mode changes or gateway airports/ports.
 
 ### 6. HIGHLIGHTS For Each Destination
 - **Scale highlights to match the number of days:**
