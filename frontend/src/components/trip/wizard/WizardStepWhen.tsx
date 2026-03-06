@@ -1,7 +1,27 @@
-import { Calendar, Clock, Users, ArrowLeft, Minus, Plus } from 'lucide-react';
+import { Calendar, Clock, Users, ArrowLeft, Minus, Plus, Sun } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { Travelers } from '@/types';
+
+function getSeasonalHint(destination: string, month: number): string | null {
+  const d = destination.toLowerCase();
+  const summerMonths = [6, 7, 8];
+  const winterMonths = [12, 1, 2];
+  const springMonths = [3, 4, 5];
+
+  if (d.includes('japan') && springMonths.includes(month)) return 'Cherry blossom season -- ideal time!';
+  if (d.includes('japan') && summerMonths.includes(month)) return 'Hot and humid -- consider spring or fall';
+  if (d.includes('europe') && summerMonths.includes(month)) return 'Peak season -- great weather, expect crowds';
+  if (d.includes('europe') && winterMonths.includes(month)) return 'Off-season -- fewer crowds, some attractions may close';
+  if (d.includes('thailand') && [11, 12, 1, 2, 3].includes(month)) return 'Dry season -- best time to visit';
+  if (d.includes('thailand') && [6, 7, 8, 9].includes(month)) return 'Monsoon season -- frequent rain';
+  if (d.includes('india') && [10, 11, 12, 1, 2, 3].includes(month)) return 'Cool season -- ideal for travel';
+  if (d.includes('india') && [4, 5, 6].includes(month)) return 'Very hot -- consider winter months';
+  if (d.includes('australia') && winterMonths.includes(month)) return 'Australian summer -- great for beaches';
+  if (d.includes('iceland') && summerMonths.includes(month)) return 'Midnight sun season -- 24h daylight!';
+  if (d.includes('iceland') && winterMonths.includes(month)) return 'Northern lights season -- cold but magical';
+  return null;
+}
 
 interface WizardStepWhenProps {
   startDate: string;
@@ -110,6 +130,16 @@ export function WizardStepWhen({
             onChange={(e) => onStartDateChange(e.target.value)}
             className="h-11"
           />
+          {destination && startDate && (() => {
+            const month = new Date(startDate + 'T00:00:00').getMonth() + 1;
+            const hint = getSeasonalHint(destination, month);
+            return hint ? (
+              <p className="text-xs text-primary-600 dark:text-primary-400 flex items-center gap-1 mt-1">
+                <Sun className="h-3 w-3 shrink-0" />
+                {hint}
+              </p>
+            ) : null;
+          })()}
         </div>
 
         <div className="space-y-3">

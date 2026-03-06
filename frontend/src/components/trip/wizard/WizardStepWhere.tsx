@@ -1,7 +1,9 @@
-import { MapPin, Navigation } from 'lucide-react';
+import { useState } from 'react';
+import { MapPin, Navigation, LocateFixed, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { TemplateGallery } from '@/components/trip/TemplateGallery';
+import { api } from '@/services/api';
 import type { TripRequest } from '@/types';
 
 interface WizardStepWhereProps {
@@ -21,6 +23,30 @@ export function WizardStepWhere({
   onSelectTemplate,
   onNext,
 }: WizardStepWhereProps) {
+  const [locating, setLocating] = useState(false);
+
+  const handleLocateMe = async () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    try {
+      const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+      );
+      const results = await api.searchPlaces(
+        'city',
+        pos.coords.latitude,
+        pos.coords.longitude,
+      );
+      if (results.length > 0) {
+        onOriginChange(results[0].name);
+      }
+    } catch {
+      // Silently fail — geolocation not available or denied
+    } finally {
+      setLocating(false);
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-lg mx-auto">
       <div className="text-center">
@@ -53,12 +79,30 @@ export function WizardStepWhere({
             <Navigation className="h-4 w-4" />
             Starting from <span className="text-xs">(optional)</span>
           </label>
-          <Input
-            id="wiz-origin"
-            placeholder="e.g. London, New York"
-            value={origin}
-            onChange={(e) => onOriginChange(e.target.value)}
-          />
+          <div className="relative">
+            <Input
+              id="wiz-origin"
+              placeholder="e.g. London, New York"
+              value={origin}
+              onChange={(e) => onOriginChange(e.target.value)}
+              className="pr-10"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={handleLocateMe}
+              disabled={locating}
+              className="absolute right-1 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary-600"
+              title="Use my location"
+            >
+              {locating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LocateFixed className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 

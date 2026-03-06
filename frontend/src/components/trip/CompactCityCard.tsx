@@ -17,6 +17,11 @@ interface CompactCityCardProps {
   hideHighlights?: boolean;
   dailyBudget?: number;
   onChatAbout?: (activityName: string, dayNumber: number) => void;
+  recentChanges?: {
+    added: Set<string>;
+    modified: Set<string>;
+    removed: string[];
+  } | null;
 }
 
 const TRANSPORT_ICONS: Record<string, typeof Car> = {
@@ -39,7 +44,7 @@ function parseFare(leg: TravelLeg): number {
   return 0;
 }
 
-export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout }: CompactCityCardProps) {
+export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, recentChanges }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
   const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
 
@@ -217,7 +222,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                         </div>
                       </div>
                     )}
-                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} />
+                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} recentChanges={recentChanges} />
                   </div>
                 ))}
               </div>

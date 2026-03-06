@@ -16,6 +16,11 @@ interface TripState {
   tips: Record<string, string>;
   tipsLoading: boolean;
   costBreakdown: CostBreakdown | null;
+  recentChanges: {
+    added: Set<string>;
+    modified: Set<string>;
+    removed: string[];
+  } | null;
 
   // Actions
   setJourney: (journey: JourneyPlan, tripId?: string) => void;
@@ -23,6 +28,7 @@ interface TripState {
   setTravelers: (travelers: Travelers) => void;
   updateJourney: (journey: JourneyPlan) => void;
   updateDayPlans: (plans: DayPlan[]) => void;
+  setRecentChanges: (changes: { added: Set<string>; modified: Set<string>; removed: string[] } | null) => void;
   reset: () => void;
 
   // Async actions
@@ -41,6 +47,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   tips: {},
   tipsLoading: false,
   costBreakdown: null,
+  recentChanges: null,
 
   setJourney: (journey, tripId) => {
     set({ journey, tripId: tripId ?? null });
@@ -104,8 +111,9 @@ export const useTripStore = create<TripState>((set, get) => ({
   },
   updateJourney: (journey) => set({ journey }),
   updateDayPlans: (plans) => set({ dayPlans: plans }),
+  setRecentChanges: (changes) => set({ recentChanges: changes }),
   reset: () => {
-    set({ journey: null, dayPlans: null, tripId: null, travelers: { adults: 1, children: 0, infants: 0 }, tips: {}, costBreakdown: null });
+    set({ journey: null, dayPlans: null, tripId: null, travelers: { adults: 1, children: 0, infants: 0 }, tips: {}, costBreakdown: null, recentChanges: null });
     sessionStorage.removeItem('tc_tripId');
     sessionStorage.removeItem('tc_phase');
     sessionStorage.removeItem('tc_wizard');

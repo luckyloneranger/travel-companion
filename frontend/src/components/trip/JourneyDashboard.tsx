@@ -3,13 +3,14 @@ import {
   MapPin, Calendar, Navigation, ArrowRight, Sparkles,
   MessageSquare, Copy, Check, Share2,
   FileDown, CalendarPlus, ChevronDown, Car, Train, Bus, Plane, Ship,
-  Loader2, RefreshCw, Users, Map as MapIcon, DollarSign, LayoutList,
+  Loader2, RefreshCw, Users, Map as MapIcon, DollarSign, LayoutList, Maximize2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CompactCityCard } from '@/components/trip/CompactCityCard';
+import { FullDayView } from '@/components/trip/FullDayView';
 import { BudgetSummary } from '@/components/trip/BudgetSummary';
 import { TripMap, TripMapLegend } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
@@ -34,7 +35,7 @@ function formatDuration(hours: number): string {
 }
 
 export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenChat }: JourneyDashboardProps) {
-  const { journey, tripId, dayPlans, costBreakdown, tips } = useTripStore();
+  const { journey, tripId, dayPlans, costBreakdown, tips, recentChanges } = useTripStore();
   const travelers = useTripStore((s) => s.travelers);
   const dayPlansGenerating = useUIStore((s) => s.dayPlansGenerating);
   const openChat = useUIStore((s) => s.openChat);
@@ -45,6 +46,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'budget' | 'map'>('overview');
+  const [fullDayViewDay, setFullDayViewDay] = useState<number | null>(null);
 
   // Feature 19: Contextual chat — open chat pre-filled with activity context
   const handleChatAbout = useCallback((activityName: string, dayNumber: number) => {
@@ -417,6 +419,15 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                     {allExpanded ? 'Collapse' : 'Expand'}
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setFullDayViewDay(dayPlans[0].day_number)}
+                  className="shrink-0"
+                  title="Full-screen day view"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             )}
             {!(dayPlans && dayPlans.length > 0) && journey.cities.length > 1 && (
@@ -443,6 +454,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                   hideHighlights={!!(dayPlans && dayPlans.length > 0)}
                   dailyBudget={dailyBudget}
                   onChatAbout={handleChatAbout}
+                  recentChanges={recentChanges}
                 />
               );
             })}
@@ -468,6 +480,16 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           </div>
         )}
       </div>
+
+      {fullDayViewDay && dayPlans && (
+        <FullDayView
+          dayPlans={dayPlans}
+          tips={tips}
+          initialDay={fullDayViewDay}
+          onClose={() => setFullDayViewDay(null)}
+          onChatAbout={handleChatAbout}
+        />
+      )}
     </div>
   );
 }

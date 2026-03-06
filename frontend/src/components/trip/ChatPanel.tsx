@@ -29,7 +29,7 @@ const DAY_PLAN_SUGGESTIONS = [
 
 export function ChatPanel() {
   const { isChatOpen, chatContext, chatPrefill, closeChat } = useUIStore();
-  const { tripId, updateJourney, updateDayPlans } = useTripStore();
+  const { tripId, updateJourney, updateDayPlans, dayPlans, setRecentChanges } = useTripStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -80,6 +80,25 @@ export function ChatPanel() {
         updateJourney(response.updated_journey);
       }
       if (response.updated_day_plans) {
+        // Compute diff before updating
+        const oldIds = new Set(
+          (dayPlans ?? []).flatMap(dp => dp.activities.map(a => a.place.place_id))
+        );
+        const newIds = new Set(
+          response.updated_day_plans.flatMap(dp => dp.activities.map(a => a.place.place_id))
+        );
+        const added = new Set([...newIds].filter(id => !oldIds.has(id)));
+        const removed = (dayPlans ?? [])
+          .flatMap(dp => dp.activities)
+          .filter(a => !newIds.has(a.place.place_id))
+          .map(a => a.place.name);
+        const modified = new Set<string>();
+
+        if (added.size > 0 || removed.length > 0) {
+          setRecentChanges({ added, modified, removed });
+          setTimeout(() => setRecentChanges(null), 30000);
+        }
+
         updateDayPlans(response.updated_day_plans);
       }
     } catch (err) {

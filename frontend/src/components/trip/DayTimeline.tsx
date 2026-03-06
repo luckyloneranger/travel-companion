@@ -10,6 +10,11 @@ interface DayTimelineProps {
   dayPlan: DayPlan;
   tips: Record<string, string>;
   onChatAbout?: (activityName: string, dayNumber: number) => void;
+  recentChanges?: {
+    added: Set<string>;
+    modified: Set<string>;
+    removed: string[];
+  } | null;
 }
 
 // ── Helper functions ───────────────────────────────────────
@@ -80,14 +85,22 @@ function TimelineActivity({
   isLast,
   onChatAbout,
   dayNumber,
+  recentChanges,
 }: {
   activity: Activity;
   tip?: string;
   isLast: boolean;
   onChatAbout?: (activityName: string, dayNumber: number) => void;
   dayNumber: number;
+  recentChanges?: {
+    added: Set<string>;
+    modified: Set<string>;
+    removed: string[];
+  } | null;
 }) {
   if (activity.duration_minutes === 0) return null;
+
+  const isNew = recentChanges?.added.has(activity.place.place_id);
 
   return (
     <div className="flex gap-3">
@@ -101,7 +114,7 @@ function TimelineActivity({
 
       {/* Content */}
       <div className="flex-1 pb-4 min-w-0">
-        <div className="rounded-lg border border-border-default bg-surface p-3 space-y-2">
+        <div className={`rounded-lg border ${isNew ? 'border-green-400 dark:border-green-600 ring-1 ring-green-200 dark:ring-green-800' : 'border-border-default'} bg-surface p-3 space-y-2`}>
           {/* Feature 11: Photo hero */}
           {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
             <img
@@ -138,6 +151,11 @@ function TimelineActivity({
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              {isNew && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium">
+                  New
+                </span>
+              )}
               {/* Feature 19: Contextual Chat button */}
               {onChatAbout && (
                 <button
@@ -232,7 +250,7 @@ function TimelineActivity({
 
 // ── Main Component ─────────────────────────────────────────
 
-export function DayTimeline({ dayPlan, tips, onChatAbout }: DayTimelineProps) {
+export function DayTimeline({ dayPlan, tips, onChatAbout, recentChanges }: DayTimelineProps) {
   // Excursion day — simplified card rendering
   if (dayPlan.is_excursion) {
     return (
@@ -321,6 +339,7 @@ export function DayTimeline({ dayPlan, tips, onChatAbout }: DayTimelineProps) {
               isLast={i === visibleActivities.length - 1}
               onChatAbout={onChatAbout}
               dayNumber={dayPlan.day_number}
+              recentChanges={recentChanges}
             />
           </div>
         );

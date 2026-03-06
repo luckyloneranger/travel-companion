@@ -4,13 +4,28 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Search, MapPin, CheckCircle, Wrench, X, Clock, Loader2,
-  CalendarDays,
+  CalendarDays, Lightbulb,
 } from 'lucide-react';
 
 interface PlanningDashboardProps {
   onCancel: () => void;
   mode?: 'journey' | 'dayplans';
 }
+
+const TRAVEL_FACTS = [
+  "The average traveler walks 10-15 km per day while sightseeing",
+  "Booking attractions online in advance can save up to 30% and avoid queues",
+  "The best time to visit popular landmarks is early morning or late afternoon",
+  "Local SIM cards are usually cheaper than international roaming — buy one at the airport",
+  "Many museums offer free entry on the first Sunday of each month",
+  "Always carry a printed copy of your hotel address in the local language",
+  "The most authentic food is often found 2-3 blocks away from tourist attractions",
+  "Taking public transport like a local is one of the best ways to experience a city",
+  "Wearing comfortable shoes is the single best travel preparation tip",
+  "Most cities have free walking tours — just tip the guide at the end",
+  "Travel insurance costs about 5% of your trip but covers 100% of emergencies",
+  "Packing cubes can save up to 30% of luggage space",
+];
 
 const PHASE_CONFIG: Record<string, { icon: typeof Loader2; label: string; description: string; color: string }> = {
   scouting: {
@@ -65,6 +80,7 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
   const [activityLog, setActivityLog] = useState<string[]>([]);
   const [completedCities, setCompletedCities] = useState<string[]>([]);
   const [currentCity, setCurrentCity] = useState<string | null>(null);
+  const [factIndex, setFactIndex] = useState(0);
   const logEndRef = useRef<HTMLDivElement>(null);
   const prevMessageRef = useRef<string>('');
 
@@ -74,6 +90,14 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
   useEffect(() => {
     const interval = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Rotate travel facts
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFactIndex((prev) => (prev + 1) % TRAVEL_FACTS.length);
+    }, 8000);
+    return () => clearInterval(timer);
   }, []);
 
   // Append progress messages to activity log + track cities
@@ -118,7 +142,10 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
   const currentStepIdx = JOURNEY_STEPS.indexOf(phase);
 
   const title = isDayPlans ? 'Generating day plans...' : 'Planning your journey...';
-  const timeEstimate = isDayPlans ? 'Usually takes 1-3 minutes' : 'Usually takes 2-4 minutes';
+
+  const etaText = isDayPlans
+    ? (elapsedSeconds < 60 ? 'Usually completes in 1-3 min' : 'Almost done...')
+    : (elapsedSeconds < 120 ? 'Usually completes in 2-4 min' : 'Almost done...');
 
   return (
     <Card className="max-w-xl mx-auto mt-8">
@@ -130,8 +157,11 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
           </h2>
           <p className="text-xs text-text-muted mt-1 flex items-center justify-center gap-1.5">
             <Clock className="h-3 w-3" />
-            {formatElapsed(elapsedSeconds)} elapsed · {timeEstimate}
+            {formatElapsed(elapsedSeconds)} elapsed
           </p>
+          <span className="text-xs text-text-muted">
+            {etaText}
+          </span>
         </div>
 
         {/* Pipeline stepper (journey mode) */}
@@ -223,6 +253,14 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
             <p className="text-xs text-text-muted text-center mt-1">{progress.progress}%</p>
           </div>
         )}
+
+        {/* Did you know? */}
+        <div className="flex items-start gap-2 rounded-lg bg-accent-50 dark:bg-accent-950/30 border border-accent-200 dark:border-accent-800 px-3 py-2.5 mt-4">
+          <Lightbulb className="h-4 w-4 text-accent-500 mt-0.5 shrink-0" />
+          <p className="text-sm text-accent-700 dark:text-accent-300 transition-opacity duration-500">
+            {TRAVEL_FACTS[factIndex]}
+          </p>
+        </div>
 
         {/* Activity log */}
         {activityLog.length > 0 && (
