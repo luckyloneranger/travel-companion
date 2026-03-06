@@ -3,6 +3,7 @@ import { MapPin, Navigation, LocateFixed, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { TemplateGallery } from '@/components/trip/TemplateGallery';
+import { showToast } from '@/components/ui/toast';
 import { api } from '@/services/api';
 import type { TripRequest } from '@/types';
 
@@ -41,7 +42,7 @@ export function WizardStepWhere({
         onOriginChange(results[0].name);
       }
     } catch {
-      // Silently fail — geolocation not available or denied
+      showToast('Location access denied — enter your city manually', 'error');
     } finally {
       setLocating(false);
     }

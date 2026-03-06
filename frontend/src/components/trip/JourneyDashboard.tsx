@@ -4,7 +4,7 @@ import {
   MapPin, Calendar, Navigation, Sparkles,
   MessageSquare, Copy, Check, Share2,
   FileDown, CalendarPlus, ChevronDown,
-  Loader2, RefreshCw, Users, Map as MapIcon, DollarSign, LayoutList, Maximize2,
+  Loader2, RefreshCw, Users, Map as MapIcon, DollarSign, LayoutList, Maximize2, ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +21,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import { api } from '@/services/api';
+import { showToast } from '@/components/ui/toast';
 import type { DayPlan } from '@/types';
 
 interface JourneyDashboardProps {
@@ -67,6 +68,34 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     } catch (err) {
       if (!(err instanceof Error && err.message === '__auth_required__'))
         useUIStore.getState().setError('Failed to reorder activities.');
+    }
+  }, [tripId]);
+
+  // Remove activity with confirmation
+  const handleRemoveActivity = useCallback(async (dayNumber: number, activityId: string) => {
+    if (!tripId) return;
+    const activity = dayPlans?.flatMap(dp => dp.activities).find(a => a.id === activityId);
+    const name = activity?.place?.name || 'Activity';
+    if (!window.confirm(`Remove "${name}" from Day ${dayNumber}?`)) return;
+    try {
+      const result = await api.removeActivity(tripId, dayNumber, activityId);
+      useTripStore.getState().updateDayPlans(result.day_plans as DayPlan[]);
+      showToast(`Removed "${name}"`, 'success');
+    } catch (err) {
+      if (!(err instanceof Error && err.message === '__auth_required__'))
+        showToast('Failed to remove activity', 'error');
+    }
+  }, [tripId, dayPlans]);
+
+  // Adjust activity duration (+/- 15 min)
+  const handleAdjustDuration = useCallback(async (dayNumber: number, activityId: string, change: number) => {
+    if (!tripId) return;
+    try {
+      const result = await api.adjustDuration(tripId, dayNumber, activityId, change);
+      useTripStore.getState().updateDayPlans(result.day_plans as DayPlan[]);
+    } catch (err) {
+      if (!(err instanceof Error && err.message === '__auth_required__'))
+        showToast('Failed to adjust duration', 'error');
     }
   }, [tripId]);
 
@@ -117,7 +146,11 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
       }
       lines.push('');
     });
-    navigator.clipboard.writeText(lines.filter(Boolean).join('\n'));
+    navigator.clipboard.writeText(lines.filter(Boolean).join('\n')).then(() => {
+      showToast('Itinerary copied!', 'success');
+    }).catch(() => {
+      showToast('Could not copy itinerary', 'error');
+    });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [journey]);
@@ -130,7 +163,11 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
       const url = `${window.location.origin}/shared/${result.token}`;
       setShareUrl(url);
       // Auto-copy to clipboard
-      navigator.clipboard.writeText(url).catch(() => {});
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Share link copied!', 'success');
+      }).catch(() => {
+        showToast('Could not copy link — use the URL field below', 'error');
+      });
     } catch (err) {
       if (!(err instanceof Error && err.message === '__auth_required__'))
         useUIStore.getState().setError(err instanceof Error ? `Share failed: ${err.message}` : 'Share failed');
@@ -142,7 +179,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const handleExportPdf = useCallback(async () => {
     if (!tripId) return;
     setIsExporting('pdf');
-    try { await api.exportPdf(tripId); }
+    try { await api.exportPdf(tripId); showToast('PDF downloaded', 'success'); }
     catch (e) { if (!(e instanceof Error && e.message === '__auth_required__')) useUIStore.getState().setError('PDF export failed.'); }
     finally { setIsExporting(null); }
   }, [tripId]);
@@ -150,7 +187,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const handleExportCalendar = useCallback(async () => {
     if (!tripId) return;
     setIsExporting('calendar');
-    try { await api.exportCalendar(tripId); }
+    try { await api.exportCalendar(tripId); showToast('Calendar file downloaded', 'success'); }
     catch (e) { if (!(e instanceof Error && e.message === '__auth_required__')) useUIStore.getState().setError('Calendar export failed.'); }
     finally { setIsExporting(null); }
   }, [tripId]);
@@ -258,10 +295,6 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
               {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
               {isSharing ? 'Sharing...' : shareUrl ? 'Shared!' : 'Share'}
             </Button>
-            <Button variant="outline" size="sm" className="opacity-60 cursor-not-allowed" title="Coming soon — generate alternative plan for comparison">
-              <RefreshCw className="h-4 w-4" />
-              Alternative
-            </Button>
             <div className="relative">
               <Button variant="outline" size="sm" onClick={() => setShowExport(!showExport)}>
                 <FileDown className="h-4 w-4" />
@@ -281,7 +314,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
             </div>
             {/* Feature 25: Live trip "Today" button */}
             {dayPlans && dayPlans.some(dp => dp.date === new Date().toISOString().split('T')[0]) && (
-              <Button variant="outline" size="sm" onClick={() => setActiveTab('live')}>
+              <Button variant="ghost" size="sm" onClick={() => setActiveTab('live')}>
                 <Navigation className="h-4 w-4" />
                 Today
               </Button>
@@ -339,13 +372,20 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
             {/* Map preview */}
             <div>
-              <ErrorBoundary fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted flex items-center justify-center text-sm text-text-muted">Map unavailable</div>}>
-                <Suspense fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted animate-pulse" />}>
-                  <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default cursor-pointer" onClick={() => setActiveTab('map')}>
-                    <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
-                  </div>
-                </Suspense>
-              </ErrorBoundary>
+              <div className="relative group cursor-pointer" onClick={() => setActiveTab('map')}>
+                <ErrorBoundary fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted flex items-center justify-center text-sm text-text-muted">Map unavailable</div>}>
+                  <Suspense fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted animate-pulse" />}>
+                    <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default">
+                      <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
+                    </div>
+                  </Suspense>
+                </ErrorBoundary>
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors rounded-lg flex items-center justify-center">
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium text-white bg-black/60 px-3 py-1.5 rounded-full">
+                    Click to explore map
+                  </span>
+                </div>
+              </div>
               <TripMapLegend />
             </div>
 
@@ -379,6 +419,9 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                             )}
                           </div>
                         )}
+                        <span className="text-xs text-primary-500 flex items-center gap-0.5 mt-1">
+                          View itinerary <ChevronRight className="h-3 w-3" />
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -407,7 +450,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                           onClick={() => {
                             document.getElementById(`day-${dp.day_number}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                           }}
-                          className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800/50 transition-colors"
+                          className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800/50 transition-colors"
                           title={`Day ${dp.day_number}: ${dp.theme}`}
                         >
                           {dp.day_number}
@@ -456,6 +499,8 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                   hideHighlights={!!(dayPlans && dayPlans.length > 0)}
                   dailyBudget={dailyBudget}
                   onChatAbout={handleChatAbout}
+                  onRemoveActivity={handleRemoveActivity}
+                  onAdjustDuration={handleAdjustDuration}
                   onReorder={handleReorder}
                   recentChanges={recentChanges}
                 />

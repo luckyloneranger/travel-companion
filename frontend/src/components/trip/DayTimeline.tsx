@@ -164,7 +164,7 @@ function SortableActivity({ id, children }: { id: string; children: React.ReactN
           aria-label="Drag to reorder"
           {...listeners}
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-5 w-5" />
         </button>
         <div className="flex-1">{children}</div>
       </div>
@@ -527,6 +527,15 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
               )}
             </div>
           </div>
+          {dayPlan.weather.precipitation_chance_percent >= 50 && onChatAbout && (
+            <button
+              type="button"
+              onClick={() => onChatAbout('Suggest indoor alternatives for rainy weather', dayPlan.day_number)}
+              className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-1"
+            >
+              Suggest indoor alternatives
+            </button>
+          )}
         </div>
       )}
 

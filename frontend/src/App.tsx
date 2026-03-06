@@ -28,7 +28,7 @@ function TripLoader() {
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    if (id && id !== tripId) {
+    if (id && id !== tripId && phase !== 'input') {
       setLoadError(false);
       useTripStore.getState().loadTrip(id).then(() => {
         useUIStore.getState().setPhase('preview');
@@ -36,7 +36,7 @@ function TripLoader() {
         setLoadError(true);
       });
     }
-  }, [id, tripId]);
+  }, [id, tripId, phase]);
 
   if (phase === 'planning') {
     return (

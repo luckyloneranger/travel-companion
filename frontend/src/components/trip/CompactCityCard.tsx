@@ -7,6 +7,7 @@ import { DayTimeline } from '@/components/trip/DayTimeline';
 import { DayMap, DayMapLegend } from '@/components/maps';
 import type { CityStop, TravelLeg, DayPlan } from '@/types';
 import { api } from '@/services/api';
+import { showToast } from '@/components/ui/toast';
 
 interface CompactCityCardProps {
   city: CityStop;
@@ -18,6 +19,8 @@ interface CompactCityCardProps {
   hideHighlights?: boolean;
   dailyBudget?: number;
   onChatAbout?: (activityName: string, dayNumber: number) => void;
+  onRemoveActivity?: (dayNumber: number, activityId: string) => void;
+  onAdjustDuration?: (dayNumber: number, activityId: string, change: number) => void;
   onReorder?: (dayNumber: number, activityIds: string[]) => void;
   recentChanges?: {
     added: Set<string>;
@@ -46,7 +49,7 @@ function parseFare(leg: TravelLeg): number {
   return 0;
 }
 
-export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, onReorder, recentChanges }: CompactCityCardProps) {
+export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
   const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
   const [alternatives, setAlternatives] = useState<{ name: string; rating: number | null; price_level: number | null; place_id: string; photo_url: string | null }[]>([]);
@@ -86,7 +89,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
       setAlternatives(alts);
       setShowAlts(true);
     } catch {
-      // Silently fail
+      showToast('Could not load alternative hotels', 'error');
     } finally {
       setLoadingAlts(false);
     }
@@ -187,7 +190,13 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
               {showAlts && alternatives.length > 0 && (
                 <div className="space-y-1">
                   {alternatives.map((alt) => (
-                    <div key={alt.place_id} className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted/50 p-2 text-xs">
+                    <a
+                      key={alt.place_id}
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(alt.name)}&query_place_id=${alt.place_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted/50 p-2 text-xs hover:border-primary-200 hover:bg-surface-muted transition-colors"
+                    >
                       {alt.photo_url && (
                         <img
                           src={`${alt.photo_url}?w=200`}
@@ -209,7 +218,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                           )}
                         </div>
                       </div>
-                    </div>
+                    </a>
                   ))}
                 </div>
               )}
@@ -295,7 +304,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                         </div>
                       </div>
                     )}
-                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} onReorder={onReorder} recentChanges={recentChanges} />
+                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} onRemoveActivity={onRemoveActivity} onAdjustDuration={onAdjustDuration} onReorder={onReorder} recentChanges={recentChanges} />
                   </div>
                 ))}
               </div>

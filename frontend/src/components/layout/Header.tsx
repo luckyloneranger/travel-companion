@@ -32,14 +32,23 @@ export function Header() {
   const toggleDark = useCallback(() => setDark((d) => !d), []);
 
   const handleNewTrip = useCallback(() => {
-    useTripStore.getState().reset();
-    useUIStore.getState().resetUI();
+    const hasTrip = !!useTripStore.getState().journey;
+    if (hasTrip && !window.confirm('Start a new trip? Your current trip is saved and you can find it in Recent Trips.')) {
+      return;
+    }
+    // Navigate FIRST, then reset — prevents TripLoader from re-loading
+    // the old trip via URL param before navigation completes
     navigate('/');
+    // Use setTimeout to ensure navigation happens before state reset
+    setTimeout(() => {
+      useTripStore.getState().reset();
+      useUIStore.getState().resetUI();
+    }, 0);
   }, [navigate]);
 
   const handleGoHome = useCallback(() => {
-    useTripStore.getState().reset();
-    useUIStore.getState().resetUI();
+    // Navigate home without destroying trip data — trip stays in "Recent Trips"
+    useUIStore.getState().setPhase('input');
     navigate('/');
   }, [navigate]);
 
