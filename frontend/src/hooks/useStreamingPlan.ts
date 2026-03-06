@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { api } from '@/services/api';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
+import { useAuthStore } from '@/stores/authStore';
 import type { TripRequest, JourneyPlan } from '@/types';
 import { SSE_STALL_TIMEOUT_MS } from '@/constants';
 
@@ -15,6 +16,9 @@ export function useStreamingPlan() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+
+    // Refresh auth token before starting long-running stream (can take 2-5 min)
+    await useAuthStore.getState().fetchUser();
 
     setPhase('planning');
     setLoading(true);

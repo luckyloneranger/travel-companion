@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Routes, Route, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { PageContainer } from '@/components/layout/PageContainer';
@@ -14,6 +14,7 @@ import { useStreamingDayPlans } from '@/hooks/useStreamingDayPlans';
 import { useUIStore } from '@/stores/uiStore';
 import { useTripStore } from '@/stores/tripStore';
 import { useAuthStore } from '@/stores/authStore';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AlertCircle } from 'lucide-react';
 import { ToastContainer } from '@/components/ui/toast';
 
@@ -23,13 +24,16 @@ function TripLoader() {
   const { journey } = useTripStore();
   const tripId = useTripStore((s) => s.tripId);
   const { phase } = useUIStore();
+  const navigate = useNavigate();
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     if (id && id !== tripId) {
+      setLoadError(false);
       useTripStore.getState().loadTrip(id).then(() => {
         useUIStore.getState().setPhase('preview');
       }).catch(() => {
-        // Trip load failed — error already surfaced
+        setLoadError(true);
       });
     }
   }, [id, tripId]);
@@ -38,6 +42,26 @@ function TripLoader() {
     return (
       <div key="planning" className="animate-fade-in-up">
         <PlanningDashboard onCancel={() => useUIStore.getState().setPhase('input')} />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="text-center py-16 space-y-4">
+        <p className="text-lg font-display font-semibold text-text-primary">Trip not found</p>
+        <p className="text-sm text-text-muted">This trip doesn't exist or you don't have access to it.</p>
+        <button
+          type="button"
+          onClick={() => {
+            useUIStore.getState().resetUI();
+            useTripStore.getState().reset();
+            navigate('/');
+          }}
+          className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+        >
+          Go back to home
+        </button>
       </div>
     );
   }
@@ -77,6 +101,11 @@ function MainApp() {
     const savedPhase = sessionStorage.getItem('tc_phase');
     if (savedTripId && savedPhase && savedPhase !== 'input' && savedPhase !== 'planning') {
       navigate(`/trips/${savedTripId}`, { replace: true });
+    } else if (savedPhase === 'planning') {
+      // Inconsistent state — clear everything
+      sessionStorage.removeItem('tc_phase');
+      sessionStorage.removeItem('tc_tripId');
+      sessionStorage.removeItem('tc_planning');
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -173,18 +202,26 @@ function MainApp() {
             )
           } />
           <Route path="/trips/:id" element={
-            <>
-              <TripLoader />
-              {(phase === 'preview' || phase === 'day-plans') && journey && (
-                <div key="preview" className="animate-fade-in-up">
-                  <JourneyDashboard
-                    onGenerateDayPlans={handleGenerateDayPlans}
-                    onCancelDayPlans={cancelGenerating}
-                    onOpenChat={handleOpenChat}
-                  />
-                </div>
-              )}
-            </>
+            <ErrorBoundary fallback={
+              <div className="text-center py-16 space-y-4">
+                <p className="text-lg font-display font-semibold text-text-primary">Something went wrong</p>
+                <p className="text-sm text-text-muted">An error occurred while displaying this trip.</p>
+                <a href="/" className="text-sm text-primary-600 dark:text-primary-400 hover:underline">Go back to home</a>
+              </div>
+            }>
+              <>
+                <TripLoader />
+                {(phase === 'preview' || phase === 'day-plans') && journey && (
+                  <div key="preview" className="animate-fade-in-up">
+                    <JourneyDashboard
+                      onGenerateDayPlans={handleGenerateDayPlans}
+                      onCancelDayPlans={cancelGenerating}
+                      onOpenChat={handleOpenChat}
+                    />
+                  </div>
+                )}
+              </>
+            </ErrorBoundary>
           } />
         </Routes>
       </PageContainer>

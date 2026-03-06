@@ -89,11 +89,12 @@ class TripRepository:
             return None
         return self._to_response(trip)
 
-    async def list_trips(self, user_id: str | None = None) -> list[TripSummary]:
+    async def list_trips(self, user_id: str | None = None, limit: int = 50, offset: int = 0) -> list[TripSummary]:
         """List trips (summaries only). When user_id is provided, filter by owner."""
         query = select(Trip).order_by(Trip.created_at.desc())
         if user_id is not None:
             query = query.where(Trip.user_id == user_id)
+        query = query.limit(limit).offset(offset)
         result = await self.session.execute(query)
         trips = result.scalars().all()
         return [self._to_summary(t) for t in trips]

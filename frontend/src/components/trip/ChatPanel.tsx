@@ -103,6 +103,12 @@ export function ChatPanel() {
 
         updateDayPlans(response.updated_day_plans);
       }
+
+      // Journey edit cleared day plans — update store so UI reflects it
+      if (response.updated_journey && !response.updated_day_plans &&
+          response.changes_made?.some((c: string) => c.toLowerCase().includes('day plans cleared'))) {
+        useTripStore.getState().updateDayPlans([]);
+      }
     } catch (err) {
       setLastFailedMessage(messageToSend);
       setMessages(prev => [...prev, {

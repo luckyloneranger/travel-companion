@@ -7,6 +7,7 @@ from fastapi.responses import Response
 
 from app.db.repository import TripRepository
 from app.dependencies import require_user, get_trip_repository
+from app.routers.trips import _check_trip_ownership
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +24,7 @@ async def export_pdf(
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
-    owner = await repo.get_trip_user_id(trip_id)
-    if owner is not None and owner != user["sub"]:
-        raise HTTPException(404, "Trip not found")
+    await _check_trip_ownership(repo, trip_id, user["sub"])
 
     from app.services.export import generate_pdf
 
@@ -53,9 +52,7 @@ async def export_calendar(
     trip = await repo.get_trip(trip_id)
     if not trip:
         raise HTTPException(404, "Trip not found")
-    owner = await repo.get_trip_user_id(trip_id)
-    if owner is not None and owner != user["sub"]:
-        raise HTTPException(404, "Trip not found")
+    await _check_trip_ownership(repo, trip_id, user["sub"])
 
     if not trip.day_plans:
         raise HTTPException(

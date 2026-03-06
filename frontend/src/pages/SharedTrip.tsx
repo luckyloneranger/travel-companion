@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sparkles, MapPin, Calendar, Navigation, Loader2, Rocket } from 'lucide-react';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/authStore';
 import type { TripResponse } from '@/types';
 
 export function SharedTrip() {
@@ -14,6 +15,7 @@ export function SharedTrip() {
   const [trip, setTrip] = useState<TripResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     if (!token) return;
@@ -114,13 +116,20 @@ export function SharedTrip() {
           </div>
 
           {/* CTA */}
-          <div className="text-center pt-4 border-t border-border-default">
+          <div className="text-center pt-4 border-t border-border-default space-y-3">
             <Link to="/">
               <Button className="bg-primary-600 hover:bg-primary-700 text-white">
                 <Rocket className="h-4 w-4" />
                 Plan your own trip
               </Button>
             </Link>
+            {user && (
+              <div>
+                <Link to="/" className="text-sm text-primary-600 dark:text-primary-400 hover:underline">
+                  Go to My Trips
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </PageContainer>

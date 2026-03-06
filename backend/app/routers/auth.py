@@ -60,6 +60,8 @@ async def login(provider: str, request: Request):
     else:
         redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
 
+    logger.info("OAuth %s redirect_uri: %s", provider, redirect_uri)
+
     client = AsyncOAuth2Client(
         client_id=client_id,
         client_secret=client_secret,
@@ -96,6 +98,8 @@ async def callback(provider: str, request: Request, response: Response):
         redirect_uri = f"{settings.backend_url}/api/auth/callback/{provider}"
     else:
         redirect_uri = str(request.base_url).rstrip("/") + f"/api/auth/callback/{provider}"
+
+    logger.info("OAuth %s redirect_uri: %s", provider, redirect_uri)
 
     client = AsyncOAuth2Client(
         client_id=client_id,
@@ -180,9 +184,10 @@ async def callback(provider: str, request: Request, response: Response):
             "name": user.name,
         })
 
-        # Redirect to frontend with JWT cookie + token in URL for cross-origin
-        separator = "&" if "?" in settings.app_url else "?"
-        redirect_url = f"{settings.app_url}{separator}token={jwt_token}"
+        # Redirect to frontend with JWT cookie + token in URL hash for cross-origin
+        # Hash fragments are NOT sent to servers in HTTP requests, so they
+        # don't leak into server logs or Referer headers.
+        redirect_url = f"{settings.app_url}#token={jwt_token}"
         redirect_response = Response(
             status_code=307,
             headers={"Location": redirect_url},

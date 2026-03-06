@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { MapPin, Plane, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useAuthStore } from '@/stores/authStore';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const WIZARD_STATE_KEY = 'tc_wizard_state';
@@ -63,6 +65,13 @@ function SignInButtons() {
 
 /** Full-page sign-in (for /signin route). */
 export function SignIn() {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) navigate('/', { replace: true });
+  }, [user, navigate]);
+
   return (
     <div className="min-h-screen bg-surface-dim flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">

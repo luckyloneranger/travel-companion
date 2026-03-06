@@ -1,4 +1,5 @@
 import { Suspense, useCallback, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   MapPin, Calendar, Navigation, Sparkles,
   MessageSquare, Copy, Check, Share2,
@@ -39,7 +40,16 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [isSharing, setIsSharing] = useState(false);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'budget' | 'map' | 'live'>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as 'overview' | 'cities' | 'budget' | 'map' | 'live') || 'overview';
+  const [activeTabState, setActiveTabState] = useState<'overview' | 'cities' | 'budget' | 'map' | 'live'>(initialTab);
+
+  const setActiveTab = useCallback((tab: 'overview' | 'cities' | 'budget' | 'map' | 'live') => {
+    setActiveTabState(tab);
+    setSearchParams({ tab }, { replace: true });
+  }, [setSearchParams]);
+
+  const activeTab = activeTabState;
   const [fullDayViewDay, setFullDayViewDay] = useState<number | null>(null);
   const [mapDayFilter, setMapDayFilter] = useState('journey');
 
