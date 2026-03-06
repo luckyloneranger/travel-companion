@@ -136,7 +136,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
               <Sparkles className="h-3 w-3 text-accent-400 shrink-0" />
               {h.name}
               {h.category && (
-                <Badge variant="secondary" className="text-xs capitalize ml-0.5">{h.category}</Badge>
+                <Badge variant="outline" className="text-xs capitalize ml-0.5">{h.category}</Badge>
               )}
             </span>
           ))}
@@ -273,6 +273,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                           size="icon-sm"
                           onClick={() => setMapDayPlan(dp)}
                           title={`View Day ${dp.day_number} map`}
+                          aria-label="View day map"
                         >
                           <Map className="h-4 w-4 text-text-muted" />
                         </Button>
@@ -280,7 +281,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                     </div>
                     {dailyBudget && dailyBudget > 0 && dp.daily_cost_usd != null && (
                       <div className="mt-1">
-                        <div className="h-1.5 rounded-full bg-surface-muted overflow-hidden">
+                        <div className="h-2 rounded-full bg-surface-muted overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all ${
                               dp.daily_cost_usd > dailyBudget

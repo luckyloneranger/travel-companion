@@ -64,11 +64,11 @@ function getMinutesBetween(endTime: string, startTime: string): number {
 
 function WeatherIcon({ condition }: { condition: string }) {
   const c = condition.toLowerCase();
-  if (c.includes('rain') || c.includes('shower')) return <CloudRain className="h-5 w-5 text-blue-500" />;
-  if (c.includes('cloud') || c.includes('overcast')) return <Cloud className="h-5 w-5 text-gray-400" />;
-  if (c.includes('snow')) return <Snowflake className="h-5 w-5 text-blue-300" />;
-  if (c.includes('thunder') || c.includes('storm')) return <CloudLightning className="h-5 w-5 text-yellow-500" />;
-  return <Sun className="h-5 w-5 text-amber-400" />;
+  if (c.includes('rain') || c.includes('shower')) return <CloudRain className="h-5 w-5 text-primary-500" />;
+  if (c.includes('cloud') || c.includes('overcast')) return <Cloud className="h-5 w-5 text-text-muted" />;
+  if (c.includes('snow')) return <Snowflake className="h-5 w-5 text-primary-300" />;
+  if (c.includes('thunder') || c.includes('storm')) return <CloudLightning className="h-5 w-5 text-accent-500" />;
+  return <Sun className="h-5 w-5 text-accent-400" />;
 }
 
 // ── Feature 10: Time Gap ───────────────────────────────────
@@ -226,6 +226,7 @@ function TimelineActivity({
                   alt={`${activity.place.name} photo ${i + 1}`}
                   loading="lazy"
                   className="h-20 w-28 sm:h-24 sm:w-32 rounded-md object-cover shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ))}
             </div>
@@ -271,7 +272,7 @@ function TimelineActivity({
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onAdjustDuration(dayNumber, activity.id, -15); }}
-                      className="text-text-muted hover:text-primary-600 transition-colors p-0.5"
+                      className="text-text-muted hover:text-primary-600 transition-colors p-1.5"
                       title="Shorten by 15 min"
                       aria-label="Shorten duration"
                     >
@@ -280,7 +281,7 @@ function TimelineActivity({
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onAdjustDuration(dayNumber, activity.id, 15); }}
-                      className="text-text-muted hover:text-primary-600 transition-colors p-0.5"
+                      className="text-text-muted hover:text-primary-600 transition-colors p-1.5"
                       title="Extend by 15 min"
                       aria-label="Extend duration"
                     >
@@ -292,7 +293,7 @@ function TimelineActivity({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onRemoveActivity(dayNumber, activity.id); }}
-                    className="text-text-muted hover:text-red-500 transition-colors p-0.5"
+                    className="text-text-muted hover:text-red-500 transition-colors p-1.5"
                     title="Remove activity"
                     aria-label="Remove activity"
                   >

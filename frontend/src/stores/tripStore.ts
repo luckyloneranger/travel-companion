@@ -13,6 +13,7 @@ interface TripState {
   tripId: string | null;
   travelers: Travelers;
   savedTrips: TripSummary[];
+  tripsLoading: boolean;
   tips: Record<string, string>;
   tipsLoading: boolean;
   costBreakdown: CostBreakdown | null;
@@ -44,6 +45,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   tripId: null,
   travelers: { adults: 1, children: 0, infants: 0 },
   savedTrips: [],
+  tripsLoading: false,
   tips: {},
   tipsLoading: false,
   costBreakdown: null,
@@ -122,13 +124,15 @@ export const useTripStore = create<TripState>((set, get) => ({
   loadTrips: async () => {
     const { useAuthStore } = await import('./authStore');
     if (!useAuthStore.getState().user) {
-      set({ savedTrips: [] });
+      set({ savedTrips: [], tripsLoading: false });
       return;
     }
+    set({ tripsLoading: true });
     try {
       const trips = await api.listTrips();
-      set({ savedTrips: trips });
+      set({ savedTrips: trips, tripsLoading: false });
     } catch (e) {
+      set({ tripsLoading: false });
       if (isAuthError(e)) return;
       console.error('Failed to load trips:', e);
       const { useUIStore } = await import('./uiStore');

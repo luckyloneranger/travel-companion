@@ -31,7 +31,7 @@ export function RouteTimeline({ journey, onCityClick }: RouteTimelineProps) {
             <button
               type="button"
               onClick={() => onCityClick?.(city.name)}
-              className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-surface-muted/50 transition-colors text-left group"
+              className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-surface-muted/50 transition-colors text-left group focus-visible:ring-2 focus-visible:ring-primary-500/50"
             >
               <div className="flex flex-col items-center shrink-0">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/40 text-sm font-bold text-primary-700 dark:text-primary-300 group-hover:bg-primary-200 dark:group-hover:bg-primary-800/50 transition-colors">

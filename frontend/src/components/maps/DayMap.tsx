@@ -96,25 +96,25 @@ export function DayMap({ dayPlan, mapInstanceId = 'day-map' }: DayMapProps) {
           pixelOffset={[0, -35]}
         >
           <div className="p-1 min-w-[180px] max-w-[260px]">
-            <h3 className="font-semibold text-sm text-gray-900">{selectedActivity.activity.place.name}</h3>
-            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--theme-text-primary, #111827)' }}>{selectedActivity.activity.place.name}</h3>
+            <div className="flex flex-wrap items-center gap-2 mt-1 text-xs" style={{ color: 'var(--theme-text-muted, #6b7280)' }}>
               {selectedActivity.activity.time_start && (
-                <span>🕐 {selectedActivity.activity.time_start}{selectedActivity.activity.time_end ? ` – ${selectedActivity.activity.time_end}` : ''}</span>
+                <span>&#x1F550; {selectedActivity.activity.time_start}{selectedActivity.activity.time_end ? ` – ${selectedActivity.activity.time_end}` : ''}</span>
               )}
               {selectedActivity.activity.duration_minutes && selectedActivity.activity.duration_minutes > 0 && (
                 <span>{selectedActivity.activity.duration_minutes} min</span>
               )}
             </div>
             {selectedActivity.activity.place.category && (
-              <span className="inline-block mt-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600 capitalize">
+              <span className="inline-block mt-1 rounded px-1.5 py-0.5 text-xs capitalize" style={{ backgroundColor: 'var(--theme-surface-muted, #f3f4f6)', color: 'var(--theme-text-muted, #4b5563)' }}>
                 {selectedActivity.activity.place.category}
               </span>
             )}
             {selectedActivity.activity.estimated_cost_usd != null && selectedActivity.activity.estimated_cost_usd > 0 && (
-              <p className="text-xs text-gray-500 mt-1">💰 ~${selectedActivity.activity.estimated_cost_usd}</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted, #6b7280)' }}>&#x1F4B0; ~${selectedActivity.activity.estimated_cost_usd}</p>
             )}
             {selectedActivity.activity.place.rating && (
-              <p className="text-xs text-gray-500 mt-0.5">⭐ {selectedActivity.activity.place.rating.toFixed(1)}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted, #6b7280)' }}>&#x2B50; {selectedActivity.activity.place.rating.toFixed(1)}</p>
             )}
           </div>
         </InfoWindow>
@@ -129,7 +129,7 @@ export function DayMap({ dayPlan, mapInstanceId = 'day-map' }: DayMapProps) {
 /** Day map route legend. */
 export function DayMapLegend() {
   return (
-    <div className="flex items-center gap-4 px-3 py-2 text-xs text-text-muted">
+    <div className="flex flex-wrap items-center gap-4 px-3 py-2 text-xs text-text-muted">
       <span className="flex items-center gap-1.5">
         <span className="w-4 border-t-2 border-green-600" />
         Walk

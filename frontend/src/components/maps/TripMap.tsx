@@ -118,20 +118,21 @@ export function TripMap({ journey, onCityClick }: TripMapProps) {
           pixelOffset={[0, -30]}
         >
           <div className="p-1 min-w-[180px] max-w-[240px]">
-            <h3 className="font-semibold text-sm text-gray-900">{selectedCity.name}, {selectedCity.country}</h3>
-            <p className="text-xs text-gray-500 mt-0.5">{selectedCity.days} {selectedCity.days === 1 ? 'day' : 'days'}</p>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--theme-text-primary, #111827)' }}>{selectedCity.name}, {selectedCity.country}</h3>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--theme-text-muted, #6b7280)' }}>{selectedCity.days} {selectedCity.days === 1 ? 'day' : 'days'}</p>
             {selectedCity.why_visit && (
-              <p className="text-xs text-gray-600 mt-1 line-clamp-2">{selectedCity.why_visit}</p>
+              <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--theme-text-muted, #4b5563)' }}>{selectedCity.why_visit}</p>
             )}
             {selectedCity.accommodation && (
-              <p className="text-xs text-gray-500 mt-1">🏨 {selectedCity.accommodation.name}</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--theme-text-muted, #6b7280)' }}>&#x1F3E8; {selectedCity.accommodation.name}</p>
             )}
             {onCityClick && (
               <button
                 onClick={() => { onCityClick(selectedCity.name); setSelectedCity(null); }}
-                className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                className="mt-2 text-xs font-medium"
+                style={{ color: 'var(--theme-text-primary, #4f46e5)' }}
               >
-                View itinerary →
+                View itinerary &rarr;
               </button>
             )}
           </div>
@@ -177,9 +178,9 @@ export function TripMap({ journey, onCityClick }: TripMapProps) {
           pixelOffset={[0, -30]}
         >
           <div className="p-1 min-w-[160px]">
-            <h3 className="font-semibold text-sm text-gray-900">{selectedHotel.name}</h3>
-            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-              {selectedHotel.rating && <span>⭐ {selectedHotel.rating.toFixed(1)}</span>}
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--theme-text-primary, #111827)' }}>{selectedHotel.name}</h3>
+            <div className="flex items-center gap-2 mt-1 text-xs" style={{ color: 'var(--theme-text-muted, #6b7280)' }}>
+              {selectedHotel.rating && <span>&#x2B50; {selectedHotel.rating.toFixed(1)}</span>}
               {selectedHotel.price && <span>${selectedHotel.price}/night</span>}
             </div>
           </div>
@@ -192,7 +193,7 @@ export function TripMap({ journey, onCityClick }: TripMapProps) {
 /** Map legend overlay. */
 export function TripMapLegend() {
   return (
-    <div className="flex items-center gap-4 px-3 py-2 text-xs text-text-muted">
+    <div className="flex flex-wrap items-center gap-4 px-3 py-2 text-xs text-text-muted">
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-3 rounded-full bg-indigo-500 border border-white shadow-sm" />
         City

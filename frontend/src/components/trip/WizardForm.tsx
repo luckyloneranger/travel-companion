@@ -72,10 +72,10 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
   }, [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, budget, budgetUsd, travelers]);
 
   // Saved trips
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loadingTripId, setLoadingTripId] = useState<string | null>(null);
 
   const { savedTrips, loadTrips, loadTrip, deleteTrip } = useTripStore();
+  const tripsLoading = useTripStore((s) => s.tripsLoading);
   const { wizardStep, setWizardStep, setPhase } = useUIStore();
   const setStoreTravelers = useTripStore((s) => s.setTravelers);
   const user = useAuthStore((s) => s.user);
@@ -149,22 +149,16 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
   const handleDeleteTrip = useCallback(
     async (e: React.MouseEvent, tripId: string) => {
       e.stopPropagation();
-      if (deletingId === tripId) {
-        setIsDeletingInFlight(true);
-        try {
-          await deleteTrip(tripId);
-        } catch {
-          // Error already surfaced via uiStore
-        }
-        setIsDeletingInFlight(false);
-        setDeletingId(null);
-      } else {
-        setDeletingId(tripId);
-        // Auto-reset confirmation after 3 seconds
-        setTimeout(() => setDeletingId((current) => current === tripId ? null : current), 3000);
+      if (!window.confirm('Delete this trip? This cannot be undone.')) return;
+      setIsDeletingInFlight(true);
+      try {
+        await deleteTrip(tripId);
+      } catch {
+        // Error already surfaced via uiStore
       }
+      setIsDeletingInFlight(false);
     },
-    [deletingId, deleteTrip],
+    [deleteTrip],
   );
 
   return (
@@ -251,7 +245,19 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       </div>
 
       {/* Recent Trips */}
-      {savedTrips.length > 0 ? (
+      {tripsLoading && savedTrips.length === 0 ? (
+        <div className="mt-4 space-y-3">
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider px-1 flex items-center gap-1.5">
+            <FolderOpen className="h-4 w-4" />
+            Recent Trips
+          </h2>
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-20 rounded-lg bg-surface-muted animate-pulse" />
+            ))}
+          </div>
+        </div>
+      ) : savedTrips.length > 0 ? (
         <div className="mt-4 space-y-3">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider px-1 flex items-center gap-1.5">
             <FolderOpen className="h-4 w-4" />
@@ -261,7 +267,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
             {savedTrips.map((trip) => (
               <Card
                 key={trip.id}
-                className="cursor-pointer transition-colors hover:border-primary-300 hover:bg-surface-muted/50"
+                className="cursor-pointer transition-colors hover:border-primary-300 hover:bg-surface-muted/50 focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:rounded-lg"
                 role="button"
                 tabIndex={0}
                 onClick={() => handleLoadTrip(trip)}
@@ -301,17 +307,12 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`h-8 w-8 p-0 ${
-                        deletingId === trip.id
-                          ? 'text-destructive hover:text-destructive hover:bg-red-100'
-                          : 'text-text-muted hover:text-destructive'
-                      }`}
+                      className="h-8 w-8 p-0 text-text-muted hover:text-destructive"
                       onClick={(e) => handleDeleteTrip(e, trip.id)}
-                      onBlur={() => setDeletingId(null)}
-                      disabled={isDeletingInFlight && deletingId === trip.id}
-                      title={deletingId === trip.id ? 'Click again to confirm delete' : 'Delete trip'}
+                      disabled={isDeletingInFlight}
+                      title="Delete trip"
                     >
-                      {isDeletingInFlight && deletingId === trip.id
+                      {isDeletingInFlight
                         ? <Loader2 className="h-4 w-4 animate-spin" />
                         : <Trash2 className="h-4 w-4" />}
                     </Button>
