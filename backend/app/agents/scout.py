@@ -134,6 +134,9 @@ class ScoutAgent:
                     estimated_nightly_usd=100,  # Safe default
                 )
 
+        # Collapse city-state / single-city multi-destination plans into one
+        self._collapse_city_state_destinations(plan)
+
         expected_legs = len(plan.cities) - 1
         if expected_legs > 0 and len(plan.travel_legs) != expected_legs:
             raise LLMValidationError(
@@ -141,3 +144,72 @@ class ScoutAgent:
                 [f"Expected {expected_legs} travel legs for {len(plan.cities)} cities, got {len(plan.travel_legs)}"],
                 1,
             )
+
+    # City-states and single-city destinations that should never be split
+    _CITY_STATES: set[str] = {
+        "singapore", "hong kong", "macau", "macao", "monaco", "luxembourg",
+        "bahrain", "qatar", "doha", "abu dhabi", "dubai",
+    }
+
+    @classmethod
+    def _collapse_city_state_destinations(cls, plan: JourneyPlan) -> None:
+        """Collapse multi-destination plans for city-states into a single destination.
+
+        When the LLM splits a city-state (e.g., Singapore) into multiple
+        sub-destinations (Marina Bay, Sentosa, Pulau Ubin), merge them into
+        one destination with combined days and highlights.
+        """
+        if len(plan.cities) <= 1:
+            return
+
+        # Check if all cities share the same country AND that country is a city-state
+        countries = {(c.country or "").lower().strip() for c in plan.cities}
+        if len(countries) != 1:
+            return
+        country = countries.pop()
+
+        # Also check city names for city-state matches
+        all_names = " ".join(c.name.lower() for c in plan.cities)
+        is_city_state = (
+            country in cls._CITY_STATES
+            or any(cs in all_names for cs in cls._CITY_STATES)
+            or any(cs in country for cs in cls._CITY_STATES)
+        )
+        if not is_city_state:
+            return
+
+        logger.info(
+            "[Scout] Collapsing %d sub-destinations in city-state %s into one",
+            len(plan.cities), country,
+        )
+
+        # Merge all cities into one
+        primary = plan.cities[0]
+        primary.name = country.title() if len(country) > 3 else plan.cities[0].name.split(",")[0].split("(")[0].strip()
+        primary.days = sum(c.days for c in plan.cities)
+
+        # Merge highlights from all cities
+        seen_highlights: set[str] = set()
+        merged_highlights = []
+        for city in plan.cities:
+            for h in city.highlights:
+                if h.name not in seen_highlights:
+                    seen_highlights.add(h.name)
+                    merged_highlights.append(h)
+        primary.highlights = merged_highlights
+
+        # Merge why_visit
+        reasons = [c.why_visit for c in plan.cities if c.why_visit]
+        if reasons:
+            primary.why_visit = reasons[0]
+
+        # Keep the best accommodation (highest nightly rate as proxy for quality)
+        best_acc = max(
+            (c.accommodation for c in plan.cities if c.accommodation),
+            key=lambda a: a.estimated_nightly_usd or 0,
+            default=primary.accommodation,
+        )
+        primary.accommodation = best_acc
+
+        plan.cities = [primary]
+        plan.travel_legs = []

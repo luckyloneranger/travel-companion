@@ -38,10 +38,11 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Does every city have enough content for its allocated days?
 - Are cities sufficiently different from each other?
 - For multi-country regions (continents, subcontinents): are destinations spread across multiple countries? All cities in one country is a **major** issue.
+- For **city-states** (Singapore, Hong Kong, Dubai, etc.) or **single-city** trips: multiple "destinations" within the same city requiring hotel changes is a **critical** issue — plan as ONE destination with themed days
 - Score 90+: Perfect balance and variety
 - Score 70-89: Minor imbalance
 - Score 50-69: One city has too many/few days
-- Score <50: Severe misallocation
+- Score <50: Severe misallocation or unnecessary hotel changes in a single city
 
 ### 5. INTEREST ALIGNMENT (weight: 10%)
 - Do the destinations and highlights match the traveler's stated interests?

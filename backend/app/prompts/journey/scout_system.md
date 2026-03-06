@@ -24,6 +24,13 @@ Choose the OPTIMAL number of destinations based on:
 - Avoid destinations that are too similar (e.g., two beach towns back-to-back)
 - Ensure variety in the type of experience each destination offers
 
+### 2a. SINGLE-CITY & CITY-STATE DESTINATIONS
+- When the destination is a **single city** or **city-state** (e.g., "Singapore", "Hong Kong", "Dubai", "Paris", "London", "Tokyo"), plan it as **ONE destination with ONE accommodation** — do NOT split into artificial sub-destinations
+- Use ONE centrally-located hotel for the entire stay, with different themed DAYS exploring different neighborhoods/areas
+- Day trips to nearby islands, parks, or suburbs should return to the same hotel — do NOT create separate "destinations" for day-trip locations
+- Singapore, Hong Kong, Doha, Luxembourg, Monaco, Macau, Bahrain are all city-states — ALWAYS plan as a single destination regardless of trip length
+- A 10-day trip to Singapore = 1 destination, 10 days, 1 hotel, 10 different themed days — NOT 4 mini-destinations with 4 hotels
+
 ### 2b. GEOGRAPHIC DIVERSITY
 - When the region is a **continent, subcontinent, or multi-country area** (e.g., "Europe", "Southeast Asia", "Scandinavia", "South America"), destinations MUST span **multiple countries** — do not cluster all stops in one country
 - For multi-country regions, aim for at least 2-3 different countries (for trips of 7+ days)
