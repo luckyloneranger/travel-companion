@@ -1,11 +1,12 @@
 import { useState, Suspense } from 'react';
-import { Star, Sparkles, ChevronDown, Clock, Navigation, Car, Train, Bus, Plane, Ship, Map, X } from 'lucide-react';
+import { Star, Sparkles, ChevronDown, Clock, Navigation, Car, Train, Bus, Plane, Ship, Map, X, Loader2, ArrowRightLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DayTimeline } from '@/components/trip/DayTimeline';
 import { DayMap, DayMapLegend } from '@/components/maps';
 import type { CityStop, TravelLeg, DayPlan } from '@/types';
+import { api } from '@/services/api';
 
 interface CompactCityCardProps {
   city: CityStop;
@@ -17,6 +18,7 @@ interface CompactCityCardProps {
   hideHighlights?: boolean;
   dailyBudget?: number;
   onChatAbout?: (activityName: string, dayNumber: number) => void;
+  onReorder?: (dayNumber: number, activityIds: string[]) => void;
   recentChanges?: {
     added: Set<string>;
     modified: Set<string>;
@@ -44,9 +46,12 @@ function parseFare(leg: TravelLeg): number {
   return 0;
 }
 
-export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, recentChanges }: CompactCityCardProps) {
+export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, onReorder, recentChanges }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
   const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
+  const [alternatives, setAlternatives] = useState<{ name: string; rating: number | null; price_level: number | null; place_id: string; photo_url: string | null }[]>([]);
+  const [loadingAlts, setLoadingAlts] = useState(false);
+  const [showAlts, setShowAlts] = useState(false);
 
   // Complete per-city cost: accommodation + transport + day plan activities
   const estimatedCost = (() => {
@@ -64,6 +69,28 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
     }
     return cost > 0 ? cost : null;
   })();
+
+  const handleShowAlternatives = async () => {
+    if (alternatives.length > 0) {
+      setShowAlts(!showAlts);
+      return;
+    }
+    if (!city.accommodation?.place_id || !city.location) return;
+    setLoadingAlts(true);
+    try {
+      const alts = await api.getAlternativeHotels(
+        city.accommodation.place_id,
+        city.location.lat,
+        city.location.lng,
+      );
+      setAlternatives(alts);
+      setShowAlts(true);
+    } catch {
+      // Silently fail
+    } finally {
+      setLoadingAlts(false);
+    }
+  };
 
   const hasDayPlans = dayPlans && dayPlans.length > 0;
 
@@ -143,6 +170,51 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
               </div>
             </div>
           </div>
+          {city.accommodation.place_id && city.location && (
+            <div className="mt-1.5 space-y-1.5">
+              <button
+                type="button"
+                onClick={handleShowAlternatives}
+                disabled={loadingAlts}
+                className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+              >
+                {loadingAlts ? (
+                  <><Loader2 className="h-3 w-3 animate-spin" />Finding alternatives...</>
+                ) : (
+                  <><ArrowRightLeft className="h-3 w-3" />{showAlts ? 'Hide' : 'Show'} alternative hotels</>
+                )}
+              </button>
+              {showAlts && alternatives.length > 0 && (
+                <div className="space-y-1">
+                  {alternatives.map((alt) => (
+                    <div key={alt.place_id} className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted/50 p-2 text-xs">
+                      {alt.photo_url && (
+                        <img
+                          src={`${alt.photo_url}?w=200`}
+                          alt={alt.name}
+                          loading="lazy"
+                          className="h-8 w-8 rounded object-cover shrink-0"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-text-primary truncate">{alt.name}</p>
+                        <div className="flex items-center gap-1.5 text-text-muted">
+                          {alt.rating && (
+                            <span className="flex items-center gap-0.5">
+                              <Star className="h-2.5 w-2.5 fill-accent-400 text-accent-400" />{alt.rating.toFixed(1)}
+                            </span>
+                          )}
+                          {alt.price_level != null && (
+                            <span>{'$'.repeat(Math.max(1, alt.price_level))}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -222,7 +294,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                         </div>
                       </div>
                     )}
-                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} recentChanges={recentChanges} />
+                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} onReorder={onReorder} recentChanges={recentChanges} />
                   </div>
                 ))}
               </div>

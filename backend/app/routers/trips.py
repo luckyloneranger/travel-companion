@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -282,6 +283,103 @@ async def delete_trip(
     if not deleted:
         raise HTTPException(404, "Trip not found")
     return {"status": "deleted"}
+
+
+@router.put("/{trip_id}/quick-edit")
+async def quick_edit_activity(
+    trip_id: str,
+    edit: dict,
+    repo: TripRepository = Depends(get_trip_repository),
+    user: dict = Depends(require_user),
+):
+    """Quick edit a day plan activity (remove or adjust duration).
+
+    Body: { "action": "remove"|"adjust_duration", "day_number": int,
+            "activity_id": str, "duration_change": int (minutes, for adjust) }
+    """
+    await _check_trip_ownership(repo, trip_id, user["sub"])
+    trip = await repo.get_trip(trip_id)
+    if not trip or not trip.day_plans:
+        raise HTTPException(404, "Trip or day plans not found")
+
+    action = edit.get("action")
+    day_number = edit.get("day_number")
+    activity_id = edit.get("activity_id")
+
+    if not action or not day_number or not activity_id:
+        raise HTTPException(400, "Missing action, day_number, or activity_id")
+
+    # Find the day plan
+    day_plan = next((dp for dp in trip.day_plans if dp.day_number == day_number), None)
+    if not day_plan:
+        raise HTTPException(404, f"Day {day_number} not found")
+
+    if action == "remove":
+        day_plan.activities = [a for a in day_plan.activities if a.id != activity_id]
+        # Recalculate daily cost
+        day_plan.daily_cost_usd = sum(
+            a.estimated_cost_usd or 0 for a in day_plan.activities
+        )
+    elif action == "adjust_duration":
+        duration_change = edit.get("duration_change", 0)
+        for a in day_plan.activities:
+            if a.id == activity_id:
+                a.duration_minutes = max(15, a.duration_minutes + duration_change)
+                # Recalculate end time
+                start = datetime.strptime(a.time_start, "%H:%M")
+                end = start + timedelta(minutes=a.duration_minutes)
+                a.time_end = end.strftime("%H:%M")
+                break
+        else:
+            raise HTTPException(404, "Activity not found")
+    else:
+        raise HTTPException(400, f"Unknown action: {action}")
+
+    await repo.update_day_plans(trip_id, trip.day_plans)
+    return {"status": "ok", "day_plans": [dp.model_dump() for dp in trip.day_plans]}
+
+
+@router.put("/{trip_id}/reorder")
+async def reorder_activities(
+    trip_id: str,
+    body: dict,
+    repo: TripRepository = Depends(get_trip_repository),
+    user: dict = Depends(require_user),
+):
+    """Reorder activities within a day plan.
+
+    Body: { "day_number": int, "activity_ids": ["id1", "id2", ...] }
+    """
+    await _check_trip_ownership(repo, trip_id, user["sub"])
+    trip = await repo.get_trip(trip_id)
+    if not trip or not trip.day_plans:
+        raise HTTPException(404, "Trip or day plans not found")
+
+    day_number = body.get("day_number")
+    activity_ids = body.get("activity_ids", [])
+
+    if not day_number or not activity_ids:
+        raise HTTPException(400, "Missing day_number or activity_ids")
+
+    day_plan = next((dp for dp in trip.day_plans if dp.day_number == day_number), None)
+    if not day_plan:
+        raise HTTPException(404, f"Day {day_number} not found")
+
+    # Reorder activities based on the provided ID order
+    id_to_activity = {a.id: a for a in day_plan.activities}
+    reordered = []
+    for aid in activity_ids:
+        if aid in id_to_activity:
+            reordered.append(id_to_activity[aid])
+    # Append any activities not in the reorder list (shouldn't happen, but safety)
+    for a in day_plan.activities:
+        if a.id not in {r.id for r in reordered}:
+            reordered.append(a)
+
+    day_plan.activities = reordered
+
+    await repo.update_day_plans(trip_id, trip.day_plans)
+    return {"status": "ok", "day_plans": [dp.model_dump() for dp in trip.day_plans]}
 
 
 @router.post("/{trip_id}/tips")

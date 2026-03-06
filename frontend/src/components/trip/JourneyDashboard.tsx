@@ -19,6 +19,7 @@ import { TripMap, TripMapLegend, DayMap, DayMapLegend } from '@/components/maps'
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import { api } from '@/services/api';
+import type { DayPlan } from '@/types';
 
 interface JourneyDashboardProps {
   onGenerateDayPlans: () => void;
@@ -45,6 +46,18 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const handleChatAbout = useCallback((activityName: string, dayNumber: number) => {
     openChat('day_plans', `About "${activityName}" on Day ${dayNumber}: `);
   }, [openChat]);
+
+  // Feature 9: Drag-and-drop reorder activities
+  const handleReorder = useCallback(async (dayNumber: number, activityIds: string[]) => {
+    if (!tripId) return;
+    try {
+      const result = await api.reorderActivities(tripId, dayNumber, activityIds);
+      useTripStore.getState().updateDayPlans(result.day_plans as DayPlan[]);
+    } catch (err) {
+      if (!(err instanceof Error && err.message === '__auth_required__'))
+        useUIStore.getState().setError('Failed to reorder activities.');
+    }
+  }, [tripId]);
 
   // Feature 12: Daily budget for cost progress bars
   const dailyBudget = costBreakdown?.budget_usd && journey
@@ -430,6 +443,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                   hideHighlights={!!(dayPlans && dayPlans.length > 0)}
                   dailyBudget={dailyBudget}
                   onChatAbout={handleChatAbout}
+                  onReorder={handleReorder}
                   recentChanges={recentChanges}
                 />
               );

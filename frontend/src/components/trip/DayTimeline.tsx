@@ -1,8 +1,23 @@
 import {
   Clock, Star, MapPin, Navigation, ExternalLink, DollarSign,
   CloudRain, Lightbulb, Cloud, CloudLightning, Snowflake,
-  Droplets, Wind, Sun, Coffee, MessageSquare, ChevronUp, ChevronDown,
+  Droplets, Wind, Sun, Coffee, MessageSquare, Minus, Plus, Trash2, HelpCircle,
+  GripVertical,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import type { DayPlan, Activity } from '@/types';
 
@@ -10,6 +25,9 @@ interface DayTimelineProps {
   dayPlan: DayPlan;
   tips: Record<string, string>;
   onChatAbout?: (activityName: string, dayNumber: number) => void;
+  onRemoveActivity?: (dayNumber: number, activityId: string) => void;
+  onAdjustDuration?: (dayNumber: number, activityId: string, change: number) => void;
+  onReorder?: (dayNumber: number, activityIds: string[]) => void;
   recentChanges?: {
     added: Set<string>;
     modified: Set<string>;
@@ -77,6 +95,83 @@ function TimeGap({ minutes }: { minutes: number }) {
   );
 }
 
+// ── Feature 11: "Why this place?" tooltip ─────────────────
+
+function getWhyThisPlace(activity: Activity, dayTheme?: string): string {
+  const reasons: string[] = [];
+
+  // Rating-based reasoning
+  if (activity.place.rating) {
+    if (activity.place.rating >= 4.5) reasons.push(`Highly rated (${activity.place.rating.toFixed(1)}/5)`);
+    else if (activity.place.rating >= 4.0) reasons.push(`Well-reviewed (${activity.place.rating.toFixed(1)}/5)`);
+  }
+
+  // Category match to theme
+  if (dayTheme) {
+    const cat = (activity.place.category || '').toLowerCase();
+    const theme = dayTheme.toLowerCase();
+    if (theme.includes(cat) || cat.includes('museum') && theme.includes('art') ||
+        cat.includes('temple') && (theme.includes('heritage') || theme.includes('culture')) ||
+        cat.includes('restaurant') && theme.includes('food') ||
+        cat.includes('park') && theme.includes('nature')) {
+      reasons.push(`Matches today's "${dayTheme}" theme`);
+    }
+  }
+
+  // Category explanation
+  const catDescriptions: Record<string, string> = {
+    museum: 'Cultural landmark worth visiting',
+    restaurant: 'Popular local dining spot',
+    cafe: 'Great spot for a break',
+    park: 'Green space for relaxation',
+    temple: 'Significant cultural site',
+    church: 'Architectural & historical landmark',
+    tourist_attraction: 'Must-see attraction',
+    historical_landmark: 'Important historical site',
+    art_gallery: 'Notable art collection',
+    monument: 'Iconic landmark',
+  };
+  const cat = (activity.place.category || '').toLowerCase();
+  for (const [key, desc] of Object.entries(catDescriptions)) {
+    if (cat.includes(key)) {
+      reasons.push(desc);
+      break;
+    }
+  }
+
+  // Cost value
+  if (activity.estimated_cost_usd === 0) reasons.push('Free entry');
+  else if (activity.estimated_cost_usd != null && activity.estimated_cost_usd < 10) reasons.push('Budget-friendly');
+
+  return reasons.length > 0 ? reasons.join(' · ') : 'Selected based on location and interests';
+}
+
+// ── Feature 9: Sortable Activity Wrapper ──────────────────
+
+function SortableActivity({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <div className="flex items-start gap-1">
+        <button
+          type="button"
+          className="mt-4 p-1 cursor-grab active:cursor-grabbing text-text-muted/40 hover:text-text-muted transition-colors touch-none"
+          aria-label="Drag to reorder"
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div className="flex-1">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 // ── Timeline Activity ──────────────────────────────────────
 
 function TimelineActivity({
@@ -84,14 +179,20 @@ function TimelineActivity({
   tip,
   isLast,
   onChatAbout,
+  onRemoveActivity,
+  onAdjustDuration,
   dayNumber,
+  dayTheme,
   recentChanges,
 }: {
   activity: Activity;
   tip?: string;
   isLast: boolean;
   onChatAbout?: (activityName: string, dayNumber: number) => void;
+  onRemoveActivity?: (dayNumber: number, activityId: string) => void;
+  onAdjustDuration?: (dayNumber: number, activityId: string, change: number) => void;
   dayNumber: number;
+  dayTheme?: string;
   recentChanges?: {
     added: Set<string>;
     modified: Set<string>;
@@ -142,6 +243,14 @@ function TimelineActivity({
                   {activity.time_start} – {activity.time_end} · {activity.duration_minutes} min
                 </span>
                 <Badge variant="outline" className="text-xs capitalize">{activity.place.category}</Badge>
+                <button
+                  type="button"
+                  className="text-text-muted/50 hover:text-primary-500 transition-colors"
+                  title={getWhyThisPlace(activity, dayTheme)}
+                  aria-label="Why this place?"
+                >
+                  <HelpCircle className="h-3.5 w-3.5" />
+                </button>
                 {activity.estimated_cost_usd != null && activity.estimated_cost_usd > 0 && (
                   <span className="flex items-center gap-0.5 font-medium">
                     <DollarSign className="h-3.5 w-3.5" />~${activity.estimated_cost_usd.toFixed(0)}
@@ -155,26 +264,41 @@ function TimelineActivity({
               </div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {/* Feature 9: Reorder buttons (coming soon) */}
-              <div className="flex flex-col gap-0.5">
-                <button
-                  type="button"
-                  disabled
-                  className="text-text-muted/30 cursor-not-allowed p-0.5"
-                  title="Reorder activities (coming soon)"
-                  aria-label="Move up"
-                >
-                  <ChevronUp className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  className="text-text-muted/30 cursor-not-allowed p-0.5"
-                  title="Reorder activities (coming soon)"
-                  aria-label="Move down"
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </button>
+              {/* Quick edit actions */}
+              <div className="flex items-center gap-0.5">
+                {onAdjustDuration && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onAdjustDuration(dayNumber, activity.id, -15); }}
+                      className="text-text-muted hover:text-primary-600 transition-colors p-0.5"
+                      title="Shorten by 15 min"
+                      aria-label="Shorten duration"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onAdjustDuration(dayNumber, activity.id, 15); }}
+                      className="text-text-muted hover:text-primary-600 transition-colors p-0.5"
+                      title="Extend by 15 min"
+                      aria-label="Extend duration"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </>
+                )}
+                {onRemoveActivity && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onRemoveActivity(dayNumber, activity.id); }}
+                    className="text-text-muted hover:text-red-500 transition-colors p-0.5"
+                    title="Remove activity"
+                    aria-label="Remove activity"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
               </div>
               {isNew && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium">
@@ -275,7 +399,26 @@ function TimelineActivity({
 
 // ── Main Component ─────────────────────────────────────────
 
-export function DayTimeline({ dayPlan, tips, onChatAbout, recentChanges }: DayTimelineProps) {
+export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges }: DayTimelineProps) {
+  // ── Feature 9: Drag-and-drop sensors and handler ──
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const visibleActivities = dayPlan.activities.filter(a => a.duration_minutes > 0);
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorder) return;
+    const oldIndex = visibleActivities.findIndex(a => a.id === active.id);
+    const newIndex = visibleActivities.findIndex(a => a.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = [...visibleActivities];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+    onReorder(dayPlan.day_number, reordered.map(a => a.id));
+  };
+
   // Excursion day — simplified card rendering
   if (dayPlan.is_excursion) {
     return (
@@ -304,13 +447,51 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, recentChanges }: DayTi
     );
   }
 
-  const visibleActivities = dayPlan.activities.filter(a => a.duration_minutes > 0);
-
   if (visibleActivities.length === 0) {
     return (
       <p className="text-sm text-text-muted text-center py-8">No activities planned for this day.</p>
     );
   }
+
+  // ── Activity list rendering helper ──
+  const renderActivityList = () =>
+    visibleActivities.map((activity, i) => {
+      const gap = i > 0
+        ? getMinutesBetween(visibleActivities[i - 1].time_end, activity.time_start)
+        : 0;
+
+      const activityElement = (
+        <>
+          {/* Feature 10: Time gap card */}
+          {gap > 60 && <TimeGap minutes={gap} />}
+          <TimelineActivity
+            activity={activity}
+            tip={tips[activity.place.place_id]}
+            isLast={i === visibleActivities.length - 1}
+            onChatAbout={onChatAbout}
+            onRemoveActivity={onRemoveActivity}
+            onAdjustDuration={onAdjustDuration}
+            dayNumber={dayPlan.day_number}
+            dayTheme={dayPlan.theme}
+            recentChanges={recentChanges}
+          />
+        </>
+      );
+
+      if (onReorder) {
+        return (
+          <SortableActivity key={activity.id} id={activity.id}>
+            {activityElement}
+          </SortableActivity>
+        );
+      }
+
+      return (
+        <div key={activity.id}>
+          {activityElement}
+        </div>
+      );
+    });
 
   return (
     <div className="space-y-0">
@@ -348,27 +529,16 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, recentChanges }: DayTi
         </div>
       )}
 
-      {/* Activities with time gap detection */}
-      {visibleActivities.map((activity, i) => {
-        const gap = i > 0
-          ? getMinutesBetween(visibleActivities[i - 1].time_end, activity.time_start)
-          : 0;
-
-        return (
-          <div key={activity.id}>
-            {/* Feature 10: Time gap card */}
-            {gap > 60 && <TimeGap minutes={gap} />}
-            <TimelineActivity
-              activity={activity}
-              tip={tips[activity.place.place_id]}
-              isLast={i === visibleActivities.length - 1}
-              onChatAbout={onChatAbout}
-              dayNumber={dayPlan.day_number}
-              recentChanges={recentChanges}
-            />
-          </div>
-        );
-      })}
+      {/* Activities with time gap detection — conditionally wrapped in DndContext */}
+      {onReorder ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={visibleActivities.map(a => a.id)} strategy={verticalListSortingStrategy}>
+            {renderActivityList()}
+          </SortableContext>
+        </DndContext>
+      ) : (
+        renderActivityList()
+      )}
     </div>
   );
 }

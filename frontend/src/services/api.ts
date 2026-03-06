@@ -112,6 +112,46 @@ export const api = {
     return res.json() as Promise<ChatEditResponse>;
   },
 
+  // ── Quick edit actions ────────────────────────────────────
+
+  removeActivity: async (tripId: string, dayNumber: number, activityId: string): Promise<{ day_plans: unknown[] }> => {
+    const res = await fetch(`${API_BASE}/api/trips/${tripId}/quick-edit`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ action: 'remove', day_number: dayNumber, activity_id: activityId }),
+      credentials: 'include',
+    });
+    if (res.status === 401) await handle401(res);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  adjustDuration: async (tripId: string, dayNumber: number, activityId: string, change: number): Promise<{ day_plans: unknown[] }> => {
+    const res = await fetch(`${API_BASE}/api/trips/${tripId}/quick-edit`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ action: 'adjust_duration', day_number: dayNumber, activity_id: activityId, duration_change: change }),
+      credentials: 'include',
+    });
+    if (res.status === 401) await handle401(res);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
+  // ── Reorder activities ─────────────────────────────────
+
+  reorderActivities: async (tripId: string, dayNumber: number, activityIds: string[]): Promise<{ day_plans: unknown[] }> => {
+    const res = await fetch(`${API_BASE}/api/trips/${tripId}/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify({ day_number: dayNumber, activity_ids: activityIds }),
+      credentials: 'include',
+    });
+    if (res.status === 401) await handle401(res);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+
   // ── CRUD ───────────────────────────────────────────────
 
   listTrips: async (): Promise<TripSummary[]> => {
@@ -169,6 +209,23 @@ export const api = {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json() as Promise<Place[]>;
+  },
+
+  getAlternativeHotels: async (
+    placeId: string,
+    lat: number,
+    lng: number,
+  ): Promise<{ name: string; address: string; rating: number | null; price_level: number | null; place_id: string; photo_url: string | null; editorial_summary: string | null }[]> => {
+    const params = new URLSearchParams({ place_id: placeId, lat: String(lat), lng: String(lng) });
+    const res = await fetch(`${API_BASE}/api/places/alternatives?${params}`, {
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    });
+    if (res.status === 401) {
+      await handle401(res);
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
   },
 
   // ── Tips ───────────────────────────────────────────────
