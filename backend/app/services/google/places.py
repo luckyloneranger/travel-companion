@@ -361,17 +361,32 @@ class GooglePlacesService:
     ) -> list[dict[str, Any]]:
         """Discover a destination's most popular attractions by review count.
 
-        Uses text search for the destination's top attractions and sorts
-        by user_ratings_total to surface iconic venues. No hardcoded names —
-        Google's prominence ranking determines what's iconic.
+        Uses multiple search queries to cast a wide net (landmarks, theme
+        parks, best places), deduplicates, and sorts by user_ratings_total.
+        No hardcoded names — Google's review data determines what's iconic.
         """
-        results = await self.text_search(
-            query=f"top attractions and landmarks in {destination}",
-            max_results=20,
+        queries = [
+            f"top attractions and landmarks in {destination}",
+            f"best places to visit {destination}",
+            f"theme parks and entertainment in {destination}",
+        ]
+        import asyncio as _asyncio
+        results_lists = await _asyncio.gather(
+            *(self.text_search(q, max_results=15) for q in queries),
+            return_exceptions=True,
         )
-        # Sort by review count (prominence proxy)
-        results.sort(key=lambda p: p.get("user_ratings_total") or 0, reverse=True)
-        return results[:max_results]
+        seen: set[str] = set()
+        all_results: list[dict[str, Any]] = []
+        for results in results_lists:
+            if isinstance(results, Exception):
+                continue
+            for r in results:
+                pid = r.get("place_id", "")
+                if pid and pid not in seen:
+                    seen.add(pid)
+                    all_results.append(r)
+        all_results.sort(key=lambda p: p.get("user_ratings_total") or 0, reverse=True)
+        return all_results[:max_results]
 
     async def get_place_details(self, place_id: str) -> dict[str, Any]:
         """Fetch full details for a single place by its ID."""
