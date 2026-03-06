@@ -84,7 +84,72 @@ def _compute_cost_breakdown(trip: TripResponse) -> dict[str, float] | None:
     return result
 
 
-from app.models.day_plan import Activity
+from app.models.day_plan import Activity, DayPlan
+
+
+def _ensure_hotel_bookends(day_plan: DayPlan, trip) -> None:
+    """Ensure hotel departure/return activities are at start and end of day.
+
+    After any edit (reorder, remove, ±duration), hotel bookends may be
+    displaced or missing. This re-inserts them at the correct positions
+    using the city's accommodation data.
+    """
+    if not trip.journey or not trip.journey.cities:
+        return
+
+    # Find which city this day belongs to
+    city = None
+    day_offset = 0
+    for c in trip.journey.cities:
+        if day_offset < day_plan.day_number <= day_offset + c.days:
+            city = c
+            break
+        day_offset += c.days
+
+    if not city or not city.accommodation or not city.accommodation.location:
+        return
+
+    from app.models.day_plan import Place
+    from app.models.common import Location
+
+    hotel_place = Place(
+        place_id=city.accommodation.place_id or "accommodation",
+        name=city.accommodation.name,
+        address=city.accommodation.address or "",
+        location=city.accommodation.location,
+        category="lodging",
+    )
+
+    # Remove existing hotel bookends (zero-duration lodging activities)
+    real_activities = [
+        a for a in day_plan.activities
+        if not (a.duration_minutes == 0 and a.place.category == "lodging")
+    ]
+
+    if not real_activities:
+        day_plan.activities = real_activities
+        return
+
+    # Re-add hotel departure at start and return at end
+    first_start = real_activities[0].time_start
+    last_end = real_activities[-1].time_end
+
+    departure = Activity(
+        time_start=first_start,
+        time_end=first_start,
+        duration_minutes=0,
+        place=hotel_place,
+        notes="Depart from hotel",
+    )
+    arrival = Activity(
+        time_start=last_end,
+        time_end=last_end,
+        duration_minutes=0,
+        place=hotel_place,
+        notes="Return to hotel",
+    )
+
+    day_plan.activities = [departure] + real_activities + [arrival]
 
 
 def _recalculate_times(activities: list[Activity]) -> list[Activity]:
@@ -396,6 +461,9 @@ async def quick_edit_activity(
     else:
         raise HTTPException(400, f"Unknown action: {action}")
 
+    # Re-anchor hotel bookends at start/end of day
+    _ensure_hotel_bookends(day_plan, trip)
+
     await repo.update_day_plans(trip_id, trip.day_plans)
     return {"status": "ok", "day_plans": [dp.model_dump() for dp in trip.day_plans]}
 
@@ -453,6 +521,9 @@ async def reorder_activities(
         logger.warning("Route recomputation failed after reorder: %s", exc)
 
     day_plan.activities = reordered
+
+    # Re-anchor hotel bookends at start/end of day
+    _ensure_hotel_bookends(day_plan, trip)
 
     await repo.update_day_plans(trip_id, trip.day_plans)
     return {"status": "ok", "day_plans": [dp.model_dump() for dp in trip.day_plans]}
