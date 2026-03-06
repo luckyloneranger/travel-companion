@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import { api } from '@/services/api';
-import { Send, Loader2, User, Bot } from 'lucide-react';
+import { Send, Loader2, User, Bot, RefreshCw } from 'lucide-react';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -34,6 +34,7 @@ export function ChatPanel() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom on new messages
@@ -63,6 +64,7 @@ export function ChatPanel() {
 
     setInput('');
     setShowSuggestions(false);
+    setLastFailedMessage(null);
     setMessages(prev => [...prev, { role: 'user', content: messageToSend }]);
     setIsSending(true);
 
@@ -102,6 +104,7 @@ export function ChatPanel() {
         updateDayPlans(response.updated_day_plans);
       }
     } catch (err) {
+      setLastFailedMessage(messageToSend);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: `Sorry, something went wrong: ${err instanceof Error ? err.message : 'Unknown error'}`,
@@ -151,6 +154,22 @@ export function ChatPanel() {
               )}
             </div>
           ))}
+          {/* Retry button for failed messages */}
+          {lastFailedMessage && !isSending && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  const msg = lastFailedMessage;
+                  setLastFailedMessage(null);
+                  handleSend(msg);
+                }}
+                className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+              >
+                <RefreshCw className="h-3 w-3" /> Retry last message
+              </button>
+            </div>
+          )}
           {/* Suggestion chips — always visible */}
           {showSuggestions && (
             <div className="flex flex-wrap gap-2 px-2">

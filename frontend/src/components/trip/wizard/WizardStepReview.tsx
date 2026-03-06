@@ -155,7 +155,7 @@ export function WizardStepReview({
         <Button
           onClick={onSubmit}
           disabled={isLoading}
-          className="flex-1 bg-primary-600 hover:bg-primary-700 text-white h-12 text-base font-semibold"
+          className="flex-1 bg-primary-600 hover:bg-primary-700 text-white h-11 text-base font-semibold"
         >
           <Rocket className="h-5 w-5" />
           Plan My Trip

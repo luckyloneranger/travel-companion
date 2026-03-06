@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { MapPin, Plane, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -110,6 +110,8 @@ export function SignIn() {
 
 /** Modal overlay sign-in (opened from anywhere without losing page state). */
 export function SignInModal({ onClose }: { onClose: () => void }) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
   // Trap focus and handle ESC
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -119,10 +121,36 @@ export function SignInModal({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
 
+  // Focus trap
+  useEffect(() => {
+    const modal = modalRef.current;
+    if (!modal) return;
+    const focusableElements = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusableElements[0];
+    const last = focusableElements[focusableElements.length - 1];
+    first?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    modal.addEventListener('keydown', handleKeyDown);
+    return () => modal.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Sign in">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm mx-4 animate-fade-in-up">
+      <div ref={modalRef} className="relative w-full max-w-sm mx-4 animate-fade-in-up">
         <Card>
           <CardContent className="pt-6">
             <button

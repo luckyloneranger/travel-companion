@@ -15,6 +15,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useTripStore } from '@/stores/tripStore';
 import { useAuthStore } from '@/stores/authStore';
 import { AlertCircle } from 'lucide-react';
+import { ToastContainer } from '@/components/ui/toast';
 
 /** Sub-component that loads a trip by URL param /trips/:id */
 function TripLoader() {
@@ -209,6 +210,7 @@ function App() {
       </Routes>
 
       {showSignIn && <SignInModal onClose={closeSignIn} />}
+      <ToastContainer />
     </div>
   );
 }

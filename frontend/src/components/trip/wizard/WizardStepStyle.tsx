@@ -203,7 +203,7 @@ export function WizardStepStyle({
         </Button>
         <Button
           onClick={onNext}
-          className="flex-1 bg-primary-600 hover:bg-primary-700 text-white"
+          className="flex-1 h-11 bg-primary-600 hover:bg-primary-700 text-white"
         >
           Next
         </Button>

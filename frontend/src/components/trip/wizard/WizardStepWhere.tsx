@@ -113,6 +113,9 @@ export function WizardStepWhere({
       >
         Next
       </Button>
+      {!destination && (
+        <p className="text-xs text-text-muted mt-1">Enter a destination to continue</p>
+      )}
 
       <div className="border-t border-border-default pt-6">
         <TemplateGallery onSelectTemplate={onSelectTemplate} />

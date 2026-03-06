@@ -16,6 +16,7 @@ import { NavigationSidebar } from '@/components/trip/NavigationSidebar';
 import { LiveTripView } from '@/components/trip/LiveTripView';
 import { RouteTimeline } from '@/components/trip/RouteTimeline';
 import { TripMap, TripMapLegend, DayMap, DayMapLegend } from '@/components/maps';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
 import { api } from '@/services/api';
@@ -247,7 +248,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
               {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
               {isSharing ? 'Sharing...' : shareUrl ? 'Shared!' : 'Share'}
             </Button>
-            <Button variant="outline" size="sm" disabled title="Coming soon — generate alternative plan for comparison">
+            <Button variant="outline" size="sm" className="opacity-60 cursor-not-allowed" title="Coming soon — generate alternative plan for comparison">
               <RefreshCw className="h-4 w-4" />
               Alternative
             </Button>
@@ -258,11 +259,11 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 <ChevronDown className={`h-3 w-3 transition-transform ${showExport ? 'rotate-180' : ''}`} />
               </Button>
               {showExport && (
-                <div className="absolute top-full right-0 mt-1 z-10 rounded-md border border-border-default bg-surface shadow-lg py-1 min-w-[120px]">
-                  <button onClick={() => { handleExportPdf(); setShowExport(false); }} disabled={isExporting === 'pdf'} className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-muted flex items-center gap-2 disabled:opacity-50">
+                <div role="menu" className="absolute top-full right-0 mt-1 z-10 rounded-md border border-border-default bg-surface shadow-lg py-1 min-w-[120px]">
+                  <button role="menuitem" onClick={() => { handleExportPdf(); setShowExport(false); }} disabled={isExporting === 'pdf'} className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-muted flex items-center gap-2 disabled:opacity-50">
                     {isExporting === 'pdf' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />} PDF
                   </button>
-                  <button onClick={() => { handleExportCalendar(); setShowExport(false); }} disabled={isExporting === 'calendar'} className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-muted flex items-center gap-2 disabled:opacity-50">
+                  <button role="menuitem" onClick={() => { handleExportCalendar(); setShowExport(false); }} disabled={isExporting === 'calendar'} className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-muted flex items-center gap-2 disabled:opacity-50">
                     {isExporting === 'calendar' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarPlus className="h-3.5 w-3.5" />} Calendar
                   </button>
                 </div>
@@ -280,7 +281,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           {/* Share URL */}
           {shareUrl && (
             <div className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted px-3 py-2">
-              <input type="text" readOnly value={shareUrl} className="flex-1 bg-transparent text-sm text-text-secondary outline-none min-w-0" onFocus={(e) => e.target.select()} />
+              <input type="text" readOnly value={shareUrl} aria-label="Shared trip URL" className="flex-1 bg-transparent text-sm text-text-secondary outline-none min-w-0" onFocus={(e) => e.target.select()} />
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(shareUrl).catch(() => window.prompt('Copy:', shareUrl)); }}>
                 <Copy className="h-3.5 w-3.5" /> Copy
               </Button>
@@ -328,11 +329,13 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
             {/* Map preview */}
             <div>
-              <Suspense fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted animate-pulse" />}>
-                <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default cursor-pointer" onClick={() => setActiveTab('map')}>
-                  <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
-                </div>
-              </Suspense>
+              <ErrorBoundary fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted flex items-center justify-center text-sm text-text-muted">Map unavailable</div>}>
+                <Suspense fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted animate-pulse" />}>
+                  <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default cursor-pointer" onClick={() => setActiveTab('map')}>
+                    <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
+                  </div>
+                </Suspense>
+              </ErrorBoundary>
               <TripMapLegend />
             </div>
 
@@ -448,6 +451,14 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 />
               );
             })}
+            {!dayPlans && !dayPlansGenerating && (
+              <div className="text-center py-8 space-y-3">
+                <p className="text-sm text-text-muted">Generate day plans to see detailed activities, routes, and weather for each city</p>
+                <Button onClick={onGenerateDayPlans} size="sm">
+                  Generate Day Plans
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -494,22 +505,24 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 </a>
               );
             })()}
-            <Suspense fallback={<div className="h-[60vh] rounded-lg bg-surface-muted animate-pulse" />}>
-              <div className="h-[60vh] rounded-lg overflow-hidden border border-border-default">
-                {mapDayFilter === 'journey' ? (
-                  <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
-                ) : (
-                  (() => {
-                    const dp = dayPlans?.find(d => d.day_number === Number(mapDayFilter));
-                    return dp ? (
-                      <DayMap dayPlan={dp} mapInstanceId="unified-day-map" />
-                    ) : (
-                      <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
-                    );
-                  })()
-                )}
-              </div>
-            </Suspense>
+            <ErrorBoundary fallback={<div className="h-[60vh] rounded-lg bg-surface-muted flex items-center justify-center text-sm text-text-muted">Map unavailable</div>}>
+              <Suspense fallback={<div className="h-[60vh] rounded-lg bg-surface-muted animate-pulse" />}>
+                <div className="h-[60vh] rounded-lg overflow-hidden border border-border-default">
+                  {mapDayFilter === 'journey' ? (
+                    <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
+                  ) : (
+                    (() => {
+                      const dp = dayPlans?.find(d => d.day_number === Number(mapDayFilter));
+                      return dp ? (
+                        <DayMap dayPlan={dp} mapInstanceId="unified-day-map" />
+                      ) : (
+                        <TripMap journey={journey} onCityClick={() => setActiveTab('cities')} />
+                      );
+                    })()
+                  )}
+                </div>
+              </Suspense>
+            </ErrorBoundary>
             {mapDayFilter === 'journey' ? (
               <TripMapLegend />
             ) : (

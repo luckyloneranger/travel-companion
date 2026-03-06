@@ -102,7 +102,7 @@ export function TemplateGallery({ onSelectTemplate }: TemplateGalleryProps) {
             key={template.title}
             type="button"
             onClick={() => onSelectTemplate(template.request)}
-            className="flex flex-col items-start gap-1 rounded-lg border border-border-default bg-surface p-3 text-left transition-all hover:border-primary-300 hover:bg-primary-50/50 dark:hover:border-primary-700 dark:hover:bg-primary-900/20 hover:shadow-sm"
+            className="flex flex-col items-start gap-1 rounded-lg border border-border-default bg-surface p-3 text-left transition-all hover:border-primary-300 hover:bg-primary-50/50 dark:hover:border-primary-700 dark:hover:bg-primary-900/20 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary-500/50"
           >
             <span className="text-2xl" role="img" aria-hidden="true">
               {template.emoji}
