@@ -27,6 +27,11 @@ class ReviewerAgent:
             region=request.destination,
             interests=", ".join(request.interests) if request.interests else "general sightseeing",
             pace=request.pace.value,
+            travelers_description=request.travelers.summary if hasattr(request, 'travelers') else "1 adult",
+            budget_tier=request.budget.value if hasattr(request, 'budget') else "moderate",
+            must_include=", ".join(request.must_include) if request.must_include else "none",
+            avoid=", ".join(request.avoid) if request.avoid else "none",
+            travel_mode=request.travel_mode.value if hasattr(request, 'travel_mode') else "any",
             cities_detail=cities_detail,
             travel_detail=travel_detail,
         )
@@ -54,6 +59,8 @@ class ReviewerAgent:
                 lines.append(f"   Highlights: {', '.join(h.name for h in city.highlights)}")
             if city.accommodation:
                 lines.append(f"   Hotel: {city.accommodation.name}")
+            if city.best_time_to_visit:
+                lines.append(f"   Best time: {city.best_time_to_visit}")
             if city.location:
                 lines.append(f"   Location: ({city.location.lat}, {city.location.lng})")
         return "\n".join(lines) if lines else "No cities specified."

@@ -54,6 +54,14 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Score 50-69: Partial match or missing well-known destinations
 - Score <50: Poor match to interests
 
+### 6. SEASONAL & SAFETY CHECK (does not contribute to weighted score, but can set is_acceptable=false)
+- Do the travel dates overlap with the destination's worst season (monsoon, hurricane, extreme cold, closures)?
+- Are visa/entry requirements flagged for multi-country routes?
+- Are altitude risks (>3,000m) mitigated with acclimatization rest days?
+- For solo/female travelers, are evening activities in safe, tourist-friendly areas?
+- For family groups with children/infants, are activities age-appropriate and accessible?
+- If any critical seasonal or safety issue is found, add it as a **critical** issue with category `seasonal` or `safety` — this WILL set is_acceptable=false regardless of score.
+
 ## SEVERITY LEVELS
 - **critical**: Makes trip impossible (not enough time, missed connections, border issues, **non-existent or unverifiable destination**)
 - **major**: Significantly degrades experience (very long travel days, poor routing, wrong season)

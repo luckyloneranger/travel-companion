@@ -321,6 +321,29 @@ class EnricherAgent:
                 e,
             )
 
+        # Check for multi-country legs without visa context
+        from_country = next(
+            (c.country for c in plan.cities if c.name.lower() == leg.from_city.lower()),
+            None,
+        )
+        to_country = next(
+            (c.country for c in plan.cities if c.name.lower() == leg.to_city.lower()),
+            None,
+        )
+        if (
+            from_country
+            and to_country
+            and from_country.lower() != to_country.lower()
+            and (not leg.notes or "visa" not in leg.notes.lower())
+        ):
+            logger.info(
+                "[Enricher] Multi-country leg %s (%s) -> %s (%s) has no visa notes",
+                leg.from_city,
+                from_country,
+                leg.to_city,
+                to_country,
+            )
+
     async def _geocode_origin(self, origin_name: str) -> Location | None:
         """Geocode the origin city if it's not in the plan's destinations."""
         try:
@@ -436,6 +459,20 @@ class EnricherAgent:
 
         # Fallback: use driving distance as baseline for any mode.
         if options.driving:
+            # Preserve island transport modes — warn when ferry has no API match
+            if leg.mode == TransportMode.FERRY:
+                logger.info(
+                    "[Enricher] Preserving ferry mode for %s -> %s "
+                    "(API suggested driving — %.1fkm). "
+                    "Only updating distance, keeping Scout's duration estimate.",
+                    leg.from_city,
+                    leg.to_city,
+                    options.driving.distance_meters / 1000,
+                )
+                # Only update distance, keep Scout's duration for ferry routes
+                leg.distance_km = round(options.driving.distance_meters / 1000, 1)
+                return
+
             logger.info(
                 "[Enricher] No %s data for %s -> %s, using driving distance "
                 "(%.1fkm) as baseline",

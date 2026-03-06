@@ -13,6 +13,8 @@ Fix this journey plan based on the review feedback:
 - Interests: {interests}
 - Pace: {pace}
 - Travel Dates: {travel_dates}
+- Travelers: {travelers_description}
+- Budget: {budget_tier}
 
 **Current Cities:**
 {cities_detail}

@@ -33,6 +33,8 @@ class PlannerAgent:
             interests=", ".join(request.interests) if request.interests else "general sightseeing",
             pace=request.pace.value,
             travel_dates=str(request.start_date),
+            travelers_description=request.travelers.summary if hasattr(request, 'travelers') else "1 adult",
+            budget_tier=request.budget.value if hasattr(request, 'budget') else "moderate",
             cities_detail=cities_detail,
             travel_detail=travel_detail,
         )
