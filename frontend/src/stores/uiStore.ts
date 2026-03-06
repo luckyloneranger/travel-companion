@@ -27,7 +27,8 @@ interface UIState {
   // Chat
   isChatOpen: boolean;
   chatContext: 'journey' | 'day_plans';
-  openChat: (context?: 'journey' | 'day_plans') => void;
+  chatPrefill: string;
+  openChat: (context?: 'journey' | 'day_plans', prefill?: string) => void;
   closeChat: () => void;
 
   // Wizard
@@ -77,8 +78,9 @@ export const useUIStore = create<UIState>((set) => ({
 
   isChatOpen: false,
   chatContext: 'journey',
-  openChat: (context = 'journey') =>
-    set({ isChatOpen: true, chatContext: context }),
+  chatPrefill: '',
+  openChat: (context = 'journey', prefill = '') =>
+    set({ isChatOpen: true, chatContext: context, chatPrefill: prefill }),
   closeChat: () => set({ isChatOpen: false }),
 
   wizardStep: 1,
@@ -100,6 +102,7 @@ export const useUIStore = create<UIState>((set) => ({
       showJourneyMap: false,
       dayMapVisible: {},
       isChatOpen: false,
+      chatPrefill: '',
       wizardStep: 1,
       dayPlansGenerating: false,
       showSignIn: false,

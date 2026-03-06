@@ -28,7 +28,7 @@ const DAY_PLAN_SUGGESTIONS = [
 ];
 
 export function ChatPanel() {
-  const { isChatOpen, chatContext, closeChat } = useUIStore();
+  const { isChatOpen, chatContext, chatPrefill, closeChat } = useUIStore();
   const { tripId, updateJourney, updateDayPlans } = useTripStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -51,8 +51,11 @@ export function ChatPanel() {
           ? 'How would you like to modify your journey? I can add/remove cities, adjust days, change transport, swap activities, and modify budget.'
           : 'How would you like to modify your day plans? I can add activities, change restaurants, adjust timing, move activities between days, and more.',
       }]);
+      if (chatPrefill) {
+        setInput(chatPrefill);
+      }
     }
-  }, [isChatOpen, chatContext]);
+  }, [isChatOpen, chatContext, chatPrefill]);
 
   const handleSend = async (messageOverride?: string) => {
     const messageToSend = (messageOverride || input).trim();

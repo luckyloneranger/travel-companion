@@ -37,6 +37,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const { journey, tripId, dayPlans, costBreakdown, tips } = useTripStore();
   const travelers = useTripStore((s) => s.travelers);
   const dayPlansGenerating = useUIStore((s) => s.dayPlansGenerating);
+  const openChat = useUIStore((s) => s.openChat);
   const [copied, setCopied] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showExport, setShowExport] = useState(false);
@@ -44,6 +45,16 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'budget' | 'map'>('overview');
+
+  // Feature 19: Contextual chat — open chat pre-filled with activity context
+  const handleChatAbout = useCallback((activityName: string, dayNumber: number) => {
+    openChat('day_plans', `About "${activityName}" on Day ${dayNumber}: `);
+  }, [openChat]);
+
+  // Feature 12: Daily budget for cost progress bars
+  const dailyBudget = costBreakdown?.budget_usd && journey
+    ? costBreakdown.budget_usd / journey.total_days
+    : undefined;
 
   // Use complete cost breakdown when day plans exist, otherwise estimate from journey data
   const estimatedTotal = (() => {
@@ -376,7 +387,39 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
         {/* Cities tab */}
         {activeTab === 'cities' && (
           <div className="space-y-3 animate-fade-in-up">
-            {dayPlans && dayPlans.length > 0 && journey.cities.length > 1 && (
+            {/* Feature 13: Sticky day navigator */}
+            {dayPlans && dayPlans.length > 0 && (
+              <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur-sm border-b border-border-default -mx-1 px-1 py-2 flex items-center gap-2 overflow-x-auto">
+                {journey.cities.map((city, ci) => {
+                  const cityDays = dayPlans.filter(dp => dp.city_name.toLowerCase() === city.name.toLowerCase());
+                  return (
+                    <div key={ci} className="flex items-center gap-1 shrink-0">
+                      {ci > 0 && <span className="text-text-muted/40 mx-0.5">|</span>}
+                      <span className="text-xs font-medium text-text-muted mr-1">{city.name}</span>
+                      {cityDays.map(dp => (
+                        <button
+                          key={dp.day_number}
+                          type="button"
+                          onClick={() => {
+                            document.getElementById(`day-${dp.day_number}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }}
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800/50 transition-colors"
+                          title={`Day ${dp.day_number}: ${dp.theme}`}
+                        >
+                          {dp.day_number}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+                {journey.cities.length > 1 && (
+                  <Button variant="ghost" size="xs" onClick={() => setAllExpanded(!allExpanded)} className="ml-auto shrink-0">
+                    {allExpanded ? 'Collapse' : 'Expand'}
+                  </Button>
+                )}
+              </div>
+            )}
+            {!(dayPlans && dayPlans.length > 0) && journey.cities.length > 1 && (
               <div className="flex justify-end">
                 <Button variant="ghost" size="sm" onClick={() => setAllExpanded(!allExpanded)}>
                   {allExpanded ? 'Collapse All' : 'Expand All'}
@@ -398,6 +441,8 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                   tips={tips}
                   defaultExpanded={allExpanded}
                   hideHighlights={!!(dayPlans && dayPlans.length > 0)}
+                  dailyBudget={dailyBudget}
+                  onChatAbout={handleChatAbout}
                 />
               );
             })}

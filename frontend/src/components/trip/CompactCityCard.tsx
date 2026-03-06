@@ -15,6 +15,8 @@ interface CompactCityCardProps {
   tips?: Record<string, string>;
   defaultExpanded?: boolean;
   hideHighlights?: boolean;
+  dailyBudget?: number;
+  onChatAbout?: (activityName: string, dayNumber: number) => void;
 }
 
 const TRANSPORT_ICONS: Record<string, typeof Car> = {
@@ -37,7 +39,7 @@ function parseFare(leg: TravelLeg): number {
   return 0;
 }
 
-export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false }: CompactCityCardProps) {
+export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
   const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
 
@@ -179,7 +181,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
             <CollapsibleContent>
               <div className="px-4 pb-4 space-y-4">
                 {dayPlans!.map((dp) => (
-                  <div key={dp.day_number} className="space-y-2">
+                  <div key={dp.day_number} id={`day-${dp.day_number}`} className="space-y-2 scroll-mt-16">
                     <div className="flex items-center gap-2">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white shrink-0">
                         {dp.day_number}
@@ -199,7 +201,23 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                         </Button>
                       </div>
                     </div>
-                    <DayTimeline dayPlan={dp} tips={tips} />
+                    {dailyBudget && dailyBudget > 0 && dp.daily_cost_usd != null && (
+                      <div className="mt-1">
+                        <div className="h-1.5 rounded-full bg-surface-muted overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              dp.daily_cost_usd > dailyBudget
+                                ? 'bg-red-500'
+                                : dp.daily_cost_usd > dailyBudget * 0.8
+                                  ? 'bg-amber-500'
+                                  : 'bg-green-500'
+                            }`}
+                            style={{ width: `${Math.min(100, (dp.daily_cost_usd / dailyBudget) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} />
                   </div>
                 ))}
               </div>

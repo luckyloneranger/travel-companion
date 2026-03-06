@@ -1,6 +1,7 @@
 import {
   Clock, Star, MapPin, Navigation, ExternalLink, DollarSign,
-  CloudRain, Lightbulb,
+  CloudRain, Lightbulb, Cloud, CloudLightning, Snowflake,
+  Droplets, Wind, Sun, Coffee, MessageSquare,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { DayPlan, Activity } from '@/types';
@@ -8,7 +9,10 @@ import type { DayPlan, Activity } from '@/types';
 interface DayTimelineProps {
   dayPlan: DayPlan;
   tips: Record<string, string>;
+  onChatAbout?: (activityName: string, dayNumber: number) => void;
 }
+
+// ── Helper functions ───────────────────────────────────────
 
 function TravelModeLabel({ mode }: { mode: string }) {
   const labels: Record<string, string> = { WALK: 'Walk', DRIVE: 'Drive', TRANSIT: 'Transit' };
@@ -27,7 +31,62 @@ function formatDuration(seconds: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?: string; isLast: boolean }) {
+function getMinutesBetween(endTime: string, startTime: string): number {
+  const [eh, em] = endTime.split(':').map(Number);
+  const [sh, sm] = startTime.split(':').map(Number);
+  return (sh * 60 + sm) - (eh * 60 + em);
+}
+
+// ── Feature 8: Weather Icon ────────────────────────────────
+
+function WeatherIcon({ condition }: { condition: string }) {
+  const c = condition.toLowerCase();
+  if (c.includes('rain') || c.includes('shower')) return <CloudRain className="h-5 w-5 text-blue-500" />;
+  if (c.includes('cloud') || c.includes('overcast')) return <Cloud className="h-5 w-5 text-gray-400" />;
+  if (c.includes('snow')) return <Snowflake className="h-5 w-5 text-blue-300" />;
+  if (c.includes('thunder') || c.includes('storm')) return <CloudLightning className="h-5 w-5 text-yellow-500" />;
+  return <Sun className="h-5 w-5 text-amber-400" />;
+}
+
+// ── Feature 10: Time Gap ───────────────────────────────────
+
+function TimeGap({ minutes }: { minutes: number }) {
+  if (minutes <= 60) return null;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const label = h > 0 ? `${h}h ${m > 0 ? `${m}m` : ''}` : `${m}m`;
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center w-16 shrink-0">
+        <div className="w-px flex-1 bg-border-default border-dashed" />
+      </div>
+      <div className="flex-1 py-2">
+        <div className="flex items-center gap-2 rounded-lg border border-dashed border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-950/20 px-3 py-2">
+          <Coffee className="h-4 w-4 text-primary-400" />
+          <span className="text-xs text-primary-600 dark:text-primary-400">
+            Free time: {label} — explore the area or rest
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Timeline Activity ──────────────────────────────────────
+
+function TimelineActivity({
+  activity,
+  tip,
+  isLast,
+  onChatAbout,
+  dayNumber,
+}: {
+  activity: Activity;
+  tip?: string;
+  isLast: boolean;
+  onChatAbout?: (activityName: string, dayNumber: number) => void;
+  dayNumber: number;
+}) {
   if (activity.duration_minutes === 0) return null;
 
   return (
@@ -43,6 +102,17 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
       {/* Content */}
       <div className="flex-1 pb-4 min-w-0">
         <div className="rounded-lg border border-border-default bg-surface p-3 space-y-2">
+          {/* Feature 11: Photo hero */}
+          {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
+            <img
+              src={activity.place.photo_urls[0]}
+              alt={activity.place.name}
+              loading="lazy"
+              className="w-full h-32 sm:h-40 object-cover rounded-t-lg -m-3 mb-2"
+              style={{ width: 'calc(100% + 1.5rem)' }}
+            />
+          )}
+
           {/* Name + meta */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
@@ -67,40 +137,58 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
                 )}
               </div>
             </div>
-            {activity.place.website && (
-              <a
-                href={activity.place.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-text-muted hover:text-primary-600 transition-colors shrink-0"
-                aria-label={`Visit ${activity.place.name} website`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            )}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Feature 19: Contextual Chat button */}
+              {onChatAbout && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onChatAbout(activity.place.name, dayNumber); }}
+                  className="text-text-muted hover:text-primary-600 transition-colors shrink-0"
+                  aria-label={`Chat about ${activity.place.name}`}
+                  title={`Edit ${activity.place.name}`}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </button>
+              )}
+              {activity.place.website && (
+                <a
+                  href={activity.place.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-muted hover:text-primary-600 transition-colors shrink-0"
+                  aria-label={`Visit ${activity.place.name} website`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+            </div>
           </div>
 
-          {/* Address */}
+          {/* Address + Get Directions */}
           {activity.place.address && (
-            <p className="flex items-center gap-1.5 text-sm text-text-muted">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="break-words">{activity.place.address}</span>
-            </p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="flex items-center gap-1.5 text-sm text-text-muted">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="break-words">{activity.place.address}</span>
+              </p>
+              {/* Feature 11: Get Directions button */}
+              {activity.place.location && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${activity.place.location.lat},${activity.place.location.lng}&destination_place_id=${activity.place.place_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  <Navigation className="h-3 w-3" />Get Directions
+                </a>
+              )}
+            </div>
           )}
 
           {/* Notes */}
           {activity.notes && (
             <p className="text-sm text-text-secondary break-words leading-relaxed">{activity.notes}</p>
-          )}
-
-          {/* Photos */}
-          {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto">
-              {activity.place.photo_urls.map((url, i) => (
-                <img key={i} src={url} alt={`${activity.place.name} photo ${i + 1}`} loading="lazy" className="h-16 w-20 sm:h-20 sm:w-24 rounded-md object-cover shrink-0" />
-              ))}
-            </div>
           )}
 
           {/* Weather warning */}
@@ -122,13 +210,19 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
 
         {/* Transport to next */}
         {activity.route_to_next && (
-          <div className="mt-2 ml-1 flex items-center gap-2 text-sm text-text-muted">
+          <div className="mt-2 ml-1 flex flex-wrap items-center gap-2 text-sm text-text-muted">
             <Navigation className="h-3.5 w-3.5 shrink-0" />
             <TravelModeLabel mode={activity.route_to_next.travel_mode} />
             <span>&middot;</span>
             <span>{formatDistance(activity.route_to_next.distance_meters)}</span>
             <span>&middot;</span>
             <span>{formatDuration(activity.route_to_next.duration_seconds)}</span>
+            {/* Feature 17: Walking route preview */}
+            {activity.route_to_next.travel_mode === 'WALK' && activity.route_to_next.distance_meters > 0 && (
+              <span className="text-text-muted/70">
+                ~{Math.round(activity.route_to_next.distance_meters / 0.75).toLocaleString()} steps · ~{Math.round(activity.route_to_next.distance_meters * 0.05)} cal
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -136,7 +230,9 @@ function TimelineActivity({ activity, tip, isLast }: { activity: Activity; tip?:
   );
 }
 
-export function DayTimeline({ dayPlan, tips }: DayTimelineProps) {
+// ── Main Component ─────────────────────────────────────────
+
+export function DayTimeline({ dayPlan, tips, onChatAbout }: DayTimelineProps) {
   // Excursion day — simplified card rendering
   if (dayPlan.is_excursion) {
     return (
@@ -175,14 +271,60 @@ export function DayTimeline({ dayPlan, tips }: DayTimelineProps) {
 
   return (
     <div className="space-y-0">
-      {visibleActivities.map((activity, i) => (
-        <TimelineActivity
-          key={activity.id}
-          activity={activity}
-          tip={tips[activity.place.place_id]}
-          isLast={i === visibleActivities.length - 1}
-        />
-      ))}
+      {/* Feature 8: Weather card */}
+      {dayPlan.weather && (
+        <div className="mb-4 rounded-lg border border-border-default bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/20 dark:to-blue-950/20 p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <WeatherIcon condition={dayPlan.weather.condition} />
+              <div>
+                <p className="text-sm font-semibold text-text-primary">{dayPlan.weather.condition}</p>
+                <p className="text-xs text-text-muted">
+                  {dayPlan.weather.temperature_high_c.toFixed(0)}° / {dayPlan.weather.temperature_low_c.toFixed(0)}°C
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-text-muted">
+              {dayPlan.weather.precipitation_chance_percent > 0 && (
+                <span className="flex items-center gap-1">
+                  <Droplets className="h-3.5 w-3.5" />{dayPlan.weather.precipitation_chance_percent}%
+                </span>
+              )}
+              {dayPlan.weather.wind_speed_kmh > 0 && (
+                <span className="flex items-center gap-1">
+                  <Wind className="h-3.5 w-3.5" />{dayPlan.weather.wind_speed_kmh.toFixed(0)} km/h
+                </span>
+              )}
+              {dayPlan.weather.uv_index != null && (
+                <span className="flex items-center gap-1">
+                  <Sun className="h-3.5 w-3.5" />UV {dayPlan.weather.uv_index}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activities with time gap detection */}
+      {visibleActivities.map((activity, i) => {
+        const gap = i > 0
+          ? getMinutesBetween(visibleActivities[i - 1].time_end, activity.time_start)
+          : 0;
+
+        return (
+          <div key={activity.id}>
+            {/* Feature 10: Time gap card */}
+            {gap > 60 && <TimeGap minutes={gap} />}
+            <TimelineActivity
+              activity={activity}
+              tip={tips[activity.place.place_id]}
+              isLast={i === visibleActivities.length - 1}
+              onChatAbout={onChatAbout}
+              dayNumber={dayPlan.day_number}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
