@@ -12,6 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { CompactCityCard } from '@/components/trip/CompactCityCard';
 import { FullDayView } from '@/components/trip/FullDayView';
 import { BudgetSummary } from '@/components/trip/BudgetSummary';
+import { NavigationSidebar } from '@/components/trip/NavigationSidebar';
+import { LiveTripView } from '@/components/trip/LiveTripView';
 import { TripMap, TripMapLegend } from '@/components/maps';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
@@ -45,7 +47,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [isSharing, setIsSharing] = useState(false);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'budget' | 'map'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'cities' | 'budget' | 'map' | 'live'>('overview');
   const [fullDayViewDay, setFullDayViewDay] = useState<number | null>(null);
 
   // Feature 19: Contextual chat — open chat pre-filled with activity context
@@ -241,6 +243,10 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
               {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
               {isSharing ? 'Sharing...' : shareUrl ? 'Shared!' : 'Share'}
             </Button>
+            <Button variant="outline" size="sm" disabled title="Coming soon — generate alternative plan for comparison">
+              <RefreshCw className="h-4 w-4" />
+              Alternative
+            </Button>
             <div className="relative">
               <Button variant="outline" size="sm" onClick={() => setShowExport(!showExport)}>
                 <FileDown className="h-4 w-4" />
@@ -258,6 +264,13 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 </div>
               )}
             </div>
+            {/* Feature 25: Live trip "Today" button */}
+            {dayPlans && dayPlans.some(dp => dp.date === new Date().toISOString().split('T')[0]) && (
+              <Button variant="outline" size="sm" onClick={() => setActiveTab('live')}>
+                <Navigation className="h-4 w-4" />
+                Today
+              </Button>
+            )}
           </div>
 
           {/* Share URL */}
@@ -479,7 +492,33 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
             <TripMapLegend />
           </div>
         )}
+
+        {/* Feature 25: Live trip tab */}
+        {activeTab === 'live' && dayPlans && (
+          <div className="animate-fade-in-up">
+            <LiveTripView
+              dayPlans={dayPlans}
+              tips={tips}
+              tripStartDate={dayPlans[0]?.date ?? ''}
+              onChatAbout={handleChatAbout}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Feature 15: Quick navigation sidebar */}
+      {dayPlans && dayPlans.length > 0 && (
+        <NavigationSidebar
+          journey={journey}
+          dayPlans={dayPlans}
+          onSelectDay={(dayNum) => {
+            setActiveTab('cities');
+            setTimeout(() => {
+              document.getElementById(`day-${dayNum}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+          }}
+        />
+      )}
 
       {fullDayViewDay && dayPlans && (
         <FullDayView

@@ -33,6 +33,57 @@ async def search_places(
     return results
 
 
+@router.get("/alternatives")
+async def get_alternatives(
+    place_id: str = Query(..., min_length=1),
+    lat: float = Query(...),
+    lng: float = Query(...),
+    places: GooglePlacesService = Depends(get_places_service),
+):
+    """Get alternative accommodation options near a location.
+
+    Returns up to 3 lodging alternatives near the given coordinates,
+    excluding the currently-selected hotel (identified by place_id).
+    """
+    from app.models.common import Location
+
+    location = Location(lat=lat, lng=lng)
+
+    # Use text_search_places with "hotel" query, biased to the location.
+    # Request extra results so we still have 3 after filtering out current.
+    candidates = await places.text_search_places(
+        query="hotels",
+        location=location,
+        radius_meters=5000,
+        max_results=10,
+    )
+
+    alternatives = []
+    for c in candidates:
+        if c.place_id == place_id:
+            continue
+        # Only include lodging-type results
+        if not any(t in c.types for t in ("lodging", "hotel", "resort_hotel")):
+            continue
+        alternatives.append({
+            "name": c.name,
+            "address": c.address,
+            "rating": c.rating,
+            "price_level": c.price_level,
+            "place_id": c.place_id,
+            "photo_url": (
+                places.get_photo_url(c.photo_reference)
+                if c.photo_reference
+                else None
+            ),
+            "editorial_summary": c.editorial_summary,
+        })
+        if len(alternatives) >= 3:
+            break
+
+    return alternatives
+
+
 @router.get("/photo/{photo_ref:path}")
 async def proxy_photo(
     photo_ref: str,
