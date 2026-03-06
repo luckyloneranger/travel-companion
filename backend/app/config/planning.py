@@ -189,6 +189,7 @@ INTEREST_TO_TYPES: dict[str, list[str]] = {
         "museum",
         "library",
         "community_center",
+        "cooking_class",
     ],
     "architecture": [
         "church",
@@ -199,7 +200,7 @@ INTEREST_TO_TYPES: dict[str, list[str]] = {
         "mosque",
     ],
     # Food and dining
-    "food": ["restaurant", "cafe", "bakery", "bar", "meal_takeaway"],
+    "food": ["restaurant", "cafe", "bakery", "bar", "meal_takeaway", "market", "food_court"],
     "local_experience": ["market", "cafe", "restaurant", "grocery_store"],
     "local": ["market", "cafe", "restaurant"],
     "nightlife": ["night_club", "bar", "casino", "movie_theater", "bowling_alley"],

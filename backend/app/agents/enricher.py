@@ -126,6 +126,11 @@ class EnricherAgent:
                 lng = result.get("lng", 0.0)
                 if lat and lng:
                     city.location = Location(lat=lat, lng=lng)
+                    # Reject null-island coordinates (0,0)
+                    if abs(city.location.lat) < 0.01 and abs(city.location.lng) < 0.01:
+                        logger.warning("[Enricher] Geocoding returned null-island (0,0) for %s — treating as failed", city.name)
+                        city.location = None
+                        continue
                     city.place_id = result.get("place_id")
                     if not city.country and result.get("country"):
                         city.country = result["country"]
@@ -152,12 +157,17 @@ class EnricherAgent:
                     lng = result.get("lng", 0.0)
                     if lat and lng:
                         city.location = Location(lat=lat, lng=lng)
-                        city.place_id = result.get("place_id")
-                        logger.info(
-                            "[Enricher] Fallback geocode succeeded for %s: (%.4f, %.4f)",
-                            city.name, lat, lng,
-                        )
-                        return
+                        # Reject null-island coordinates (0,0)
+                        if abs(city.location.lat) < 0.01 and abs(city.location.lng) < 0.01:
+                            logger.warning("[Enricher] Fallback geocoding returned null-island (0,0) for %s — treating as failed", city.name)
+                            city.location = None
+                        else:
+                            city.place_id = result.get("place_id")
+                            logger.info(
+                                "[Enricher] Fallback geocode succeeded for %s: (%.4f, %.4f)",
+                                city.name, lat, lng,
+                            )
+                            return
                 except Exception as e:
                     logger.debug(
                         "[Enricher] Fallback geocode failed for %r: %s", fallback_query, e
@@ -218,6 +228,19 @@ class EnricherAgent:
                 )
 
             if result:
+                # Validate accommodation quality before accepting
+                if (result.rating is not None and result.rating < 3.5) or \
+                   (result.user_ratings_total is not None and result.user_ratings_total < 20):
+                    logger.warning(
+                        "[Enricher] Low-quality lodging result for %s: %s (rating=%s, reviews=%s) — keeping LLM suggestion",
+                        city.name, result.name, result.rating, result.user_ratings_total,
+                    )
+                    # Keep LLM's original accommodation, just add place_id and location for maps
+                    if city.accommodation:
+                        city.accommodation.place_id = result.place_id
+                        city.accommodation.location = result.location
+                    return
+
                 # Preserve LLM's cost estimate from the Scout agent
                 llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
                 city.accommodation = Accommodation(

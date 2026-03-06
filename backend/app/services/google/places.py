@@ -118,6 +118,7 @@ class GooglePlacesService:
         location: Location,
         interests: list[str],
         radius_km: float = PLACES_DISCOVERY_RADIUS_KM,
+        price_levels: list[str] | None = None,
     ) -> list[PlaceCandidate]:
         """Discover places near *location* based on interests.
 
@@ -175,6 +176,26 @@ class GooglePlacesService:
                 logger.warning("Nearby search failed: %s", result)
                 continue
             all_places.extend(result)
+
+        # Dynamic radius expansion for sparse results
+        if len(all_places) < 5:
+            logger.info("[Places] Sparse results (%d) — expanding search radius to 15km", len(all_places))
+            # Build type batches from all categories used above
+            type_batches: list[list[str]] = [[t] for t in essential_types]
+            type_batches.extend([[t] for t in interest_types])
+            type_batches.append(DINING_TYPES)
+            for types_batch in type_batches:
+                expanded = await self._nearby_search(
+                    location=location,
+                    included_types=types_batch,
+                    radius_meters=15000,
+                    max_results=10,
+                )
+                existing_ids = {p.place_id for p in all_places}
+                for p in expanded:
+                    if p.place_id not in existing_ids:
+                        all_places.append(p)
+                        existing_ids.add(p.place_id)
 
         # Deduplicate by place_id and quality-filter.
         return self._filter_and_rank_by_quality(all_places)
@@ -236,6 +257,7 @@ class GooglePlacesService:
         location: Location,
         radius_meters: int = 15_000,
         max_results: int = 5,
+        price_levels: list[str] | None = None,
     ) -> list[PlaceCandidate]:
         """Text search returning PlaceCandidate objects, biased to a location.
 
@@ -266,6 +288,9 @@ class GooglePlacesService:
                 }
             },
         }
+
+        if price_levels:
+            body["priceLevels"] = price_levels
 
         try:
             resp = await self.client.post(
@@ -408,6 +433,7 @@ class GooglePlacesService:
         included_types: list[str],
         radius_meters: float,
         max_results: int = 20,
+        price_levels: list[str] | None = None,
     ) -> list[PlaceCandidate]:
         """Run a nearby search for the given place types."""
         url = f"{BASE_URL}/places:searchNearby"
@@ -439,6 +465,9 @@ class GooglePlacesService:
             },
             "rankPreference": "POPULARITY",
         }
+
+        if price_levels:
+            body["priceLevels"] = price_levels
 
         try:
             resp = await self.client.post(

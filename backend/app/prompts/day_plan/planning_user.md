@@ -108,6 +108,7 @@ Cost estimation guidelines:
 - Expensive dining: $40+
 - Museum/attraction entry: varies by destination (typically $5-25)
 - Use local knowledge to estimate accurately for {city_name}
+- Account for local taxes and service charges tourists pay (e.g., 18% IVA in Peru, 10% service charge in Singapore, consumption tax in Japan, tourist tax in European cities)
 
 Google Places price_level reference (0-4 scale):
 - 0 = free, 1 = budget ($), 2 = moderate ($$), 3 = expensive ($$$), 4 = luxury ($$$$)

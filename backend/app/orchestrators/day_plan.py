@@ -271,9 +271,9 @@ class DayPlanOrchestrator:
                 # ----------------------------------------------------------
                 # 1. Discover places
                 # ----------------------------------------------------------
-                if city.location is None:
+                if city.location is None or (abs(city.location.lat) < 0.01 and abs(city.location.lng) < 0.01):
                     logger.warning(
-                        "[DayPlanOrchestrator] City %s has no location, skipping",
+                        "[DayPlanOrchestrator] City %s has no valid location, skipping",
                         city_name,
                     )
                     day_offset += city.days
@@ -465,6 +465,11 @@ class DayPlanOrchestrator:
                             city.location, days=10
                         )
                         city_weather = {str(f.date): f for f in forecasts}
+                        if city_weather and len(city_weather) < city.days:
+                            logger.info(
+                                "[DayPlanOrchestrator] Weather covers %d/%d days for %s (API limit)",
+                                len(city_weather), city.days, city_name,
+                            )
                     except Exception as exc:
                         logger.warning(
                             "[DayPlanOrchestrator] Weather fetch failed for %s: %s",
