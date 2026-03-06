@@ -243,8 +243,10 @@ class EnricherAgent:
 
                 # Preserve LLM's cost estimate from the Scout agent
                 llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
+                llm_why = city.accommodation.why if city.accommodation else ""
                 city.accommodation = Accommodation(
                     name=result.name,
+                    why=llm_why,
                     address=result.address,
                     location=result.location,
                     place_id=result.place_id,
@@ -287,6 +289,8 @@ class EnricherAgent:
         Resolves city names to locations, fetches transport options via
         the Directions API, and updates the leg in-place.
         """
+        original_booking_tip = leg.booking_tip
+
         origin_loc = self._find_city_location(leg.from_city, plan)
         dest_loc = self._find_city_location(leg.to_city, plan)
 
@@ -320,6 +324,32 @@ class EnricherAgent:
                 leg.to_city,
                 e,
             )
+
+        # Check for multi-country legs without visa context
+        from_country = next(
+            (c.country for c in plan.cities if c.name.lower() == leg.from_city.lower()),
+            None,
+        )
+        to_country = next(
+            (c.country for c in plan.cities if c.name.lower() == leg.to_city.lower()),
+            None,
+        )
+        if (
+            from_country
+            and to_country
+            and from_country.lower() != to_country.lower()
+            and (not leg.notes or "visa" not in leg.notes.lower())
+        ):
+            logger.info(
+                "[Enricher] Multi-country leg %s (%s) -> %s (%s) has no visa notes",
+                leg.from_city,
+                from_country,
+                leg.to_city,
+                to_country,
+            )
+
+        if not leg.booking_tip and original_booking_tip:
+            leg.booking_tip = original_booking_tip
 
     async def _geocode_origin(self, origin_name: str) -> Location | None:
         """Geocode the origin city if it's not in the plan's destinations."""
@@ -436,6 +466,20 @@ class EnricherAgent:
 
         # Fallback: use driving distance as baseline for any mode.
         if options.driving:
+            # Preserve island transport modes — warn when ferry has no API match
+            if leg.mode == TransportMode.FERRY:
+                logger.info(
+                    "[Enricher] Preserving ferry mode for %s -> %s "
+                    "(API suggested driving — %.1fkm). "
+                    "Only updating distance, keeping Scout's duration estimate.",
+                    leg.from_city,
+                    leg.to_city,
+                    options.driving.distance_meters / 1000,
+                )
+                # Only update distance, keep Scout's duration for ferry routes
+                leg.distance_km = round(options.driving.distance_meters / 1000, 1)
+                return
+
             logger.info(
                 "[Enricher] No %s data for %s -> %s, using driving distance "
                 "(%.1fkm) as baseline",

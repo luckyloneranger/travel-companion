@@ -395,6 +395,9 @@ class DayPlanOrchestrator:
                         time_constraints=time_constraints if time_constraints else None,
                         travelers_description=request.travelers.summary,
                         country=city.country or "",
+                        highlights=city.highlights if city.highlights else None,
+                        best_time_to_visit=city.best_time_to_visit or "",
+                        hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
                     )
                 except LLMValidationError:
                     logger.warning(
@@ -414,6 +417,9 @@ class DayPlanOrchestrator:
                             time_constraints=time_constraints if time_constraints else None,
                             travelers_description=request.travelers.summary,
                             country=city.country or "",
+                            highlights=city.highlights if city.highlights else None,
+                            best_time_to_visit=city.best_time_to_visit or "",
+                            hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
                         )
                     except (LLMValidationError, Exception) as exc:
                         logger.error(

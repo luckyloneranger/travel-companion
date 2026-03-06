@@ -84,6 +84,16 @@ export function RouteTimeline({ journey, onCityClick }: RouteTimelineProps) {
                       <span>{leg.fare}</span>
                     </>
                   )}
+                  {leg.booking_tip && (
+                    <span className="text-xs text-text-muted" title={leg.booking_tip}>
+                      Booking tip
+                    </span>
+                  )}
+                  {leg.visa_requirement && (
+                    <span className="text-xs text-text-muted" title={leg.visa_requirement}>
+                      Visa info
+                    </span>
+                  )}
                 </div>
               </div>
             )}

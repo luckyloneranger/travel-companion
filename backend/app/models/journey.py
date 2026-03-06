@@ -5,6 +5,7 @@ from .common import Location, TransportMode
 
 class Accommodation(BaseModel):
     name: str
+    why: str = ""
     address: str = ""
     location: Location | None = None
     place_id: str | None = None
@@ -34,6 +35,12 @@ class CityStop(BaseModel):
     place_id: str | None = None
     accommodation: Accommodation | None = None
 
+    # Rich context from Scout (used by Reviewer and Planner)
+    seasonal_notes: str | None = None
+    visa_notes: str | None = None
+    altitude_meters: float | None = None
+    safety_notes: str | None = None
+
 
 class TravelLeg(BaseModel):
     from_city: str
@@ -46,6 +53,9 @@ class TravelLeg(BaseModel):
     fare_usd: float | None = None
     operator: str | None = None
     booking_tip: str | None = None
+
+    # Visa/border context from Scout
+    visa_requirement: str | None = None
 
     @field_validator("mode", mode="before")
     @classmethod

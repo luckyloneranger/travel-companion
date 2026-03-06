@@ -20,6 +20,7 @@ export type Budget = 'budget' | 'moderate' | 'luxury';
 
 export interface Accommodation {
   name: string;
+  why?: string;
   address: string;
   location: Location | null;
   place_id: string | null;
@@ -45,6 +46,10 @@ export interface CityStop {
   highlights: CityHighlight[];
   why_visit: string;
   best_time_to_visit: string;
+  seasonal_notes?: string;
+  visa_notes?: string;
+  altitude_meters?: number;
+  safety_notes?: string;
   location: Location | null;
   place_id: string | null;
   accommodation: Accommodation | null;
@@ -61,6 +66,7 @@ export interface TravelLeg {
   fare_usd: number | null;
   operator: string | null;
   booking_tip: string | null;
+  visa_requirement?: string;
   polyline: string | null;
   num_transfers: number;
   departure_time: string | null;

@@ -8,6 +8,11 @@ Review this {total_days}-day journey plan:
 - Region: {region}
 - Interests: {interests}
 - Pace: {pace}
+- Travelers: {travelers_description}
+- Budget: {budget_tier}
+- Must include: {must_include}
+- Avoid: {avoid}
+- Transport preference: {travel_mode}
 
 **Cities:**
 {cities_detail}

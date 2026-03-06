@@ -33,6 +33,8 @@ class PlannerAgent:
             interests=", ".join(request.interests) if request.interests else "general sightseeing",
             pace=request.pace.value,
             travel_dates=str(request.start_date),
+            travelers_description=request.travelers.summary if hasattr(request, 'travelers') else "1 adult",
+            budget_tier=request.budget.value if hasattr(request, 'budget') else "moderate",
             cities_detail=cities_detail,
             travel_detail=travel_detail,
         )
@@ -61,18 +63,46 @@ class PlannerAgent:
         return fixed
 
     def _format_cities(self, plan: JourneyPlan) -> str:
-        """Format city details for the prompt."""
+        """Format city details with full highlight info for the reviewer."""
         lines = []
         for i, city in enumerate(plan.cities):
             lines.append(f"{i+1}. {city.name}, {city.country} ({city.days} days)")
+            if city.why_visit:
+                lines.append(f"   Why: {city.why_visit}")
             if city.highlights:
-                lines.append(f"   Highlights: {', '.join(h.name for h in city.highlights)}")
+                lines.append("   Highlights:")
+                total_hours = 0.0
+                for h in city.highlights:
+                    dur = f", {h.suggested_duration_hours}h" if h.suggested_duration_hours else ""
+                    cat = f" ({h.category}{dur})" if h.category else ""
+                    exc = f" [{h.excursion_type}]" if h.excursion_type else ""
+                    exc_days = f" ({h.excursion_days} days)" if h.excursion_days else ""
+                    lines.append(f"     - {h.name}{cat}{exc}{exc_days}")
+                    if h.suggested_duration_hours:
+                        total_hours += h.suggested_duration_hours
+                available = city.days * 8
+                pct = (total_hours / available * 100) if available > 0 else 0
+                status = "OK" if pct <= 70 else "OVER 70% limit"
+                lines.append(f"   Total highlight hours: {total_hours:.1f}h / {available}h ({pct:.0f}% — {status})")
             if city.accommodation:
-                lines.append(f"   Hotel: {city.accommodation.name}")
+                price = f" (${city.accommodation.estimated_nightly_usd}/night)" if city.accommodation.estimated_nightly_usd else ""
+                lines.append(f"   Hotel: {city.accommodation.name}{price}")
+            if city.best_time_to_visit:
+                lines.append(f"   Best time: {city.best_time_to_visit}")
+            if city.seasonal_notes:
+                lines.append(f"   Seasonal: {city.seasonal_notes}")
+            if city.altitude_meters and city.altitude_meters > 1000:
+                lines.append(f"   Altitude: {city.altitude_meters:.0f}m")
+            if city.safety_notes:
+                lines.append(f"   Safety: {city.safety_notes}")
+            if city.visa_notes:
+                lines.append(f"   Visa: {city.visa_notes}")
+            if city.location:
+                lines.append(f"   Location: ({city.location.lat:.4f}, {city.location.lng:.4f})")
         return "\n".join(lines) if lines else "No cities specified."
 
     def _format_travel(self, plan: JourneyPlan) -> str:
-        """Format travel leg details for the prompt."""
+        """Format travel leg details with booking and visa info."""
         if not plan.travel_legs:
             return "No travel legs."
         lines = []
@@ -81,6 +111,12 @@ class PlannerAgent:
             if leg.distance_km:
                 detail += f", {leg.distance_km}km"
             lines.append(detail)
+            if leg.notes:
+                lines.append(f"   Notes: {leg.notes}")
+            if leg.booking_tip:
+                lines.append(f"   Booking: {leg.booking_tip}")
+            if leg.visa_requirement:
+                lines.append(f"   Visa: {leg.visa_requirement}")
         return "\n".join(lines)
 
     def _format_issues(self, review: ReviewResult) -> str:
