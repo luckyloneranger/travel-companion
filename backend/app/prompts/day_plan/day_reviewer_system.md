@@ -62,3 +62,21 @@ Activity count violations produce critical issues that set is_acceptable=false r
 
 ## OUTPUT
 Return ONLY the JSON object. No markdown fences, no text before or after.
+
+```json
+{
+  "score": 75,
+  "is_acceptable": true,
+  "dimension_scores": {
+    "theme_coverage": 80,
+    "landmark_inclusion": 60,
+    "activity_variety": 90,
+    "duration_realism": 85,
+    "pacing_flow": 75,
+    "meal_placement": 70,
+    "activity_count": 90
+  },
+  "summary": "...",
+  "issues": [...]
+}
+```

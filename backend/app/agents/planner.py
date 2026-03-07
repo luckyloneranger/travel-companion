@@ -51,6 +51,10 @@ class PlannerAgent:
 
         self._validate_plan(fixed)
 
+        # Collapse city-states (defensive — in case LLM re-splits)
+        from app.agents.scout import ScoutAgent
+        ScoutAgent._collapse_city_state_destinations(fixed)
+
         # Ensure total_days is set (LLM may omit it)
         if not fixed.total_days:
             fixed.total_days = request.total_days
@@ -81,21 +85,8 @@ class PlannerAgent:
                         lines.append(f"       → {et.why}")
                 theme_count = len(city.experience_themes)
                 lines.append(f"   Theme coverage: {theme_count} themes for {city.days} days")
-            elif city.highlights:
-                lines.append("   Highlights:")
-                total_hours = 0.0
-                for h in city.highlights:
-                    dur = f", {h.suggested_duration_hours}h" if h.suggested_duration_hours else ""
-                    cat = f" ({h.category}{dur})" if h.category else ""
-                    exc = f" [{h.excursion_type}]" if h.excursion_type else ""
-                    exc_days = f" ({h.excursion_days} days)" if h.excursion_days else ""
-                    lines.append(f"     - {h.name}{cat}{exc}{exc_days}")
-                    if h.suggested_duration_hours:
-                        total_hours += h.suggested_duration_hours
-                available = city.days * 8
-                pct = (total_hours / available * 100) if available > 0 else 0
-                status = "OK" if pct <= 70 else "OVER 70% limit"
-                lines.append(f"   Total highlight hours: {total_hours:.1f}h / {available}h ({pct:.0f}% — {status})")
+            else:
+                lines.append("   No experience themes")
             if city.accommodation:
                 price = f" (${city.accommodation.estimated_nightly_usd}/night)" if city.accommodation.estimated_nightly_usd else ""
                 lines.append(f"   Hotel: {city.accommodation.name}{price}")

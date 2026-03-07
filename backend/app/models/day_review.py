@@ -14,5 +14,6 @@ class DayReviewResult(BaseModel):
     """Result of reviewing a batch of day plans."""
     score: int = Field(..., ge=0, le=100)
     is_acceptable: bool
+    dimension_scores: dict[str, int] = {}
     issues: list[DayReviewIssue] = []
     summary: str = ""

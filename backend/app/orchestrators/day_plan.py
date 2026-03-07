@@ -73,6 +73,7 @@ class DayPlanOrchestrator:
         self.optimizer = RouteOptimizer()
         self.scheduler = ScheduleBuilder()
         self._route_cache: dict[tuple, Route] = {}
+        self._landmark_cache: dict[str, list[dict]] = {}
 
     # ------------------------------------------------------------------
     # Excursion scheduling helpers
@@ -305,6 +306,12 @@ class DayPlanOrchestrator:
                         city_name,
                     )
                     day_offset += city.days
+                    yield ProgressEvent(
+                        phase="city_complete",
+                        message=f"{city_name}: could not locate on map — try a different spelling or check the city name",
+                        progress=pct_end,
+                        data={"city": city_name, "day_plans": []},
+                    )
                     continue
 
                 try:
@@ -342,7 +349,11 @@ class DayPlanOrchestrator:
 
                 # Per-city landmark discovery (top attractions by review count)
                 try:
-                    city_landmarks = await self.places.discover_landmarks(city_name)
+                    if city_name in self._landmark_cache:
+                        city_landmarks = self._landmark_cache[city_name]
+                    else:
+                        city_landmarks = await self.places.discover_landmarks(city_name)
+                        self._landmark_cache[city_name] = city_landmarks
                     if city_landmarks:
                         existing_ids = {c.place_id for c in candidates}
                         for lm in city_landmarks:
@@ -457,7 +468,11 @@ class DayPlanOrchestrator:
                         # Per-city landmark discovery for batch prompts
                         city_landmarks: list[dict] = []
                         try:
-                            city_landmarks = await self.places.discover_landmarks(city_name)
+                            if city_name in self._landmark_cache:
+                                city_landmarks = self._landmark_cache[city_name]
+                            else:
+                                city_landmarks = await self.places.discover_landmarks(city_name)
+                                self._landmark_cache[city_name] = city_landmarks
                         except Exception:
                             pass
 

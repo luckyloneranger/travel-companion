@@ -11,6 +11,7 @@ from app.agents.day_planner import DayPlannerAgent
 from app.models.common import Location, Pace, TransportMode, TravelMode
 from app.models.internal import AIPlan, DayGroup, PlaceCandidate
 from app.models.journey import (
+    Accommodation,
     CityStop,
     JourneyPlan,
     ReviewResult,
@@ -46,8 +47,14 @@ def _make_journey_plan(**overrides) -> JourneyPlan:
         "summary": "A 5-day journey through Italy",
         "origin": "London",
         "cities": [
-            CityStop(name="Rome", country="Italy", days=3, why_visit="History"),
-            CityStop(name="Florence", country="Italy", days=2, why_visit="Art"),
+            CityStop(
+                name="Rome", country="Italy", days=3, why_visit="History",
+                accommodation=Accommodation(name="Hotel Roma", estimated_nightly_usd=120),
+            ),
+            CityStop(
+                name="Florence", country="Italy", days=2, why_visit="Art",
+                accommodation=Accommodation(name="Hotel Firenze", estimated_nightly_usd=110),
+            ),
         ],
         "travel_legs": [
             TravelLeg(
@@ -349,10 +356,19 @@ class TestDayPlannerValidation:
     async def test_orphan_ids_cleaned(self):
         mock_llm = MagicMock()
         candidates = _make_candidates(3)
+        # Add a dining candidate so dining validation passes
+        dining_candidate = PlaceCandidate(
+            place_id="dining_0",
+            name="Restaurant 0",
+            address="Dining Address",
+            location=Location(lat=48.85, lng=2.35),
+            types=["restaurant"],
+        )
+        candidates.append(dining_candidate)
         plan = AIPlan(
-            selected_place_ids=["place_0", "place_1", "orphan_99"],
+            selected_place_ids=["place_0", "place_1", "dining_0", "orphan_99"],
             day_groups=[
-                DayGroup(theme="Day 1", place_ids=["place_0", "place_1", "orphan_99"]),
+                DayGroup(theme="Day 1", place_ids=["place_0", "place_1", "dining_0", "orphan_99"]),
             ],
             durations={"place_0": 60, "orphan_99": 30},
             cost_estimates={"orphan_99": 10.0},
@@ -373,11 +389,20 @@ class TestDayPlannerValidation:
     async def test_valid_plan_passes(self):
         mock_llm = MagicMock()
         candidates = _make_candidates(3)
+        # Add dining candidates so dining validation passes
+        for i in range(2):
+            candidates.append(PlaceCandidate(
+                place_id=f"dining_{i}",
+                name=f"Restaurant {i}",
+                address=f"Dining Address {i}",
+                location=Location(lat=48.85 + i * 0.01, lng=2.35 + i * 0.01),
+                types=["restaurant"],
+            ))
         plan = AIPlan(
-            selected_place_ids=["place_0", "place_1", "place_2"],
+            selected_place_ids=["place_0", "place_1", "dining_0", "place_2", "dining_1"],
             day_groups=[
-                DayGroup(theme="Day 1", place_ids=["place_0", "place_1"]),
-                DayGroup(theme="Day 2", place_ids=["place_2"]),
+                DayGroup(theme="Day 1", place_ids=["place_0", "place_1", "dining_0"]),
+                DayGroup(theme="Day 2", place_ids=["place_2", "dining_1"]),
             ],
             durations={"place_0": 60, "place_1": 90, "place_2": 120},
         )
@@ -389,7 +414,7 @@ class TestDayPlannerValidation:
             interests=["art"], pace="moderate",
         )
         assert len(result.day_groups) == 2
-        assert len(result.selected_place_ids) == 3
+        assert len(result.selected_place_ids) == 5
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
