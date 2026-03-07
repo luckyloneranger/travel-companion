@@ -15,6 +15,13 @@ MAX_JOURNEY_ITERATIONS: int = 3
 MIN_JOURNEY_SCORE: int = 70
 
 # ---------------------------------------------------------------------------
+# Day plan orchestration
+# ---------------------------------------------------------------------------
+MAX_DAY_PLAN_ITERATIONS: int = 2
+MIN_DAY_PLAN_SCORE: int = 70
+DAY_PLAN_BATCH_SIZE: int = 3
+
+# ---------------------------------------------------------------------------
 # Service timeouts (seconds)
 # ---------------------------------------------------------------------------
 HTTP_DEFAULT_TIMEOUT: float = 30.0
@@ -306,3 +313,61 @@ def get_duration_for_type(place_types: list[str]) -> int:
         if type_lower in _FALLBACK_DURATION_BY_TYPE:
             return _FALLBACK_DURATION_BY_TYPE[type_lower]
     return _FALLBACK_DURATION_BY_TYPE["default"]
+
+
+def map_themes_to_days(
+    themes: list,
+    num_days: int,
+    blocked_days: dict | None = None,
+) -> dict[int, list]:
+    """Assign experience themes to day numbers, ensuring coverage.
+
+    1. Excursion themes (multi_day, full_day) go on their blocked days
+    2. Evening themes pair with daytime themes on least-loaded days
+    3. Remaining themes spread evenly across free days
+    4. Empty free days get a repeated theme
+    """
+    blocked = blocked_days or {}
+    day_map: dict[int, list] = {d: [] for d in range(1, num_days + 1)}
+
+    excursion_themes = []
+    evening_themes = []
+    regular_themes = []
+
+    for t in themes:
+        et = getattr(t, 'excursion_type', None)
+        if et in ('full_day', 'multi_day'):
+            excursion_themes.append(t)
+        elif et in ('evening', 'half_day_morning', 'half_day_afternoon'):
+            evening_themes.append(t)
+        else:
+            regular_themes.append(t)
+
+    # Step 1: Excursion themes go on blocked days
+    for day_num, exc_highlight in blocked.items():
+        matching = [t for t in excursion_themes
+                    if hasattr(t, 'theme') and hasattr(exc_highlight, 'name') and
+                    (t.theme.lower() in exc_highlight.name.lower()
+                     or exc_highlight.name.lower() in t.theme.lower())]
+        if matching:
+            day_map[day_num].append(matching[0])
+
+    # Step 2: Regular themes spread across free days
+    free_days = sorted(d for d in range(1, num_days + 1) if d not in blocked)
+    for i, theme in enumerate(regular_themes):
+        if free_days:
+            day_idx = free_days[i % len(free_days)]
+            day_map[day_idx].append(theme)
+
+    # Step 3: Evening/half-day themes pair with least-loaded free days
+    for theme in evening_themes:
+        if free_days:
+            lightest = min(free_days, key=lambda d: len(day_map[d]))
+            day_map[lightest].append(theme)
+
+    # Step 4: Empty free days get the most versatile theme repeated
+    for d in free_days:
+        if not day_map[d] and regular_themes:
+            day_map[d].append(regular_themes[0])
+
+    return day_map

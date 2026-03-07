@@ -14,7 +14,10 @@ import logging
 from collections.abc import AsyncGenerator
 from datetime import time, timedelta
 
+from app.agents.day_fixer import DayFixerAgent
 from app.agents.day_planner import DayPlannerAgent
+from app.agents.day_reviewer import DayReviewerAgent
+from app.agents.day_scout import DayScoutAgent
 from app.algorithms.scheduler import ScheduleBuilder, ScheduleConfig
 from app.algorithms.tsp import RouteOptimizer, haversine_distance
 from app.models.common import Location, Pace, TravelMode
@@ -55,8 +58,14 @@ class DayPlanOrchestrator:
         routes: GoogleRoutesService,
         directions: GoogleDirectionsService | None = None,
         weather: GoogleWeatherService | None = None,
+        day_scout: DayScoutAgent | None = None,
+        day_reviewer: DayReviewerAgent | None = None,
+        day_fixer: DayFixerAgent | None = None,
     ):
         self.day_planner = DayPlannerAgent(llm)
+        self.day_scout = day_scout or DayScoutAgent(llm)
+        self.day_reviewer = day_reviewer or DayReviewerAgent(llm)
+        self.day_fixer = day_fixer or DayFixerAgent(llm)
         self.places = places
         self.routes = routes
         self.directions = directions
@@ -437,30 +446,38 @@ class DayPlanOrchestrator:
                             "available_hours": 8,
                         })
 
-                from app.services.llm.exceptions import LLMValidationError
-                try:
-                    ai_plan = await self.day_planner.plan_days(
-                        candidates=candidates,
-                        city_name=city_name,
-                        num_days=free_day_count,
-                        interests=request.interests,
-                        pace=request.pace.value,
-                        budget=request.budget.value if hasattr(request, 'budget') else "moderate",
-                        daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
-                        must_include=request.must_include if request.must_include else None,
-                        time_constraints=time_constraints if time_constraints else None,
-                        travelers_description=request.travelers.summary,
-                        country=city.country or "",
-                        highlights=city.highlights if city.highlights else None,
-                        best_time_to_visit=city.best_time_to_visit or "",
-                        hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
-                        experience_themes=city.experience_themes if city.experience_themes else None,
-                    )
-                except LLMValidationError:
-                    logger.warning(
-                        "[DayPlanOrchestrator] Validation failed for %s, retrying...",
-                        city_name,
-                    )
+                ai_plan = None
+
+                # -- Batched pipeline (when experience_themes available) --
+                if city.experience_themes:
+                    try:
+                        # Per-city landmark discovery for batch prompts
+                        city_landmarks: list[dict] = []
+                        try:
+                            city_landmarks = await self.places.discover_landmarks(city_name)
+                        except Exception:
+                            pass
+
+                        ai_plan = await self._plan_city_batched(
+                            city=city,
+                            candidates=candidates,
+                            free_day_count=free_day_count,
+                            blocked_days=blocked_days,
+                            request=request,
+                            landmarks=city_landmarks,
+                            city_name=city_name,
+                        )
+                    except Exception as exc:
+                        logger.error(
+                            "[DayPlanOrchestrator] Batched planning failed for %s, "
+                            "falling back to single-shot: %s",
+                            city_name, exc,
+                        )
+                        ai_plan = None  # fall through to single-shot
+
+                # -- Single-shot planning (fallback / no experience_themes) --
+                if ai_plan is None:
+                    from app.services.llm.exceptions import LLMValidationError
                     try:
                         ai_plan = await self.day_planner.plan_days(
                             candidates=candidates,
@@ -479,9 +496,45 @@ class DayPlanOrchestrator:
                             hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
                             experience_themes=city.experience_themes if city.experience_themes else None,
                         )
-                    except (LLMValidationError, Exception) as exc:
+                    except LLMValidationError:
+                        logger.warning(
+                            "[DayPlanOrchestrator] Validation failed for %s, retrying...",
+                            city_name,
+                        )
+                        try:
+                            ai_plan = await self.day_planner.plan_days(
+                                candidates=candidates,
+                                city_name=city_name,
+                                num_days=free_day_count,
+                                interests=request.interests,
+                                pace=request.pace.value,
+                                budget=request.budget.value if hasattr(request, 'budget') else "moderate",
+                                daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
+                                must_include=request.must_include if request.must_include else None,
+                                time_constraints=time_constraints if time_constraints else None,
+                                travelers_description=request.travelers.summary,
+                                country=city.country or "",
+                                highlights=city.highlights if city.highlights else None,
+                                best_time_to_visit=city.best_time_to_visit or "",
+                                hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
+                                experience_themes=city.experience_themes if city.experience_themes else None,
+                            )
+                        except (LLMValidationError, Exception) as exc:
+                            logger.error(
+                                "[DayPlanOrchestrator] AI planning failed for %s after retry: %s",
+                                city_name, exc,
+                            )
+                            day_offset += city.days
+                            yield ProgressEvent(
+                                phase="city_complete",
+                                message=f"{city_name}: AI planning failed",
+                                progress=pct_end,
+                                data={"city": city_name, "day_plans": []},
+                            )
+                            continue
+                    except Exception as exc:
                         logger.error(
-                            "[DayPlanOrchestrator] AI planning failed for %s after retry: %s",
+                            "[DayPlanOrchestrator] AI planning failed for %s: %s",
                             city_name, exc,
                         )
                         day_offset += city.days
@@ -492,19 +545,6 @@ class DayPlanOrchestrator:
                             data={"city": city_name, "day_plans": []},
                         )
                         continue
-                except Exception as exc:
-                    logger.error(
-                        "[DayPlanOrchestrator] AI planning failed for %s: %s",
-                        city_name, exc,
-                    )
-                    day_offset += city.days
-                    yield ProgressEvent(
-                        phase="city_complete",
-                        message=f"{city_name}: AI planning failed",
-                        progress=pct_end,
-                        data={"city": city_name, "day_plans": []},
-                    )
-                    continue
 
                 # Build a lookup of candidates by place_id
                 candidate_map: dict[str, PlaceCandidate] = {
@@ -1253,3 +1293,170 @@ class DayPlanOrchestrator:
             city_name,
         )
         return all_candidates
+
+    async def _plan_city_batched(
+        self,
+        city,
+        candidates: list,
+        free_day_count: int,
+        blocked_days: dict,
+        request,
+        landmarks: list[dict] | None = None,
+        city_name: str = "",
+    ) -> "AIPlan":
+        """Plan a city's days using batched quality pipeline.
+
+        Plans in batches of 2-3 days with Day Scout -> Day Reviewer -> Day Fixer loop.
+        Each batch is reviewed and fixed before moving to the next.
+
+        Args:
+            city: The CityStop being planned.
+            candidates: Pre-vetted PlaceCandidates from Google Places API.
+            free_day_count: Number of non-excursion days to plan.
+            blocked_days: Mapping of day index to excursion CityHighlight.
+            request: The original TripRequest.
+            landmarks: Optional top landmarks by visitor reviews.
+            city_name: Name of the city being planned.
+
+        Returns:
+            AIPlan with merged results from all batches.
+        """
+        from app.config.planning import (
+            map_themes_to_days, MAX_DAY_PLAN_ITERATIONS,
+            MIN_DAY_PLAN_SCORE, DAY_PLAN_BATCH_SIZE,
+        )
+        from app.agents.day_planner import _build_meal_time_guidance
+        from app.models.internal import AIPlan
+
+        # Pre-map themes to day numbers
+        theme_map = map_themes_to_days(
+            city.experience_themes,
+            free_day_count + len(blocked_days),
+            blocked_days,
+        )
+
+        all_day_groups = []
+        all_durations = {}
+        all_cost_estimates = {}
+        planned_ids: set[str] = set()
+        batch_size = DAY_PLAN_BATCH_SIZE
+
+        # Get free day numbers (not blocked by excursions)
+        free_day_nums = sorted(
+            d for d in range(1, free_day_count + len(blocked_days) + 1)
+            if d not in blocked_days
+        )
+
+        meal_guidance = _build_meal_time_guidance(city.country or "")
+
+        # Format landmarks for prompts
+        landmarks_section = ""
+        if landmarks:
+            lines = ["TOP LANDMARKS by visitor reviews (include at least one per batch):"]
+            for lm in landmarks[:5]:
+                lines.append(f"- {lm.get('name')} ({lm.get('user_ratings_total', 0):,} reviews)")
+            landmarks_section = "\n".join(lines)
+
+        for batch_start in range(0, len(free_day_nums), batch_size):
+            batch_day_nums = free_day_nums[batch_start:batch_start + batch_size]
+            batch_themes = {d: theme_map.get(d, []) for d in batch_day_nums}
+
+            logger.info(
+                "[DayPlanOrchestrator] Batch planning days %s in %s",
+                batch_day_nums, city_name,
+            )
+
+            # Day Scout: plan this batch
+            try:
+                batch_plan = await self.day_scout.plan_batch(
+                    candidates=candidates,
+                    batch_themes=batch_themes,
+                    destination=city_name,
+                    pace=request.pace.value,
+                    landmarks=landmarks,
+                    already_used=planned_ids,
+                    meal_time_guidance=meal_guidance,
+                    travelers_description=request.travelers.summary,
+                )
+            except Exception as exc:
+                logger.error(
+                    "[DayPlanOrchestrator] Day Scout failed for batch %s: %s",
+                    batch_day_nums, exc,
+                )
+                continue
+
+            # Quality loop: Day Reviewer -> Day Fixer
+            for iteration in range(MAX_DAY_PLAN_ITERATIONS):
+                # Format batch plan for reviewer
+                themes_text = ""
+                for d, themes in sorted(batch_themes.items()):
+                    theme_names = ", ".join(
+                        t.theme for t in themes
+                    ) if themes else "general"
+                    themes_text += f"Day {d}: {theme_names}\n"
+
+                plan_detail = ""
+                for i, group in enumerate(batch_plan.day_groups):
+                    day_num = batch_day_nums[i] if i < len(batch_day_nums) else i + 1
+                    place_names = []
+                    for pid in group.place_ids:
+                        name = next(
+                            (c.name for c in candidates if c.place_id == pid),
+                            pid,
+                        )
+                        dur = batch_plan.durations.get(pid, "?")
+                        place_names.append(f"{name} ({dur}min)")
+                    plan_detail += (
+                        f"Day {day_num} ({group.theme}): "
+                        f"{', '.join(place_names)}\n"
+                    )
+
+                try:
+                    review = await self.day_reviewer.review_batch(
+                        day_plans_detail=plan_detail,
+                        batch_themes=themes_text,
+                        landmarks_section=landmarks_section,
+                        destination=city_name,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[DayPlanOrchestrator] Day Reviewer failed: %s", exc,
+                    )
+                    break
+
+                logger.info(
+                    "[DayPlanOrchestrator] Batch review score: %d "
+                    "(acceptable=%s, iteration=%d)",
+                    review.score, review.is_acceptable, iteration + 1,
+                )
+
+                if review.is_acceptable or review.score >= MIN_DAY_PLAN_SCORE:
+                    break
+
+                # Day Fixer: fix issues
+                try:
+                    batch_plan = await self.day_fixer.fix_batch(
+                        current_plan=batch_plan,
+                        issues=review.issues,
+                        candidates=candidates,
+                        destination=city_name,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[DayPlanOrchestrator] Day Fixer failed: %s", exc,
+                    )
+                    break
+
+            # Collect results from this batch
+            all_day_groups.extend(batch_plan.day_groups)
+            all_durations.update(batch_plan.durations)
+            all_cost_estimates.update(batch_plan.cost_estimates or {})
+            planned_ids.update(batch_plan.selected_place_ids or [])
+
+        # Return merged result as AIPlan
+        return AIPlan(
+            selected_place_ids=list(planned_ids),
+            day_groups=all_day_groups,
+            durations=all_durations,
+            cost_estimates=all_cost_estimates,
+        )

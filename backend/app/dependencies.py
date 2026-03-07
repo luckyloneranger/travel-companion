@@ -15,6 +15,9 @@ from app.services.google.weather import GoogleWeatherService
 from app.services.llm.base import LLMService
 from app.services.llm.factory import create_llm_service
 from app.services.tips import TipsService
+from app.agents.day_fixer import DayFixerAgent
+from app.agents.day_reviewer import DayReviewerAgent
+from app.agents.day_scout import DayScoutAgent
 from app.agents.enricher import EnricherAgent
 
 
@@ -63,14 +66,33 @@ def get_journey_orchestrator(
     return JourneyOrchestrator(llm, places, routes, directions)
 
 
+def get_day_scout(llm: LLMService = Depends(get_llm_service)) -> DayScoutAgent:
+    return DayScoutAgent(llm)
+
+
+def get_day_reviewer(llm: LLMService = Depends(get_llm_service)) -> DayReviewerAgent:
+    return DayReviewerAgent(llm)
+
+
+def get_day_fixer(llm: LLMService = Depends(get_llm_service)) -> DayFixerAgent:
+    return DayFixerAgent(llm)
+
+
 def get_day_plan_orchestrator(
     llm=Depends(get_llm_service),
     places=Depends(get_places_service),
     routes=Depends(get_routes_service),
     directions=Depends(get_directions_service),
     weather=Depends(get_weather_service),
+    day_scout: DayScoutAgent = Depends(get_day_scout),
+    day_reviewer: DayReviewerAgent = Depends(get_day_reviewer),
+    day_fixer: DayFixerAgent = Depends(get_day_fixer),
 ) -> DayPlanOrchestrator:
-    return DayPlanOrchestrator(llm, places, routes, directions, weather)
+    return DayPlanOrchestrator(
+        llm=llm, places=places, routes=routes,
+        directions=directions, weather=weather,
+        day_scout=day_scout, day_reviewer=day_reviewer, day_fixer=day_fixer,
+    )
 
 
 def get_chat_service(
