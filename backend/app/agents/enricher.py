@@ -128,7 +128,10 @@ class EnricherAgent:
                     city.location = Location(lat=lat, lng=lng)
                     # Reject null-island coordinates (0,0)
                     if abs(city.location.lat) < 0.01 and abs(city.location.lng) < 0.01:
-                        logger.warning("[Enricher] Geocoding returned null-island (0,0) for %s — treating as failed", city.name)
+                        logger.error(
+                            "[Enricher] CRITICAL: City %s geocoded to null-island (0,0) — city will have no day plans",
+                            city.name,
+                        )
                         city.location = None
                         continue
                     city.place_id = result.get("place_id")
@@ -162,7 +165,10 @@ class EnricherAgent:
                         city.location = Location(lat=lat, lng=lng)
                         # Reject null-island coordinates (0,0)
                         if abs(city.location.lat) < 0.01 and abs(city.location.lng) < 0.01:
-                            logger.warning("[Enricher] Fallback geocoding returned null-island (0,0) for %s — treating as failed", city.name)
+                            logger.error(
+                                "[Enricher] CRITICAL: City %s geocoded to null-island (0,0) — city will have no day plans",
+                                city.name,
+                            )
                             city.location = None
                         else:
                             city.place_id = result.get("place_id")
@@ -503,6 +509,11 @@ class EnricherAgent:
                 leg.to_city,
                 options.driving.distance_meters / 1000,
             )
+            if leg.mode in (TransportMode.TRAIN, TransportMode.BUS, TransportMode.FERRY):
+                logger.warning(
+                    "[Enricher] No %s service verified for %s → %s — mode may not exist in this region",
+                    leg.mode.value, leg.from_city, leg.to_city,
+                )
             leg.distance_km = round(options.driving.distance_meters / 1000, 1)
             if leg.duration_hours == 0:
                 leg.duration_hours = round(

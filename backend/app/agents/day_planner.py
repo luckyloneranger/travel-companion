@@ -187,12 +187,16 @@ class DayPlannerAgent:
                 plan.cost_estimates.pop(oid, None)
                 plan.durations.pop(oid, None)
 
-        # Validate dining presence per day (warning only)
+        # Validate dining presence per day
         dining_ids = {c.place_id for c in candidates if _is_dining(c)}
         for i, group in enumerate(plan.day_groups):
-            day_dining = [pid for pid in group.place_ids if pid in dining_ids]
-            if len(day_dining) == 0:
-                logger.warning("[DayPlanner] Day %d (%s) has NO dining places", i + 1, group.theme)
+            day_dining_count = len([pid for pid in group.place_ids if pid in dining_ids])
+            if day_dining_count < 1:
+                raise LLMValidationError(
+                    "AIPlan",
+                    [f"Day {i+1} ({group.theme}) has {day_dining_count} dining places (need at least 1)"],
+                    1,
+                )
 
         logger.info("[DayPlanner] LLM selected %d places across %d day groups",
                     len(plan.selected_place_ids), len(plan.day_groups))

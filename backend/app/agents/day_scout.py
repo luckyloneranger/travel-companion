@@ -73,9 +73,40 @@ class DayScoutAgent:
 
         guide = DAY_PLANNER_PACE_GUIDE.get(pace, DAY_PLANNER_PACE_GUIDE["moderate"])
 
+        # Pre-filter: prioritize theme-relevant and landmark candidates
+        batch_keywords = set()
+        for themes in batch_themes.values():
+            for t in themes:
+                if hasattr(t, 'theme'):
+                    batch_keywords.update(t.theme.lower().split())
+                if hasattr(t, 'category'):
+                    batch_keywords.add(t.category.lower())
+
+        def relevance_score(c):
+            score = 0
+            name_lower = c.name.lower()
+            types_str = " ".join(c.types).lower()
+            for kw in batch_keywords:
+                if kw in name_lower or kw in types_str:
+                    score += 1
+            # Landmarks always top priority
+            if landmarks and any(c.name == lm.get('name') for lm in landmarks):
+                score += 100
+            # High review count = important
+            if (c.user_ratings_total or 0) > 5000:
+                score += 10
+            return score
+
+        # Sort by relevance, take top 25 attractions
+        scored_candidates = sorted(
+            [c for c in candidates if not (set(c.types) & DINING_TYPES)],
+            key=lambda c: -relevance_score(c)
+        )
+        filtered_attractions = scored_candidates[:25]
+
+        # Build entries from filtered list (not all candidates)
         attractions = []
-        dining = []
-        for c in candidates:
+        for c in filtered_attractions:
             entry = {
                 "place_id": c.place_id,
                 "name": c.name,
@@ -86,10 +117,26 @@ class DayScoutAgent:
             }
             if c.suggested_duration_minutes:
                 entry["suggested_duration_minutes"] = c.suggested_duration_minutes
-            if set(c.types) & DINING_TYPES:
-                dining.append(entry)
-            else:
-                attractions.append(entry)
+            attractions.append(entry)
+
+        # Dining: take top 15 by rating
+        dining_candidates = sorted(
+            [c for c in candidates if set(c.types) & DINING_TYPES],
+            key=lambda c: -(c.rating or 0)
+        )
+        dining = []
+        for c in dining_candidates[:15]:
+            entry = {
+                "place_id": c.place_id,
+                "name": c.name,
+                "rating": c.rating,
+                "user_ratings_total": c.user_ratings_total,
+                "types": c.types[:3],
+                "location": {"lat": c.location.lat, "lng": c.location.lng} if c.location else None,
+            }
+            if c.suggested_duration_minutes:
+                entry["suggested_duration_minutes"] = c.suggested_duration_minutes
+            dining.append(entry)
 
         themes_text = ""
         for day_num, themes in sorted(batch_themes.items()):
@@ -118,7 +165,7 @@ class DayScoutAgent:
             activities_per_day=guide["total"],
             landmarks_section=landmarks_section,
             already_used_ids=used_text,
-            attractions_json=json.dumps(attractions[:40], indent=2),
-            dining_json=json.dumps(dining[:20], indent=2),
+            attractions_json=json.dumps(attractions, indent=2),
+            dining_json=json.dumps(dining, indent=2),
             meal_time_guidance=meal_time_guidance,
         )

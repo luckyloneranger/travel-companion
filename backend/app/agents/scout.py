@@ -7,7 +7,7 @@ It suggests cities, creates a sensible route, and recommends transport modes.
 import logging
 
 from app.config.regional_transport import get_transport_guidance
-from app.models.journey import Accommodation, JourneyPlan
+from app.models.journey import JourneyPlan
 from app.models.trip import TripRequest
 from app.prompts import journey_prompts
 from app.services.llm.base import LLMService
@@ -126,25 +126,24 @@ class ScoutAgent:
         # Ensure every city has an accommodation
         for city in plan.cities:
             if not city.accommodation or not city.accommodation.name:
-                logger.warning(
-                    "[Scout] City %s has no accommodation — adding placeholder",
+                logger.error(
+                    "[Scout] CRITICAL: City %s has no accommodation — adding fallback placeholder",
                     city.name,
                 )
+                from app.models.journey import Accommodation
                 city.accommodation = Accommodation(
-                    name=f"Hotel in {city.name}",
-                    estimated_nightly_usd=100,  # Safe default
+                    name=f"Central hotel in {city.name}",
+                    why="Fallback — LLM did not suggest a specific hotel. Please update manually.",
+                    estimated_nightly_usd=100,
                 )
 
         # Collapse city-state / single-city multi-destination plans into one
         self._collapse_city_state_destinations(plan)
 
-        # Validate experience themes (preferred) or highlights (fallback)
+        # Validate experience themes
         for city in plan.cities:
-            if not city.experience_themes and not city.highlights:
-                logger.warning(
-                    "[Scout] City %s has no experience themes or highlights",
-                    city.name,
-                )
+            if not city.experience_themes:
+                logger.warning("[Scout] City %s has no experience themes", city.name)
 
         # Validate excursion days
         for city in plan.cities:
