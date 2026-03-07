@@ -17,6 +17,16 @@ class Accommodation(BaseModel):
     estimated_nightly_usd: float | None = None
 
 
+class ExperienceTheme(BaseModel):
+    """A category of experience available at a destination — used by Scout for journey-level planning."""
+    theme: str
+    category: str
+    excursion_type: str | None = None
+    excursion_days: int | None = None
+    distance_from_city_km: float | None = None
+    why: str = ""
+
+
 class CityHighlight(BaseModel):
     name: str
     description: str = ""
@@ -31,6 +41,7 @@ class CityStop(BaseModel):
     country: str
     days: int
     highlights: list[CityHighlight] = []
+    experience_themes: list[ExperienceTheme] = []
     why_visit: str = ""
     best_time_to_visit: str = ""
     location: Location | None = None

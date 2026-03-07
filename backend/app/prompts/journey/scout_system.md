@@ -74,33 +74,25 @@ Choose the OPTIMAL number of destinations based on:
 - Example: Luang Prabang → Hoi An = 3 segments: (1) drive to airport 0.3h, (2) flight 1.5h, (3) drive from Da Nang airport to Hoi An 0.75h
 - Simple direct routes (Bangkok → Chiang Mai by train) do NOT need segments — only use segments when the journey involves mode changes or gateway airports/ports.
 
-### 6. HIGHLIGHTS For Each Destination
-- **Scale highlights to match the number of days:**
-  - 2-3 day destination: 3-5 highlights
-  - 4-5 day destination: 5-7 highlights
-  - 6-7 day destination: 7-9 highlights
-  - 8+ day destination: 8-12 highlights (need variety to fill many themed days)
-- Match to the traveler's specific interests
-- Mix famous landmarks with hidden gems and local experiences
-- Include at least one food/culinary experience per destination
-- For destinations with **theme parks** (Universal Studios, Disneyland, etc.), **zoos**, **aquariums**, or **water parks**, include them as highlights with appropriate `excursion_type` — these are major draws that travelers expect
-- **Duration sanity check**: Total highlight hours per destination should not exceed 70% of available day hours (assume active hours vary by pace, season, and destination — typically 8-10 hours per day depending on pace preference and daylight). A 2-day destination = ~14 hours of activities max, a 3-day destination = ~21 hours max. This leaves room for meals, travel within the area, and rest.
+### 6. EXPERIENCE THEMES — What To Do There
+For each destination, provide `experience_themes` — categories of experiences the city offers:
+- Each theme describes a TYPE of experience, not a specific attraction name
+- Include 5-8 themes per destination (more for longer stays)
+- For out-of-city experiences (day trips, multi-day excursions), set `excursion_type` and `distance_from_city_km`
+- Categories: "food", "culture", "nature", "adventure", "excursion", "shopping", "nightlife", "entertainment", "beach", "wellness", "religious"
 
-### 6b. EXCURSIONS & SPECIAL EXPERIENCES
-Some destinations are famous for experiences that don't fit a standard day itinerary. When a destination has such experiences, mark them in highlights with `excursion_type`:
+**Excursion themes** (experiences OUTSIDE the city needing dedicated time):
+- `full_day`: Theme parks, safaris, far day trips — set `distance_from_city_km`
+- `half_day_morning` / `half_day_afternoon`: Cooking classes, morning snorkeling, afternoon tours
+- `multi_day`: Overnight cruises, multi-day treks — set `excursion_days`
+- `evening`: Night markets, dinner shows, pub crawls
 
-- **full_day**: Theme parks (Disney, Universal Studios), safaris, day cruises, island day-trips — consumes entire day
-- **half_day_morning**: Cooking classes, market tours, morning snorkeling — blocks morning only
-- **half_day_afternoon**: Wine tours, afternoon boat tours, sunset cruises — blocks afternoon only
-- **multi_day**: Ha Long Bay overnight cruises, Sapa treks, desert camping, Mekong Delta tours — spans 2-3 consecutive days. Set `excursion_days` (e.g., 2)
-- **evening**: Dinner cruises, night markets, traditional shows (kabuki, flamenco), pub crawls — evening only, daytime free
-
-Rules:
-- Only mark experiences that GENUINELY require extended time — don't mark a 2-hour museum as full_day
-- Maximum 1 multi_day excursion per destination
-- Full-day excursions must not exceed half the destination's allocated days (e.g., 3-day city → max 1 full_day excursion)
-- Set `excursion_type` on the highlight object. Set `excursion_days` only for multi_day type
-- Not every destination needs excursions — only include them when the destination is genuinely famous for such experiences
+Example for Hanoi (5 days):
+- "Old Quarter street food" (food) — "Dense food stalls across 36 ancient streets"
+- "Temple & pagoda heritage" (culture) — "Temple of Literature, One Pillar Pagoda"
+- "Ha Long Bay overnight cruise" (excursion, multi_day, 2 days, 170km) — "UNESCO karsts, overnight junk boat"
+- "Ninh Binh rice paddy day trip" (excursion, full_day, 90km) — "Boat rides through caves and paddies"
+- "Water puppet & night market evening" (nightlife) — "Traditional shows and street snacks"
 
 ### 7. SAFETY & PRACTICALITY
 - Do NOT suggest destinations in active conflict zones or areas with travel advisories
@@ -157,8 +149,8 @@ Your plan will be evaluated by a quality Reviewer on 5 dimensions (with weights)
 - **Factor in seasonal pricing**: peak season (summer in Europe, Dec-Jan in tropical destinations, cherry blossom in Japan) can be 50-100% more expensive than off-peak. Adjust estimates accordingly.
 
 ## CATEGORY OPTIONS
-Use ONLY these categories for highlights:
-`culture`, `food`, `nature`, `history`, `shopping`, `nightlife`, `adventure`, `wellness`, `architecture`, `art`, `religious`, `markets`, `beach`, `entertainment`, `photography`, `local_life`
+Use ONLY these categories for experience_themes:
+`food`, `culture`, `nature`, `adventure`, `excursion`, `shopping`, `nightlife`, `entertainment`, `beach`, `wellness`, `religious`
 
 ## OUTPUT
 Return ONLY the JSON object. No markdown fences, no explanatory text before or after the JSON.

@@ -51,11 +51,21 @@ export interface CityHighlight {
   excursion_days: number | null;
 }
 
+export interface ExperienceTheme {
+  theme: string;
+  category: string;
+  excursion_type?: string;
+  excursion_days?: number;
+  distance_from_city_km?: number;
+  why?: string;
+}
+
 export interface CityStop {
   name: string;
   country: string;
   days: number;
   highlights: CityHighlight[];
+  experience_themes?: ExperienceTheme[];
   why_visit: string;
   best_time_to_visit: string;
   seasonal_notes?: string;

@@ -33,7 +33,7 @@ Fix this journey plan based on the review feedback:
 6. When fixing TIME FEASIBILITY: reduce the longest highlights first, or remove an excursion
 7. When fixing BUDGET issues: suggest cheaper accommodation or remove expensive excursions
 8. Preserve seasonal_notes, visa_notes, altitude_meters, safety_notes from the original plan
-9. When fixing INTEREST ALIGNMENT: check if top-5 landmarks from Google data are missing and add them as highlights with appropriate excursion_type
+9. When fixing INTEREST ALIGNMENT: check if major experience categories from the landscape data are missing from experience_themes and add appropriate themes
 
 Return the COMPLETE fixed plan in JSON:
 ```json

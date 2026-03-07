@@ -72,8 +72,21 @@ class DayPlanOrchestrator:
     @staticmethod
     def _extract_excursions(
         highlights: list[CityHighlight],
+        experience_themes: list | None = None,
     ) -> list[CityHighlight]:
-        """Filter highlights that have an excursion_type set."""
+        """Extract excursion items from experience_themes (preferred) or highlights."""
+        if experience_themes:
+            excursions = []
+            for et in experience_themes:
+                if et.excursion_type:
+                    excursions.append(CityHighlight(
+                        name=et.theme,
+                        description=et.why,
+                        category=et.category,
+                        excursion_type=et.excursion_type,
+                        excursion_days=et.excursion_days,
+                    ))
+            return excursions
         return [h for h in highlights if h.excursion_type is not None]
 
     @staticmethod
@@ -219,7 +232,10 @@ class DayPlanOrchestrator:
                 # ----------------------------------------------------------
                 # 0. Handle excursions
                 # ----------------------------------------------------------
-                excursions = self._extract_excursions(city.highlights)
+                excursions = self._extract_excursions(
+                    city.highlights,
+                    experience_themes=city.experience_themes if city.experience_themes else None,
+                )
                 blocked_days: dict[int, CityHighlight] = {}
                 partial_days: dict[int, CityHighlight] = {}
                 excursion_plans: list[DayPlan] = []
@@ -312,6 +328,46 @@ class DayPlanOrchestrator:
                                 candidates.append(hc)
                                 existing_ids.add(hc.place_id)
 
+                # Per-city landmark discovery (top attractions by review count)
+                try:
+                    city_landmarks = await self.places.discover_landmarks(city_name)
+                    if city_landmarks:
+                        existing_ids = {c.place_id for c in candidates}
+                        for lm in city_landmarks:
+                            lm_results = await self.places.text_search_places(
+                                query=lm["name"] + " " + city_name,
+                                location=city.location,
+                                max_results=1,
+                            )
+                            for lc in lm_results:
+                                if lc.place_id not in existing_ids:
+                                    candidates.append(lc)
+                                    existing_ids.add(lc.place_id)
+                        logger.info(
+                            "[DayPlanOrchestrator] Added landmark candidates for %s",
+                            city_name,
+                        )
+                except Exception as exc:
+                    logger.warning("[DayPlanOrchestrator] Landmark discovery failed for %s: %s", city_name, exc)
+
+                # Theme-based discovery for far excursions
+                if city.experience_themes:
+                    existing_ids = {c.place_id for c in candidates}
+                    for et in city.experience_themes:
+                        if et.distance_from_city_km and et.distance_from_city_km > 20:
+                            try:
+                                theme_results = await self.places.text_search_places(
+                                    query=f"{et.theme} near {city_name}",
+                                    location=city.location,
+                                    max_results=3,
+                                )
+                                for tr in theme_results:
+                                    if tr.place_id not in existing_ids:
+                                        candidates.append(tr)
+                                        existing_ids.add(tr.place_id)
+                            except Exception:
+                                pass
+
                 # Resolve photo references to full URLs
                 for c in candidates:
                     if c.photo_references:
@@ -398,6 +454,7 @@ class DayPlanOrchestrator:
                         highlights=city.highlights if city.highlights else None,
                         best_time_to_visit=city.best_time_to_visit or "",
                         hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
+                        experience_themes=city.experience_themes if city.experience_themes else None,
                     )
                 except LLMValidationError:
                     logger.warning(
@@ -420,6 +477,7 @@ class DayPlanOrchestrator:
                             highlights=city.highlights if city.highlights else None,
                             best_time_to_visit=city.best_time_to_visit or "",
                             hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
+                            experience_themes=city.experience_themes if city.experience_themes else None,
                         )
                     except (LLMValidationError, Exception) as exc:
                         logger.error(
