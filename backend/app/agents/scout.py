@@ -126,10 +126,15 @@ class ScoutAgent:
         # Ensure every city has an accommodation
         for city in plan.cities:
             if not city.accommodation or not city.accommodation.name:
-                raise LLMValidationError(
-                    "JourneyPlan",
-                    [f"City '{city.name}' has no accommodation. Each city MUST have a hotel suggestion with name and estimated_nightly_usd."],
-                    1,
+                logger.error(
+                    "[Scout] CRITICAL: City %s has no accommodation — adding fallback placeholder",
+                    city.name,
+                )
+                from app.models.journey import Accommodation
+                city.accommodation = Accommodation(
+                    name=f"Central hotel in {city.name}",
+                    why="Fallback — LLM did not suggest a specific hotel. Please update manually.",
+                    estimated_nightly_usd=100,
                 )
 
         # Collapse city-state / single-city multi-destination plans into one

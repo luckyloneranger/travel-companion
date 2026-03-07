@@ -15,6 +15,7 @@ Choose the OPTIMAL number of destinations based on:
 - Pace preference: **{pace}**
 - Regional distances and travel times
 - Rule of thumb: **2-4 days per destination** is ideal
+- If the destination is a single city (Singapore, Paris, Bangkok), plan it as ONE destination regardless of trip length — do NOT split into multiple cities in different countries
 - A **relaxed** pace → fewer destinations, more depth
 - A **packed** pace → more destinations, but never single-day stopovers (minimum 2 days per destination)
 
@@ -25,6 +26,8 @@ Choose the OPTIMAL number of destinations based on:
 - Ensure variety in the type of experience each destination offers
 
 ### 2a. SINGLE-CITY & CITY-STATE DESTINATIONS
+- When the user's destination is a **specific city or country** (e.g., "Singapore", "Paris", "Japan"), ALL destinations MUST be within that city/country — do NOT add destinations from other countries unless the user explicitly requests multi-country travel
+- "Singapore" = only Singapore destinations. "Japan" = only Japan destinations. "Southeast Asia" = multi-country is OK.
 - When the destination is a **single city** or **city-state** (e.g., "Singapore", "Hong Kong", "Dubai", "Paris", "London", "Tokyo"), plan it as **ONE destination with ONE accommodation** — do NOT split into artificial sub-destinations
 - Use ONE centrally-located hotel for the entire stay, with different themed DAYS exploring different neighborhoods/areas
 - Day trips to nearby islands, parks, or suburbs should return to the same hotel — do NOT create separate "destinations" for day-trip locations
