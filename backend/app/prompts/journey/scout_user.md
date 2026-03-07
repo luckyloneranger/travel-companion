@@ -17,7 +17,7 @@ Travel dates: {travel_dates}
 2. Select destinations that best match the interests — include iconic landmarks, natural wonders, and cultural hubs, not just major cities
 3. Allocate days to each destination (total must equal {total_days}, minimum 2 days per destination)
 4. Create logical travel connections between destinations (no backtracking)
-5. Suggest 3-5 highlights per destination using ONLY the allowed categories
+5. Suggest 5-8 experience_themes per destination using ONLY the allowed categories
 
 **EXAMPLE OUTPUT** (for a 7-day Japan trip — adapt structure to your region):
 ```json
@@ -31,24 +31,21 @@ Travel dates: {travel_dates}
       "days": 3,
       "why_visit": "Japan's cultural capital with 2000+ temples, traditional geisha districts, and world-class gardens",
       "best_time_to_visit": "Morning for temples (avoid crowds), evening for Gion district",
-      "highlights": [
+      "experience_themes": [
         {{
-          "name": "Fushimi Inari Shrine",
-          "description": "Thousands of vermillion torii gates winding up Mount Inari — arrive at dawn for an ethereal, crowd-free experience",
+          "theme": "Shrine and temple circuit",
           "category": "religious",
-          "suggested_duration_hours": 2.5
+          "why": "Fushimi Inari's thousand torii gates, Kinkaku-ji golden pavilion, and 2000+ temples across the city"
         }},
         {{
-          "name": "Nishiki Market",
-          "description": "Kyoto's 400-year-old kitchen — sample pickles, matcha sweets, and fresh seafood across 100+ stalls",
-          "category": "markets",
-          "suggested_duration_hours": 1.5
+          "theme": "Traditional food markets",
+          "category": "food",
+          "why": "Nishiki Market's 400-year-old kitchen with matcha sweets and fresh seafood across 100+ stalls"
         }},
         {{
-          "name": "Arashiyama Bamboo Grove",
-          "description": "Towering bamboo stalks create an otherworldly green corridor — best at sunrise",
+          "theme": "Bamboo forests and zen gardens",
           "category": "nature",
-          "suggested_duration_hours": 2.0
+          "why": "Arashiyama Bamboo Grove and world-class zen gardens offering serene natural beauty"
         }}
       ],
       "accommodation": {{
@@ -89,12 +86,23 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
       "visa_notes": "Entry requirements for this destination",
       "altitude_meters": 0,
       "safety_notes": "Safety context for the traveler profile",
-      "highlights": [
+      "experience_themes": [
         {{
-          "name": "Attraction or Experience Name",
-          "description": "Vivid 1-2 sentence description with an insider tip",
-          "category": "culture|food|nature|history|shopping|nightlife|adventure|wellness|architecture|art|religious|markets|beach|entertainment|photography|local_life",
-          "suggested_duration_hours": 2.0
+          "theme": "Local food and market culture",
+          "category": "food",
+          "why": "Famous street food scene with night markets and hawker stalls"
+        }},
+        {{
+          "theme": "Ancient temples and heritage sites",
+          "category": "culture",
+          "why": "Rich historical quarter with UNESCO-listed landmarks"
+        }},
+        {{
+          "theme": "Nearby island day trip",
+          "category": "excursion",
+          "excursion_type": "full_day",
+          "distance_from_city_km": 50,
+          "why": "Scenic island accessible by ferry with beaches and snorkeling"
         }}
       ],
       "accommodation": {{
@@ -129,7 +137,7 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
 **STRICT RULES:**
 - Total days across all destinations MUST equal {total_days}
 - Each destination MUST have minimum 2 days
-- Each destination MUST have 3-5 highlights with vivid descriptions
+- Each destination MUST have 5-8 experience_themes with why descriptions
 - The origin ({origin}) is the departure point — only include it in destinations if it matches the destination type AND has tourist value for day activities
 - Travel legs connect destination1 to destination2 to destination3 and so on (first leg is from first destination to second destination)
 - Choose transport modes that are ACTUALLY available and popular in {region} — include ferries/boats for coastal and island destinations
@@ -143,3 +151,4 @@ Note: Use the key "cities" for the destinations array, but destinations CAN be n
 - Each accommodation MUST include `why` explaining the hotel choice
 - Each cross-country travel leg MUST include `visa_requirement`
 - For multi-modal legs (airports, ferries with drives, border crossings), include `segments` array. Direct single-mode legs don't need segments.
+- Out-of-city excursion themes MUST set excursion_type and distance_from_city_km

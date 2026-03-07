@@ -66,17 +66,18 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - For family groups with children/infants, are activities age-appropriate and accessible?
 - If any critical seasonal or safety issue is found, add it as a **critical** issue with category `seasonal` or `safety` — this WILL set is_acceptable=false regardless of score.
 
-### 7. HIGHLIGHT & EXCURSION VALIDATION (does not contribute to score, but flag as issues)
-- Verify total highlight hours per city ≤ 70% of available day hours (city.days × 8h)
-- Verify max 1 multi_day excursion per destination
-- Verify full_day excursions ≤ 50% of city days
-- Verify accommodation price aligns with budget tier (budget: <$100/night, moderate: $100-300/night, luxury: $300+/night)
-- Flag mismatches as **major** issues with category `balance`
+### 7. EXPERIENCE THEME VALIDATION (does not contribute to score, but flag as issues)
+- Each city should have at least 5 experience themes for stays of 3+ days
+- Theme count should roughly match day allocation (5 themes for 3 days is OK; 3 themes for 10 days is sparse)
+- Excursion themes must have realistic excursion_days (overnight cruise = 2, not 5)
+- Distance_from_city_km should be set for out-of-city excursions
+- Flag sparse themes as **major** issues with category `interest_alignment`
 
-### 8. LANDMARK COVERAGE CHECK (does not contribute to score, but flag as issues)
-- Compare the plan's highlights against the destination's top 5 most-reviewed attractions listed in the landmark data above
-- If any top-5 attraction by review count is missing from ALL highlights across ALL cities, flag as a **major** issue with category `interest_alignment`
-- The traveler expects to see a destination's signature attractions — omitting them without explanation in `why_visit` is a plan quality failure
+### 8. LANDSCAPE ALIGNMENT CHECK (does not contribute to score, but flag as issues)
+- Compare experience_themes against the destination landscape data above
+- If the destination has top-reviewed attractions (50,000+ reviews) in categories NOT covered by any theme, flag as **major** issue
+- Example: Singapore has theme parks (110K reviews) — if no entertainment/excursion theme exists, flag it
+- The traveler expects signature experiences — missing entire categories is a plan quality failure
 
 ## SEVERITY LEVELS
 - **critical**: Makes trip impossible (not enough time, missed connections, border issues, **non-existent or unverifiable destination**)

@@ -138,29 +138,29 @@ class ScoutAgent:
         # Collapse city-state / single-city multi-destination plans into one
         self._collapse_city_state_destinations(plan)
 
-        # Validate excursion days don't exceed city allocation
+        # Validate experience themes (preferred) or highlights (fallback)
+        for city in plan.cities:
+            if not city.experience_themes and not city.highlights:
+                logger.warning(
+                    "[Scout] City %s has no experience themes or highlights",
+                    city.name,
+                )
+
+        # Validate excursion days
         for city in plan.cities:
             excursion_days = 0
-            for h in city.highlights:
-                if h.excursion_type == "full_day":
+            items = city.experience_themes or city.highlights
+            for item in items:
+                et = getattr(item, 'excursion_type', None)
+                if et == "full_day":
                     excursion_days += 1
-                elif h.excursion_type == "multi_day":
-                    excursion_days += h.excursion_days or 2
+                elif et == "multi_day":
+                    excursion_days += getattr(item, 'excursion_days', 2) or 2
             if excursion_days > city.days:
                 logger.warning(
-                    "[Scout] %s: excursion days (%d) exceed city days (%d) — trimming excursions",
+                    "[Scout] %s: excursion days (%d) exceed city days (%d) — trimming",
                     city.name, excursion_days, city.days,
                 )
-                # Remove excess excursions (keep the first ones)
-                kept = 0
-                for h in city.highlights:
-                    if h.excursion_type in ("full_day", "multi_day"):
-                        days_needed = (h.excursion_days or 1) if h.excursion_type == "multi_day" else 1
-                        if kept + days_needed > city.days:
-                            h.excursion_type = None
-                            h.excursion_days = None
-                        else:
-                            kept += days_needed
 
         expected_legs = len(plan.cities) - 1
         if expected_legs > 0 and len(plan.travel_legs) != expected_legs:
@@ -222,6 +222,16 @@ class ScoutAgent:
                     seen_highlights.add(h.name)
                     merged_highlights.append(h)
         primary.highlights = merged_highlights
+
+        # Merge experience_themes from all cities
+        seen_themes: set[str] = set()
+        merged_themes = []
+        for city in plan.cities:
+            for et in city.experience_themes:
+                if et.theme not in seen_themes:
+                    seen_themes.add(et.theme)
+                    merged_themes.append(et)
+        primary.experience_themes = merged_themes
 
         # Merge why_visit
         reasons = [c.why_visit for c in plan.cities if c.why_visit]

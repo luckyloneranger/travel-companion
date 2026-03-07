@@ -388,6 +388,81 @@ class GooglePlacesService:
         all_results.sort(key=lambda p: p.get("user_ratings_total") or 0, reverse=True)
         return all_results[:max_results]
 
+    async def discover_destination_landscape(
+        self, destination: str
+    ) -> str:
+        """Discover what types of experiences a destination offers.
+
+        Returns a formatted landscape summary for Scout context — categorized
+        by type with top attractions by review count. Used to inform Scout's
+        experience_themes, NOT for specific attraction selection.
+        """
+        landmarks = await self.discover_landmarks(destination, max_results=15)
+        if not landmarks:
+            return ""
+
+        categories: dict[str, list[dict[str, Any]]] = {
+            "Theme parks & entertainment": [],
+            "Nature & wildlife": [],
+            "Cultural & historical": [],
+            "Religious & spiritual": [],
+            "Shopping & markets": [],
+            "Landmarks & viewpoints": [],
+            "Other attractions": [],
+        }
+
+        type_map = {
+            "amusement_park": "Theme parks & entertainment",
+            "theme_park": "Theme parks & entertainment",
+            "water_park": "Theme parks & entertainment",
+            "zoo": "Nature & wildlife",
+            "aquarium": "Nature & wildlife",
+            "park": "Nature & wildlife",
+            "national_park": "Nature & wildlife",
+            "garden": "Nature & wildlife",
+            "museum": "Cultural & historical",
+            "art_gallery": "Cultural & historical",
+            "historical_landmark": "Cultural & historical",
+            "monument": "Cultural & historical",
+            "temple": "Religious & spiritual",
+            "church": "Religious & spiritual",
+            "mosque": "Religious & spiritual",
+            "hindu_temple": "Religious & spiritual",
+            "buddhist_temple": "Religious & spiritual",
+            "shopping_mall": "Shopping & markets",
+            "market": "Shopping & markets",
+            "tourist_attraction": "Landmarks & viewpoints",
+        }
+
+        for lm in landmarks:
+            placed = False
+            for t in lm.get("types", []):
+                if t in type_map:
+                    categories[type_map[t]].append(lm)
+                    placed = True
+                    break
+            if not placed:
+                categories["Other attractions"].append(lm)
+
+        lines = [
+            "## DESTINATION LANDSCAPE (from Google data)",
+            f"Top experiences available in {destination} by visitor popularity:",
+            "",
+        ]
+        for cat_name, places in categories.items():
+            if places:
+                top = ", ".join(
+                    f"{p['name']} ({p.get('user_ratings_total', 0):,} reviews)"
+                    for p in places[:3]
+                )
+                lines.append(f"- **{cat_name}**: {top}")
+
+        lines.append("")
+        lines.append("Use this landscape to set experience_themes and allocate days.")
+        lines.append("Do NOT copy specific attraction names — describe experience categories instead.")
+
+        return "\n".join(lines)
+
     async def get_place_details(self, place_id: str) -> dict[str, Any]:
         """Fetch full details for a single place by its ID."""
         url = f"{BASE_URL}/places/{place_id}"

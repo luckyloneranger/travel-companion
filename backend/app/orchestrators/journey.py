@@ -81,29 +81,20 @@ class JourneyOrchestrator:
             complete, or error phases.
         """
         try:
-            # ── Step 0: Discover landmarks ────────────────────────
-            landmarks_section = ""
+            # ── Step 0: Discover destination landscape ─────────────
+            landscape_context = ""
             try:
-                landmarks = await self.places.discover_landmarks(request.destination)
-                if landmarks:
-                    lines = [
-                        "## DESTINATION'S MOST POPULAR ATTRACTIONS (from Google, by visitor reviews)",
-                        "You MUST consider including the top-ranked attractions in your highlights.",
-                        "If you exclude a top-5 attraction, explain why in why_visit.\n",
-                    ]
-                    for i, lm in enumerate(landmarks):
-                        reviews = lm.get("user_ratings_total", 0)
-                        rating = lm.get("rating", 0)
-                        name = lm.get("name", "")
-                        lines.append(f"{i+1}. {name} ({rating}★, {reviews:,} reviews)")
-                    landmarks_section = "\n".join(lines)
+                landscape_context = await self.places.discover_destination_landscape(
+                    request.destination
+                )
+                if landscape_context:
                     logger.info(
-                        "[Orchestrator] Discovered %d landmarks for %s",
-                        len(landmarks), request.destination,
+                        "[Orchestrator] Landscape discovered for %s",
+                        request.destination,
                     )
             except Exception as exc:
-                logger.warning("[Orchestrator] Landmark discovery failed: %s", exc)
-            self._landmarks_context = landmarks_section
+                logger.warning("[Orchestrator] Landscape discovery failed: %s", exc)
+            self._landmarks_context = landscape_context
 
             # ── Step 1: Scout ────────────────────────────────────────
             yield ProgressEvent(
@@ -112,7 +103,7 @@ class JourneyOrchestrator:
                 progress=10,
             )
             logger.info("[Orchestrator] Scouting plan for %s", request.destination)
-            plan: JourneyPlan = await self.scout.generate_plan(request, landmarks_context=landmarks_section)
+            plan: JourneyPlan = await self.scout.generate_plan(request, landmarks_context=self._landmarks_context)
             yield ProgressEvent(
                 phase="scouting",
                 message=f"Planned {len(plan.cities)} cities",

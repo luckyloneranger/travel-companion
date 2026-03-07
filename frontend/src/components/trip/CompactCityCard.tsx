@@ -137,8 +137,18 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
         </div>
       </div>
 
-      {/* ── Highlights (unless hidden) ───────────────────────────── */}
-      {!hideHighlights && city.highlights.length > 0 && (
+      {/* ── Experience Themes or Highlights ─────────────────────── */}
+      {city.experience_themes && city.experience_themes.length > 0 ? (
+        <div className="px-4 pb-2 flex flex-wrap gap-x-3 gap-y-1.5">
+          {city.experience_themes.map((et) => (
+            <span key={et.theme} className="text-sm text-text-secondary flex items-center gap-1" title={et.why || undefined}>
+              <Badge variant="outline" className="text-xs capitalize">{et.category}</Badge>
+              {et.theme}
+              {et.excursion_type && <span className="text-xs text-accent-500 ml-0.5">({et.excursion_type})</span>}
+            </span>
+          ))}
+        </div>
+      ) : !hideHighlights && city.highlights && city.highlights.length > 0 && (
         <div className="px-4 pb-2 flex flex-wrap gap-x-3 gap-y-1">
           {city.highlights.map((h) => (
             <span key={h.name} className="text-sm text-text-secondary flex items-center gap-1">

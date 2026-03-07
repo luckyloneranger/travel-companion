@@ -102,6 +102,7 @@ class DayPlannerAgent:
         highlights: list | None = None,
         best_time_to_visit: str = "",
         hotel_location=None,
+        experience_themes: list | None = None,
     ) -> AIPlan:
         """Given discovered place candidates, select and group into themed days.
 
@@ -130,6 +131,7 @@ class DayPlannerAgent:
             highlights=highlights,
             best_time_to_visit=best_time_to_visit,
             hotel_location=hotel_location,
+            experience_themes=experience_themes,
         )
 
         logger.info(
@@ -270,6 +272,7 @@ class DayPlannerAgent:
         highlights: list | None = None,
         best_time_to_visit: str = "",
         hotel_location=None,
+        experience_themes: list | None = None,
     ) -> str:
         """Format the user prompt template with candidate data."""
         guide = _PACE_GUIDE.get(pace, _PACE_GUIDE["moderate"])
@@ -360,9 +363,23 @@ class DayPlannerAgent:
                     lines.append(f"- Day {day_num}: only ~{available_hours:.0f} hours available ({reason}). Scale activity count proportionally.")
             time_constraints_section = "\n".join(lines)
 
-        # Build Scout highlights section
+        # Build experience themes or scout highlights section
+        themes_section = ""
+        if experience_themes:
+            lines = ["## EXPERIENCE THEMES TO COVER",
+                     "Build themed days covering these experience categories. Each theme should get at least one day or half-day.\n"]
+            for et in experience_themes:
+                if hasattr(et, 'excursion_type') and et.excursion_type:
+                    continue  # Excursions are handled separately by orchestrator
+                why = f' — "{et.why}"' if hasattr(et, 'why') and et.why else ""
+                lines.append(f"- {et.theme} ({et.category}){why}")
+            themes_section = "\n".join(lines)
+
+        # Use themes section if available, otherwise fall back to scout highlights
         scout_highlights_section = ""
-        if highlights:
+        if themes_section:
+            scout_highlights_section = themes_section
+        elif highlights:
             hl_lines = ["## MUST-INCLUDE ATTRACTIONS",
                         "These are the destination's signature attractions. You MUST include each one in a day plan unless it's scheduled as a full-day excursion. Missing a must-include attraction is a critical error."]
             for h in highlights:

@@ -56,7 +56,18 @@ class ReviewerAgent:
             lines.append(f"{i+1}. {city.name}, {city.country} ({city.days} days)")
             if city.why_visit:
                 lines.append(f"   Why: {city.why_visit}")
-            if city.highlights:
+            if city.experience_themes:
+                lines.append("   Experience themes:")
+                for et in city.experience_themes:
+                    exc = f" [{et.excursion_type}]" if et.excursion_type else ""
+                    dist = f" ({et.distance_from_city_km:.0f}km from city)" if et.distance_from_city_km else ""
+                    days = f" ({et.excursion_days} days)" if et.excursion_days else ""
+                    lines.append(f"     - {et.theme} ({et.category}){exc}{days}{dist}")
+                    if et.why:
+                        lines.append(f"       → {et.why}")
+                theme_count = len(city.experience_themes)
+                lines.append(f"   Theme coverage: {theme_count} themes for {city.days} days")
+            elif city.highlights:
                 lines.append("   Highlights:")
                 total_hours = 0.0
                 for h in city.highlights:
