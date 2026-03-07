@@ -167,10 +167,18 @@ class PlannerAgent:
         for i, city in enumerate(plan.cities):
             if not city.name.strip():
                 raise LLMValidationError("JourneyPlan", [f"City at index {i} has empty name"], 1)
+
+        # Accept N-1 (inter-city) through N (with return leg) travel legs
         expected_legs = len(plan.cities) - 1
-        if expected_legs > 0 and len(plan.travel_legs) != expected_legs:
-            raise LLMValidationError(
-                "JourneyPlan",
-                [f"Expected {expected_legs} travel legs for {len(plan.cities)} cities, got {len(plan.travel_legs)}"],
-                1,
+        max_legs = len(plan.cities)  # Allow optional return leg
+        if len(plan.travel_legs) > max_legs:
+            logger.warning(
+                "[Planner] %d travel legs for %d cities — trimming to %d",
+                len(plan.travel_legs), len(plan.cities), expected_legs,
+            )
+            plan.travel_legs = plan.travel_legs[:expected_legs]
+        elif len(plan.travel_legs) < expected_legs:
+            logger.warning(
+                "[Planner] Only %d travel legs for %d cities (expected %d)",
+                len(plan.travel_legs), len(plan.cities), expected_legs,
             )

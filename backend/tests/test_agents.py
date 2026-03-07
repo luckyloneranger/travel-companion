@@ -481,7 +481,8 @@ class TestExcursionBlocking:
         assert plan.theme == "Ha Long Bay Cruise"
         assert len(plan.activities) == 1
         assert plan.activities[0].place.name == "Ha Long Bay Cruise"
-        assert plan.activities[0].notes == "Overnight cruise through limestone karsts"
+        assert "Overnight cruise through limestone karsts" in plan.activities[0].notes
+        assert "explore at your own pace" in plan.activities[0].notes
 
     def test_compute_schedule_multi_day_at_end(self):
         from app.models.journey import CityHighlight

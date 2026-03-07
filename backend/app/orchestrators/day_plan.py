@@ -129,12 +129,15 @@ class DayPlanOrchestrator:
             category=excursion.category or "excursion",
         )
 
+        notes = excursion.description or "Full-day experience"
+        notes += " — explore at your own pace, no rigid schedule needed."
+
         activity = Activity(
             time_start="09:00",
             time_end="18:00",
             duration_minutes=540,
             place=place,
-            notes=excursion.description,
+            notes=notes,
         )
 
         return DayPlan(
@@ -457,6 +460,31 @@ class DayPlanOrchestrator:
                             city_landmarks = await self.places.discover_landmarks(city_name)
                         except Exception:
                             pass
+
+                        # Merge landmark places into candidate pool so Day Scout
+                        # can select them by place_id (not just see them as text)
+                        if city_landmarks:
+                            existing_ids = {c.place_id for c in candidates}
+                            for lm in city_landmarks[:7]:
+                                lm_name = lm.get("name", "")
+                                if not lm_name:
+                                    continue
+                                try:
+                                    lm_results = await self.places.text_search_places(
+                                        query=f"{lm_name} {city_name}",
+                                        location=city.location,
+                                        max_results=1,
+                                    )
+                                    for lc in lm_results:
+                                        if lc.place_id not in existing_ids:
+                                            candidates.append(lc)
+                                            existing_ids.add(lc.place_id)
+                                except Exception:
+                                    pass
+                            logger.info(
+                                "[DayPlanOrchestrator] Merged landmark candidates for %s (batched) — total: %d",
+                                city_name, len(candidates),
+                            )
 
                         ai_plan = await self._plan_city_batched(
                             city=city,
