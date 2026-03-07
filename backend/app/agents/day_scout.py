@@ -101,9 +101,10 @@ class DayScoutAgent:
 
         landmarks_section = ""
         if landmarks:
-            lines = ["TOP LANDMARKS by visitor reviews (include at least one per batch):"]
-            for lm in landmarks[:5]:
-                lines.append(f"- {lm.get('name')} ({lm.get('user_ratings_total', 0):,} reviews)")
+            lines = ["## MUST-SELECT LANDMARKS (top attractions — include at least 2 per batch)",
+                      "These are the MOST VISITED attractions. You MUST include them in your plan:\n"]
+            for lm in landmarks[:7]:
+                lines.append(f"- **{lm.get('name')}** ({lm.get('user_ratings_total', 0):,} reviews, {lm.get('rating', 0)}★)")
             landmarks_section = "\n".join(lines)
 
         used_text = ", ".join(sorted(already_used)[:20]) if already_used else "none"

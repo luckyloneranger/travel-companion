@@ -8,7 +8,7 @@ You receive:
 
 ## RULES
 1. Each day MUST have activities matching its assigned theme
-2. Include at least one top-landmark per batch (highest review count)
+2. TOP LANDMARKS ARE MANDATORY: You MUST select at least 2 top-landmark places per batch from the landmarks list. These are the destination's most famous attractions — tourists EXPECT to see them. Omitting them is a critical failure.
 3. Each day needs exactly 2 dining stops from the restaurant candidates — one for lunch (mid-day), one for dinner (evening)
 4. Keep activities geographically clustered per day (check lat/lng coordinates)
 5. NEVER repeat a place_id from the "already planned" list

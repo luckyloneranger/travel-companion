@@ -167,11 +167,18 @@ class ScoutAgent:
             plan.travel_legs = []
 
         expected_legs = len(plan.cities) - 1
-        if expected_legs > 0 and len(plan.travel_legs) != expected_legs:
-            raise LLMValidationError(
-                "JourneyPlan",
-                [f"Expected {expected_legs} travel legs for {len(plan.cities)} cities, got {len(plan.travel_legs)}"],
-                1,
+        max_legs = len(plan.cities)  # Allow optional return leg
+        if len(plan.travel_legs) > max_legs:
+            # Too many legs — trim to expected
+            logger.warning(
+                "[Scout] %d travel legs for %d cities — trimming to %d",
+                len(plan.travel_legs), len(plan.cities), expected_legs,
+            )
+            plan.travel_legs = plan.travel_legs[:expected_legs]
+        elif len(plan.travel_legs) < expected_legs:
+            logger.warning(
+                "[Scout] Only %d travel legs for %d cities (expected %d)",
+                len(plan.travel_legs), len(plan.cities), expected_legs,
             )
 
     # City-states and single-city destinations that should never be split

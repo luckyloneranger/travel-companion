@@ -365,9 +365,12 @@ def map_themes_to_days(
             lightest = min(free_days, key=lambda d: len(day_map[d]))
             day_map[lightest].append(theme)
 
-    # Step 4: Empty free days get the most versatile theme repeated
-    for d in free_days:
-        if not day_map[d] and regular_themes:
-            day_map[d].append(regular_themes[0])
+    # Step 4: Empty free days get themes distributed round-robin
+    empty_days = [d for d in free_days if not day_map[d]]
+    if empty_days and regular_themes:
+        for i, d in enumerate(empty_days):
+            # Cycle through all regular themes, not just the first
+            theme_idx = i % len(regular_themes)
+            day_map[d].append(regular_themes[theme_idx])
 
     return day_map

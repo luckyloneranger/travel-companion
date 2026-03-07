@@ -12,7 +12,7 @@ PACE: {pace} ({activities_per_day} total stops per day)
 ALREADY PLANNED on other days (do NOT reuse these place_ids):
 {already_used_ids}
 
-=== ATTRACTIONS (pick from these for sightseeing) ===
+=== ATTRACTIONS (pick from these for sightseeing — you MUST select from landmarks above) ===
 {attractions_json}
 
 === RESTAURANTS/CAFES (pick from these for meals) ===

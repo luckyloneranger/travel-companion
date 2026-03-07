@@ -253,13 +253,16 @@ class TestScoutValidation:
             await agent.generate_plan(_make_request())
 
     @pytest.mark.asyncio
-    async def test_travel_legs_mismatch_raises(self):
+    async def test_travel_legs_mismatch_warns(self):
+        """Travel leg count mismatch now warns instead of raising."""
         mock_llm = MagicMock()
         plan = _make_journey_plan(travel_legs=[])  # 2 cities but 0 legs
         mock_llm.generate_structured = AsyncMock(return_value=plan)
         agent = ScoutAgent(llm=mock_llm)
-        with pytest.raises(LLMValidationError, match="travel legs"):
-            await agent.generate_plan(_make_request())
+        # Should succeed (warn, not raise)
+        result = await agent.generate_plan(_make_request())
+        assert len(result.cities) == 2
+        assert len(result.travel_legs) == 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
