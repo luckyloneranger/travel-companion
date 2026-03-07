@@ -551,13 +551,21 @@ class DayPlanOrchestrator:
                     c.place_id: c for c in candidates
                 }
 
-                # Determine start location (hotel if available)
+                # Determine start location (hotel if available, fallback to city center)
                 start_location: Location | None = None
                 if (
                     city.accommodation
                     and city.accommodation.location
                 ):
                     start_location = city.accommodation.location
+                elif city.accommodation and city.location:
+                    # Accommodation exists but wasn't geocoded — use city center
+                    logger.info(
+                        "[DayPlanOrchestrator] %s: accommodation has no location, "
+                        "falling back to city center for bookends",
+                        city_name,
+                    )
+                    start_location = city.location
 
                 # ----------------------------------------------------------
                 # 3. Fetch weather forecast for this city

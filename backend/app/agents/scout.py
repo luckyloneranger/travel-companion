@@ -162,6 +162,10 @@ class ScoutAgent:
                     city.name, excursion_days, city.days,
                 )
 
+        # After collapse, clean up orphaned travel legs
+        if len(plan.cities) == 1:
+            plan.travel_legs = []
+
         expected_legs = len(plan.cities) - 1
         if expected_legs > 0 and len(plan.travel_legs) != expected_legs:
             raise LLMValidationError(
@@ -188,10 +192,22 @@ class ScoutAgent:
             return
 
         # Check if all cities share the same country AND that country is a city-state
+        # Filter out empty/None countries — LLM may omit country for some sub-destinations
         countries = {(c.country or "").lower().strip() for c in plan.cities}
-        if len(countries) != 1:
+        countries.discard("")
+        if len(countries) > 1:
             return
-        country = countries.pop()
+        country = countries.pop() if countries else ""
+
+        # If no country was set, try to detect city-state from city names
+        if not country:
+            all_names = " ".join(c.name.lower() for c in plan.cities)
+            for cs in cls._CITY_STATES:
+                if cs in all_names:
+                    country = cs
+                    break
+            if not country:
+                return
 
         # Also check city names for city-state matches
         all_names = " ".join(c.name.lower() for c in plan.cities)

@@ -5,6 +5,8 @@ ASSIGNED THEMES (each day MUST cover its assigned theme):
 
 PACE: {pace} ({activities_per_day} total stops per day)
 
+**CRITICAL: Each day MUST have at least {activities_per_day} activities. Fewer is a failure.**
+
 {landmarks_section}
 
 ALREADY PLANNED on other days (do NOT reuse these place_ids):

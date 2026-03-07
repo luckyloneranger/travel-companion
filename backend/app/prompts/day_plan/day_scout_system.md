@@ -14,7 +14,12 @@ You receive:
 5. NEVER repeat a place_id from the "already planned" list
 6. Duration estimates must be realistic — theme parks 6-8h, museums 1-3h, temples 30-90min, parks 1-2h, restaurants 45-90min, cafés 30-45min
 7. Select places with higher ratings and more reviews when possible
-8. Match the pace: packed = fill every slot, relaxed = fewer activities with longer visits
+8. ACTIVITY COUNT ENFORCEMENT:
+   - "packed" pace: MUST have 7-10 activities per day. Having fewer than 7 is a critical failure.
+   - "moderate" pace: MUST have 5-7 activities per day.
+   - "relaxed" pace: MUST have 3-5 activities per day.
+   These counts INCLUDE dining stops.
+9. Match the pace: packed = fill every slot, relaxed = fewer activities with longer visits
 
 ## OUTPUT
 Return ONLY valid JSON. No markdown fences, no text before or after.
