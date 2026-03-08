@@ -159,20 +159,66 @@ class DayPlanOrchestrator:
         request: "TripRequest",
         day_offset: int,
     ) -> list["DayPlan"]:
-        """Plan detailed itineraries for excursion days.
+        """Plan excursion days in parallel."""
+        # Group excursions by name (multi-day -> single group)
+        exc_groups: dict[str, tuple[CityHighlight, list[int]]] = {}
+        for day_idx, exc in sorted(excursions_by_day.items()):
+            key = exc.name
+            if key not in exc_groups:
+                exc_groups[key] = (exc, [])
+            exc_groups[key][1].append(day_idx)
 
-        Instead of creating single-activity stubs, discovers places at the
-        excursion destination and runs them through the Day Scout -> Reviewer
-        -> Fixer quality pipeline.
+        # Process all excursion groups in parallel
+        tasks = [
+            self._plan_single_excursion(exc, days, city, request, day_offset)
+            for exc, days in exc_groups.values()
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Merge results, build fallback stubs for failures
+        planned: list[DayPlan] = []
+        group_items = list(exc_groups.values())
+        for i, r in enumerate(results):
+            if isinstance(r, Exception):
+                exc, days = group_items[i]
+                logger.error(
+                    "[DayPlanOrchestrator] Excursion %r failed: %s", exc.name, r,
+                )
+                for di in days:
+                    schedule_date = request.start_date + timedelta(days=day_offset + di)
+                    planned.append(self._build_excursion_day_plan(
+                        excursion=exc,
+                        date_str=str(schedule_date),
+                        day_number=day_offset + di + 1,
+                        city_name=city.name,
+                    ))
+            else:
+                planned.extend(r)
+
+        return planned
+
+    async def _plan_single_excursion(
+        self,
+        exc: CityHighlight,
+        exc_day_indices: list[int],
+        city: "CityStop",
+        request: "TripRequest",
+        day_offset: int,
+    ) -> list["DayPlan"]:
+        """Plan a single excursion group (one or more days for the same destination).
+
+        This is the per-excursion body extracted from _plan_excursion_days for
+        parallel execution via asyncio.gather().
 
         Args:
-            excursions_by_day: Mapping of day_index -> excursion CityHighlight.
+            exc: The excursion CityHighlight.
+            exc_day_indices: Day indices within the city stay for this excursion.
             city: The CityStop this excursion belongs to.
             request: Original TripRequest for interests, pace, dates, etc.
             day_offset: Cumulative day offset across all cities.
 
         Returns:
-            List of fully-planned DayPlan objects with is_excursion=True.
+            List of DayPlan objects for this excursion group.
         """
         from app.config.planning import (
             MAX_DAY_PLAN_ITERATIONS, MIN_DAY_PLAN_SCORE,
@@ -180,342 +226,329 @@ class DayPlanOrchestrator:
         from app.agents.day_planner import _build_meal_time_guidance
         from app.models.internal import AIPlan
 
-        planned: list[DayPlan] = []
+        result: list[DayPlan] = []
 
-        # Group consecutive days for multi-day excursions (same excursion object)
-        processed_excursions: set[str] = set()
+        # 1. Geocode the excursion destination
+        geocode_name = exc.destination_name or exc.name
+        try:
+            geo = await self.places.geocode(f"{geocode_name}, {city.country or ''}")
+            exc_location = Location(lat=geo["lat"], lng=geo["lng"])
+            logger.info(
+                "[DayPlanOrchestrator] Geocoded excursion %r -> %.4f, %.4f",
+                geocode_name, geo["lat"], geo["lng"],
+            )
+        except Exception as e:
+            logger.warning(
+                "[DayPlanOrchestrator] Geocoding failed for excursion %r: %s — "
+                "falling back to placeholder", exc.name, e,
+            )
+            for di in exc_day_indices:
+                schedule_date = request.start_date + timedelta(days=day_offset + di)
+                if exc.excursion_type == "multi_day":
+                    multi_pos = exc_day_indices.index(di) + 1
+                    day_label = f"Day {multi_pos} of {len(exc_day_indices)}"
+                else:
+                    day_label = ""
+                result.append(self._build_excursion_day_plan(
+                    excursion=exc,
+                    date_str=str(schedule_date),
+                    day_number=day_offset + di + 1,
+                    city_name=city.name,
+                    day_label=day_label,
+                ))
+            return result
 
-        for day_idx, exc in sorted(excursions_by_day.items()):
-            exc_key = exc.name
-            if exc_key in processed_excursions and exc.excursion_type == "multi_day":
-                continue  # Already planned as part of multi-day batch
+        # 2. Discover places at the excursion destination
+        try:
+            exc_candidates = await self.places.discover_places(
+                location=exc_location,
+                interests=request.interests,
+            )
+        except Exception as e:
+            logger.warning(
+                "[DayPlanOrchestrator] Place discovery failed for excursion %r: %s",
+                exc.name, e,
+            )
+            exc_candidates = []
 
-            # Determine all day indices for this excursion
-            if exc.excursion_type == "multi_day":
-                exc_day_indices = sorted(
-                    k for k, v in excursions_by_day.items() if v is exc
+        # 3. Discover landmarks at the excursion destination
+        exc_landmarks: list[dict] = []
+        try:
+            exc_landmarks = await self.places.discover_landmarks(geocode_name)
+            # Merge landmark PlaceCandidates into candidates
+            if exc_landmarks:
+                existing_ids = {c.place_id for c in exc_candidates}
+                valid_landmarks = [lm for lm in exc_landmarks[:7] if lm.get("name")]
+
+                async def _search_exc_lm(lm_name: str):
+                    try:
+                        return await self.places.text_search_places(
+                            query=f"{lm_name} {geocode_name}",
+                            location=exc_location,
+                            max_results=1,
+                        )
+                    except Exception:
+                        return []
+
+                exc_lm_results = await asyncio.gather(
+                    *(_search_exc_lm(lm["name"]) for lm in valid_landmarks)
                 )
-                processed_excursions.add(exc_key)
-            else:
-                exc_day_indices = [day_idx]
-
-            # 1. Geocode the excursion destination
-            geocode_name = exc.destination_name or exc.name
-            try:
-                geo = await self.places.geocode(f"{geocode_name}, {city.country or ''}")
-                exc_location = Location(lat=geo["lat"], lng=geo["lng"])
-                logger.info(
-                    "[DayPlanOrchestrator] Geocoded excursion %r -> %.4f, %.4f",
-                    geocode_name, geo["lat"], geo["lng"],
-                )
-            except Exception as e:
-                logger.warning(
-                    "[DayPlanOrchestrator] Geocoding failed for excursion %r: %s — "
-                    "falling back to placeholder", exc.name, e,
-                )
-                for di in exc_day_indices:
-                    schedule_date = request.start_date + timedelta(days=day_offset + di)
-                    if exc.excursion_type == "multi_day":
-                        multi_pos = exc_day_indices.index(di) + 1
-                        day_label = f"Day {multi_pos} of {len(exc_day_indices)}"
-                    else:
-                        day_label = ""
-                    planned.append(self._build_excursion_day_plan(
-                        excursion=exc,
-                        date_str=str(schedule_date),
-                        day_number=day_offset + di + 1,
-                        city_name=city.name,
-                        day_label=day_label,
-                    ))
-                continue
-
-            # 2. Discover places at the excursion destination
-            try:
-                exc_candidates = await self.places.discover_places(
-                    location=exc_location,
-                    interests=request.interests,
-                )
-            except Exception as e:
-                logger.warning(
-                    "[DayPlanOrchestrator] Place discovery failed for excursion %r: %s",
-                    exc.name, e,
-                )
-                exc_candidates = []
-
-            # 3. Discover landmarks at the excursion destination
-            exc_landmarks: list[dict] = []
-            try:
-                exc_landmarks = await self.places.discover_landmarks(geocode_name)
-                # Merge landmark PlaceCandidates into candidates
-                if exc_landmarks:
-                    existing_ids = {c.place_id for c in exc_candidates}
-                    for lm in exc_landmarks[:7]:
-                        lm_name = lm.get("name", "")
-                        if not lm_name:
-                            continue
-                        try:
-                            lm_results = await self.places.text_search_places(
-                                query=f"{lm_name} {geocode_name}",
-                                location=exc_location,
-                                max_results=1,
-                            )
-                            for lc in lm_results:
-                                if lc.place_id not in existing_ids:
-                                    exc_candidates.append(lc)
-                                    existing_ids.add(lc.place_id)
-                        except Exception:
-                            pass
-            except Exception as e:
-                logger.warning(
-                    "[DayPlanOrchestrator] Landmark discovery failed for excursion %r: %s",
-                    exc.name, e,
-                )
-
-            if not exc_candidates:
-                logger.warning(
-                    "[DayPlanOrchestrator] No candidates for excursion %r, using placeholder",
-                    exc.name,
-                )
-                for di in exc_day_indices:
-                    schedule_date = request.start_date + timedelta(days=day_offset + di)
-                    if exc.excursion_type == "multi_day":
-                        multi_pos = exc_day_indices.index(di) + 1
-                        day_label = f"Day {multi_pos} of {len(exc_day_indices)}"
-                    else:
-                        day_label = ""
-                    planned.append(self._build_excursion_day_plan(
-                        excursion=exc,
-                        date_str=str(schedule_date),
-                        day_number=day_offset + di + 1,
-                        city_name=city.name,
-                        day_label=day_label,
-                    ))
-                continue
-
-            # Resolve photo references
-            for c in exc_candidates:
-                if c.photo_references:
-                    c.photo_references = [
-                        self.places.get_photo_url(ref) for ref in c.photo_references
-                    ]
-                if c.photo_reference:
-                    c.photo_reference = self.places.get_photo_url(c.photo_reference)
-
-            # 4. Estimate transit time from distance_from_city_km
-            transit_hours_one_way = 1.0  # default 1h
-            dist_km = getattr(exc, 'distance_from_city_km', None)
-            if dist_km:
-                transit_hours_one_way = max(0.5, dist_km / 50)
-
-            # 5. Build experience theme for the batch
-            from app.models.journey import ExperienceTheme
-            exc_theme = ExperienceTheme(
-                theme=exc.name,
-                category=exc.category or "excursion",
-                why=exc.description or f"Day trip to {exc.name}",
+                for lm_results in exc_lm_results:
+                    for lc in lm_results:
+                        if lc.place_id not in existing_ids:
+                            exc_candidates.append(lc)
+                            existing_ids.add(lc.place_id)
+        except Exception as e:
+            logger.warning(
+                "[DayPlanOrchestrator] Landmark discovery failed for excursion %r: %s",
+                exc.name, e,
             )
 
-            # 6. Run Day Scout for each excursion day
-            meal_guidance = _build_meal_time_guidance(city.country or "")
+        if not exc_candidates:
+            logger.warning(
+                "[DayPlanOrchestrator] No candidates for excursion %r, using placeholder",
+                exc.name,
+            )
+            for di in exc_day_indices:
+                schedule_date = request.start_date + timedelta(days=day_offset + di)
+                if exc.excursion_type == "multi_day":
+                    multi_pos = exc_day_indices.index(di) + 1
+                    day_label = f"Day {multi_pos} of {len(exc_day_indices)}"
+                else:
+                    day_label = ""
+                result.append(self._build_excursion_day_plan(
+                    excursion=exc,
+                    date_str=str(schedule_date),
+                    day_number=day_offset + di + 1,
+                    city_name=city.name,
+                    day_label=day_label,
+                ))
+            return result
 
-            # Format landmarks for prompts
-            landmarks_section = ""
-            if exc_landmarks:
-                lines = ["TOP LANDMARKS by visitor reviews (include at least one per batch):"]
-                for lm in exc_landmarks[:5]:
-                    lines.append(f"- {lm.get('name')} ({lm.get('user_ratings_total', 0):,} reviews)")
-                landmarks_section = "\n".join(lines)
+        # Resolve photo references
+        for c in exc_candidates:
+            if c.photo_references:
+                c.photo_references = [
+                    self.places.get_photo_url(ref) for ref in c.photo_references
+                ]
+            if c.photo_reference:
+                c.photo_reference = self.places.get_photo_url(c.photo_reference)
 
-            batch_themes = {
-                exc_day_indices[i] + 1: [exc_theme]
-                for i in range(len(exc_day_indices))
-            }
+        # 4. Estimate transit time from distance_from_city_km
+        transit_hours_one_way = 1.0  # default 1h
+        dist_km = getattr(exc, 'distance_from_city_km', None)
+        if dist_km:
+            transit_hours_one_way = max(0.5, dist_km / 50)
+
+        # 5. Build experience theme for the batch
+        from app.models.journey import ExperienceTheme
+        exc_theme = ExperienceTheme(
+            theme=exc.name,
+            category=exc.category or "excursion",
+            why=exc.description or f"Day trip to {exc.name}",
+        )
+
+        # 6. Run Day Scout for each excursion day
+        meal_guidance = _build_meal_time_guidance(city.country or "")
+
+        # Format landmarks for prompts
+        landmarks_section = ""
+        if exc_landmarks:
+            lines = ["TOP LANDMARKS by visitor reviews (include at least one per batch):"]
+            for lm in exc_landmarks[:5]:
+                lines.append(f"- {lm.get('name')} ({lm.get('user_ratings_total', 0):,} reviews)")
+            landmarks_section = "\n".join(lines)
+
+        batch_themes = {
+            exc_day_indices[i] + 1: [exc_theme]
+            for i in range(len(exc_day_indices))
+        }
+
+        try:
+            batch_plan = await self.day_scout.plan_batch(
+                candidates=exc_candidates,
+                batch_themes=batch_themes,
+                destination=exc.name,
+                pace=request.pace.value,
+                landmarks=exc_landmarks if exc_landmarks else None,
+                already_used=set(),
+                meal_time_guidance=meal_guidance,
+                travelers_description=request.travelers.summary,
+            )
+        except Exception as e:
+            logger.error(
+                "[DayPlanOrchestrator] Day Scout failed for excursion %r: %s",
+                exc.name, e,
+            )
+            for di in exc_day_indices:
+                schedule_date = request.start_date + timedelta(days=day_offset + di)
+                result.append(self._build_excursion_day_plan(
+                    excursion=exc,
+                    date_str=str(schedule_date),
+                    day_number=day_offset + di + 1,
+                    city_name=city.name,
+                ))
+            return result
+
+        # 7. Quality loop: Day Reviewer -> Day Fixer
+        themes_text = ""
+        for d, themes in sorted(batch_themes.items()):
+            theme_names = ", ".join(t.theme for t in themes)
+            themes_text += f"Day {d}: {theme_names}\n"
+
+        for iteration in range(MAX_DAY_PLAN_ITERATIONS):
+            plan_detail = ""
+            batch_day_nums = sorted(batch_themes.keys())
+            for i, group in enumerate(batch_plan.day_groups):
+                day_num = batch_day_nums[i] if i < len(batch_day_nums) else i + 1
+                place_names = []
+                for pid in group.place_ids:
+                    name = next(
+                        (c.name for c in exc_candidates if c.place_id == pid),
+                        pid,
+                    )
+                    dur = batch_plan.durations.get(pid, "?")
+                    place_names.append(f"{name} ({dur}min)")
+                plan_detail += f"Day {day_num} ({group.theme}): {', '.join(place_names)}\n"
 
             try:
-                batch_plan = await self.day_scout.plan_batch(
-                    candidates=exc_candidates,
-                    batch_themes=batch_themes,
+                review = await self.day_reviewer.review_batch(
+                    day_plans_detail=plan_detail,
+                    batch_themes=themes_text,
+                    landmarks_section=landmarks_section,
                     destination=exc.name,
-                    pace=request.pace.value,
-                    landmarks=exc_landmarks if exc_landmarks else None,
+                )
+            except Exception:
+                break
+
+            logger.info(
+                "[DayPlanOrchestrator] Excursion %r review score: %d (acceptable=%s, iter=%d)",
+                exc.name, review.score, review.is_acceptable, iteration + 1,
+            )
+
+            if review.is_acceptable or review.score >= MIN_DAY_PLAN_SCORE:
+                break
+
+            try:
+                batch_plan = await self.day_fixer.fix_batch(
+                    current_plan=batch_plan,
+                    issues=review.issues,
+                    candidates=exc_candidates,
+                    destination=exc.name,
                     already_used=set(),
-                    meal_time_guidance=meal_guidance,
-                    travelers_description=request.travelers.summary,
                 )
-            except Exception as e:
-                logger.error(
-                    "[DayPlanOrchestrator] Day Scout failed for excursion %r: %s",
-                    exc.name, e,
-                )
-                for di in exc_day_indices:
-                    schedule_date = request.start_date + timedelta(days=day_offset + di)
-                    planned.append(self._build_excursion_day_plan(
-                        excursion=exc,
-                        date_str=str(schedule_date),
-                        day_number=day_offset + di + 1,
-                        city_name=city.name,
-                    ))
+            except Exception:
+                break
+
+        # 8. Convert AIPlan to DayPlan objects (TSP, schedule, routes, weather)
+        candidate_map = {c.place_id: c for c in exc_candidates}
+
+        # Weather for excursion location
+        exc_weather: dict[str, object] = {}
+        if self.weather and exc_location:
+            try:
+                forecasts = await self.weather.get_daily_forecast(exc_location, days=10)
+                exc_weather = {str(f.date): f for f in forecasts}
+            except Exception:
+                pass
+
+        for i, group in enumerate(batch_plan.day_groups):
+            if i >= len(exc_day_indices):
+                break
+            di = exc_day_indices[i]
+            schedule_date = request.start_date + timedelta(days=day_offset + di)
+
+            day_candidates = [
+                candidate_map[pid]
+                for pid in group.place_ids
+                if pid in candidate_map
+            ]
+
+            if not day_candidates:
+                result.append(self._build_excursion_day_plan(
+                    excursion=exc,
+                    date_str=str(schedule_date),
+                    day_number=day_offset + di + 1,
+                    city_name=city.name,
+                ))
                 continue
 
-            # 7. Quality loop: Day Reviewer -> Day Fixer
-            themes_text = ""
-            for d, themes in sorted(batch_themes.items()):
-                theme_names = ", ".join(t.theme for t in themes)
-                themes_text += f"Day {d}: {theme_names}\n"
+            # TSP optimize
+            optimized = self.optimizer.optimize_day(
+                activities=day_candidates,
+                distance_fn=haversine_distance,
+                start_location=exc_location,
+                preserve_order=True,
+            )
 
-            for iteration in range(MAX_DAY_PLAN_ITERATIONS):
-                plan_detail = ""
-                batch_day_nums = sorted(batch_themes.keys())
-                for i, group in enumerate(batch_plan.day_groups):
-                    day_num = batch_day_nums[i] if i < len(batch_day_nums) else i + 1
-                    place_names = []
-                    for pid in group.place_ids:
-                        name = next(
-                            (c.name for c in exc_candidates if c.place_id == pid),
-                            pid,
-                        )
-                        dur = batch_plan.durations.get(pid, "?")
-                        place_names.append(f"{name} ({dur}min)")
-                    plan_detail += f"Day {day_num} ({group.theme}): {', '.join(place_names)}\n"
+            # Schedule with adjusted times for transit
+            transit_minutes = int(transit_hours_one_way * 60)
+            base_start_hour = 9
+            adjusted_start_minutes = (base_start_hour * 60) + transit_minutes
+            adjusted_end_minutes = (21 * 60) - transit_minutes
 
-                try:
-                    review = await self.day_reviewer.review_batch(
-                        day_plans_detail=plan_detail,
-                        batch_themes=themes_text,
-                        landmarks_section=landmarks_section,
-                        destination=exc.name,
-                    )
-                except Exception:
-                    break
+            from datetime import time as dt_time
+            day_start_time = dt_time(
+                hour=min(adjusted_start_minutes // 60, 23),
+                minute=adjusted_start_minutes % 60,
+            )
+            day_end_time = dt_time(
+                hour=min(adjusted_end_minutes // 60, 23),
+                minute=adjusted_end_minutes % 60,
+            )
 
-                logger.info(
-                    "[DayPlanOrchestrator] Excursion %r review score: %d (acceptable=%s, iter=%d)",
-                    exc.name, review.score, review.is_acceptable, iteration + 1,
+            activities = self.scheduler.build_schedule(
+                places=optimized,
+                pace=request.pace,
+                durations=batch_plan.durations,
+                start_location=exc_location,
+                schedule_date=schedule_date,
+                day_start_time=day_start_time,
+                day_end_time=day_end_time,
+                cost_estimates=batch_plan.cost_estimates,
+                country=city.country,
+            )
+
+            # No hotel bookends for excursion days — traveler is in transit
+
+            # Compute routes
+            activities = await self._compute_routes_via_matrix(
+                activities, pace=request.pace,
+            )
+
+            # Weather
+            day_weather = None
+            forecast = exc_weather.get(str(schedule_date))
+            if forecast:
+                day_weather = Weather(
+                    temperature_high_c=forecast.temperature_high_c,
+                    temperature_low_c=forecast.temperature_low_c,
+                    condition=forecast.condition,
+                    precipitation_chance_percent=forecast.precipitation_chance_percent,
+                    wind_speed_kmh=forecast.wind_speed_kmh,
+                    humidity_percent=forecast.humidity_percent,
+                    uv_index=forecast.uv_index,
                 )
+                activities = self._add_weather_warnings(activities, forecast)
 
-                if review.is_acceptable or review.score >= MIN_DAY_PLAN_SCORE:
-                    break
+            daily_cost = sum(
+                a.estimated_cost_usd for a in activities
+                if a.estimated_cost_usd is not None
+            )
 
-                try:
-                    batch_plan = await self.day_fixer.fix_batch(
-                        current_plan=batch_plan,
-                        issues=review.issues,
-                        candidates=exc_candidates,
-                        destination=exc.name,
-                        already_used=set(),
-                    )
-                except Exception:
-                    break
+            result.append(DayPlan(
+                date=str(schedule_date),
+                day_number=day_offset + di + 1,
+                theme=group.theme,
+                activities=activities,
+                city_name=city.name,
+                weather=day_weather,
+                daily_cost_usd=daily_cost if daily_cost > 0 else None,
+                is_excursion=True,
+                excursion_name=exc.name,
+            ))
 
-            # 8. Convert AIPlan to DayPlan objects (TSP, schedule, routes, weather)
-            candidate_map = {c.place_id: c for c in exc_candidates}
-
-            # Weather for excursion location
-            exc_weather: dict[str, object] = {}
-            if self.weather and exc_location:
-                try:
-                    forecasts = await self.weather.get_daily_forecast(exc_location, days=10)
-                    exc_weather = {str(f.date): f for f in forecasts}
-                except Exception:
-                    pass
-
-            for i, group in enumerate(batch_plan.day_groups):
-                if i >= len(exc_day_indices):
-                    break
-                di = exc_day_indices[i]
-                schedule_date = request.start_date + timedelta(days=day_offset + di)
-
-                day_candidates = [
-                    candidate_map[pid]
-                    for pid in group.place_ids
-                    if pid in candidate_map
-                ]
-
-                if not day_candidates:
-                    planned.append(self._build_excursion_day_plan(
-                        excursion=exc,
-                        date_str=str(schedule_date),
-                        day_number=day_offset + di + 1,
-                        city_name=city.name,
-                    ))
-                    continue
-
-                # TSP optimize
-                optimized = self.optimizer.optimize_day(
-                    activities=day_candidates,
-                    distance_fn=haversine_distance,
-                    start_location=exc_location,
-                    preserve_order=True,
-                )
-
-                # Schedule with adjusted times for transit
-                transit_minutes = int(transit_hours_one_way * 60)
-                base_start_hour = 9
-                adjusted_start_minutes = (base_start_hour * 60) + transit_minutes
-                adjusted_end_minutes = (21 * 60) - transit_minutes
-
-                from datetime import time as dt_time
-                day_start_time = dt_time(
-                    hour=min(adjusted_start_minutes // 60, 23),
-                    minute=adjusted_start_minutes % 60,
-                )
-                day_end_time = dt_time(
-                    hour=min(adjusted_end_minutes // 60, 23),
-                    minute=adjusted_end_minutes % 60,
-                )
-
-                activities = self.scheduler.build_schedule(
-                    places=optimized,
-                    pace=request.pace,
-                    durations=batch_plan.durations,
-                    start_location=exc_location,
-                    schedule_date=schedule_date,
-                    day_start_time=day_start_time,
-                    day_end_time=day_end_time,
-                    cost_estimates=batch_plan.cost_estimates,
-                    country=city.country,
-                )
-
-                # No hotel bookends for excursion days — traveler is in transit
-
-                # Compute routes
-                activities = await self._compute_routes_via_matrix(
-                    activities, pace=request.pace,
-                )
-
-                # Weather
-                day_weather = None
-                forecast = exc_weather.get(str(schedule_date))
-                if forecast:
-                    day_weather = Weather(
-                        temperature_high_c=forecast.temperature_high_c,
-                        temperature_low_c=forecast.temperature_low_c,
-                        condition=forecast.condition,
-                        precipitation_chance_percent=forecast.precipitation_chance_percent,
-                        wind_speed_kmh=forecast.wind_speed_kmh,
-                        humidity_percent=forecast.humidity_percent,
-                        uv_index=forecast.uv_index,
-                    )
-                    activities = self._add_weather_warnings(activities, forecast)
-
-                daily_cost = sum(
-                    a.estimated_cost_usd for a in activities
-                    if a.estimated_cost_usd is not None
-                )
-
-                planned.append(DayPlan(
-                    date=str(schedule_date),
-                    day_number=day_offset + di + 1,
-                    theme=group.theme,
-                    activities=activities,
-                    city_name=city.name,
-                    weather=day_weather,
-                    daily_cost_usd=daily_cost if daily_cost > 0 else None,
-                    is_excursion=True,
-                    excursion_name=exc.name,
-                ))
-
-        return planned
+        return result
 
     @staticmethod
     def _compute_excursion_schedule(
@@ -576,10 +609,11 @@ class DayPlanOrchestrator:
         journey: JourneyPlan,
         request: TripRequest,
     ) -> AsyncGenerator[ProgressEvent, None]:
-        """Generate day plans for all cities in the journey.
+        """Generate day plans for all cities in the journey, processing cities in parallel.
 
-        Yields ProgressEvents as each city is planned. The final event
-        contains all day plans.
+        Cities are processed concurrently (bounded by MAX_CONCURRENT_CITIES).
+        Each city pushes SSE events to a shared queue for real-time streaming.
+        Failed cities retry once; if still failing, emit city_error event.
 
         Args:
             journey: The journey plan with cities and accommodation info.
@@ -588,546 +622,77 @@ class DayPlanOrchestrator:
         Yields:
             ProgressEvent instances with phase, message, progress, and data.
         """
-        all_plans: list[DayPlan] = []
+        from app.config.settings import get_settings
+
+        event_queue: asyncio.Queue[ProgressEvent | None] = asyncio.Queue()
         total_cities = len(journey.cities)
-        day_offset = 0  # cumulative days across all cities for correct dates
+        max_concurrent = get_settings().max_concurrent_cities
+
+        async def _run_all_cities():
+            sem = asyncio.Semaphore(max_concurrent)
+
+            async def _bounded_city(city_idx: int, city):
+                async with sem:
+                    return await self._process_city(
+                        city_idx, city, journey, request,
+                        event_queue, total_cities,
+                    )
+
+            results = await asyncio.gather(
+                *(_bounded_city(i, c) for i, c in enumerate(journey.cities)),
+                return_exceptions=True,
+            )
+            await event_queue.put(None)  # Sentinel
+            return results
 
         try:
-            for city_idx, city in enumerate(journey.cities):
-                # Clear route cache for each new city
-                self._route_cache.clear()
+            producer = asyncio.create_task(_run_all_cities())
 
-                city_name = city.name
-                pct_start = int((city_idx / total_cities) * 100)
-                pct_end = int(((city_idx + 1) / total_cities) * 100)
+            # Stream events in real-time as cities produce them
+            while True:
+                event = await event_queue.get()
+                if event is None:
+                    break
+                yield event
 
-                yield ProgressEvent(
-                    phase="city_start",
-                    message=f"Planning {city_name}...",
-                    progress=pct_start,
-                    data={"city": city_name},
-                )
-
-                # ----------------------------------------------------------
-                # 0. Handle excursions
-                # ----------------------------------------------------------
-                excursions = self._extract_excursions(
-                    city.highlights,
-                    experience_themes=city.experience_themes if city.experience_themes else None,
-                )
-                blocked_days: dict[int, CityHighlight] = {}
-                partial_days: dict[int, CityHighlight] = {}
-                excursion_plans: list[DayPlan] = []
-
-                if excursions:
-                    blocked_days, partial_days = self._compute_excursion_schedule(
-                        excursions, city.days,
-                    )
-                    yield ProgressEvent(
-                        phase="city_progress",
-                        message=f"Planning excursions from {city_name}...",
-                        progress=pct_start,
-                        data={"city": city_name},
-                    )
-                    excursion_plans = await self._plan_excursion_days(
-                        excursions_by_day=blocked_days,
-                        city=city,
-                        request=request,
-                        day_offset=day_offset,
-                    )
-                    logger.info(
-                        "[DayPlanOrchestrator] %s: %d excursion days planned (%d partial)",
-                        city_name, len(blocked_days), len(partial_days),
-                    )
-
-                free_day_count = city.days - len(blocked_days)
-
-                # If ALL days are excursions, skip discovery + planning
-                if free_day_count <= 0:
-                    all_plans.extend(sorted(excursion_plans, key=lambda dp: dp.day_number))
-                    day_offset += city.days
-                    yield ProgressEvent(
-                        phase="city_complete",
-                        message=f"{city_name} planned (excursions only)",
-                        progress=pct_end,
-                        data={
-                            "city": city_name,
-                            "day_plans": [dp.model_dump() for dp in excursion_plans],
-                        },
-                    )
-                    continue
-
-                # ----------------------------------------------------------
-                # 1. Discover places
-                # ----------------------------------------------------------
-                if city.location is None or (abs(city.location.lat) < 0.01 and abs(city.location.lng) < 0.01):
-                    logger.warning(
-                        "[DayPlanOrchestrator] City %s has no valid location, skipping",
-                        city_name,
-                    )
-                    day_offset += city.days
-                    yield ProgressEvent(
-                        phase="city_complete",
-                        message=f"{city_name}: could not locate on map — try a different spelling or check the city name",
-                        progress=pct_end,
-                        data={"city": city_name, "day_plans": []},
-                    )
-                    continue
-
-                try:
-                    candidates = await self.places.discover_places(
-                        location=city.location,
-                        interests=request.interests,
-                    )
-                except Exception as exc:
+            # Collect results, retry failures once
+            results = await producer
+            all_plans: list[DayPlan] = []
+            for i, r in enumerate(results):
+                if isinstance(r, Exception):
+                    city = journey.cities[i]
                     logger.error(
-                        "[DayPlanOrchestrator] Place discovery failed for %s: %s",
-                        city_name,
-                        exc,
+                        "[DayPlanOrchestrator] City %s failed: %s",
+                        city.name, r,
                     )
-                    day_offset += city.days
-                    yield ProgressEvent(
-                        phase="city_complete",
-                        message=f"{city_name}: place discovery failed",
-                        progress=pct_end,
-                        data={"city": city_name, "day_plans": []},
-                    )
-                    continue
-
-                # Supplement with text searches for journey highlights
-                if city.highlights:
-                    highlight_candidates = await self._discover_highlights(
-                        city.highlights, city_name, city.location
-                    )
-                    if highlight_candidates:
-                        # Merge, deduplicating by place_id
-                        existing_ids = {c.place_id for c in candidates}
-                        for hc in highlight_candidates:
-                            if hc.place_id not in existing_ids:
-                                candidates.append(hc)
-                                existing_ids.add(hc.place_id)
-
-                # Per-city landmark discovery (top attractions by review count)
-                try:
-                    if city_name in self._landmark_cache:
-                        city_landmarks = self._landmark_cache[city_name]
-                    else:
-                        city_landmarks = await self.places.discover_landmarks(city_name)
-                        self._landmark_cache[city_name] = city_landmarks
-                    if city_landmarks:
-                        existing_ids = {c.place_id for c in candidates}
-                        for lm in city_landmarks:
-                            lm_results = await self.places.text_search_places(
-                                query=lm["name"] + " " + city_name,
-                                location=city.location,
-                                max_results=1,
-                            )
-                            for lc in lm_results:
-                                if lc.place_id not in existing_ids:
-                                    candidates.append(lc)
-                                    existing_ids.add(lc.place_id)
-                        logger.info(
-                            "[DayPlanOrchestrator] Added landmark candidates for %s",
-                            city_name,
-                        )
-                except Exception as exc:
-                    logger.warning("[DayPlanOrchestrator] Landmark discovery failed for %s: %s", city_name, exc)
-
-                # Theme-based discovery for far excursions
-                if city.experience_themes:
-                    existing_ids = {c.place_id for c in candidates}
-                    for et in city.experience_themes:
-                        if et.distance_from_city_km and et.distance_from_city_km > 20:
-                            try:
-                                theme_results = await self.places.text_search_places(
-                                    query=f"{et.theme} near {city_name}",
-                                    location=city.location,
-                                    max_results=3,
-                                )
-                                for tr in theme_results:
-                                    if tr.place_id not in existing_ids:
-                                        candidates.append(tr)
-                                        existing_ids.add(tr.place_id)
-                            except Exception:
-                                pass
-
-                # Resolve photo references to full URLs
-                for c in candidates:
-                    if c.photo_references:
-                        c.photo_references = [
-                            self.places.get_photo_url(ref) for ref in c.photo_references
-                        ]
-                    if c.photo_reference:
-                        c.photo_reference = self.places.get_photo_url(c.photo_reference)
-
-                if not candidates:
-                    logger.warning(
-                        "[DayPlanOrchestrator] No candidates found for %s, skipping",
-                        city_name,
-                    )
-                    day_offset += city.days
-                    yield ProgressEvent(
-                        phase="city_complete",
-                        message=f"{city_name}: no suitable places found — try adjusting interests or pace",
-                        progress=pct_end,
-                        data={"city": city_name, "day_plans": []},
-                    )
-                    continue
-
-                yield ProgressEvent(
-                    phase="city_progress",
-                    message=f"Discovered {len(candidates)} places in {city_name}",
-                    progress=pct_start + (pct_end - pct_start) // 4,
-                    data={"city": city_name},
-                )
-
-                # ----------------------------------------------------------
-                # 2. AI Plan — LLM selects + groups into themed days
-                # ----------------------------------------------------------
-                # Compute time constraints for arrival/departure days
-                time_constraints: list[dict] = []
-                for d_idx in range(city.days):
-                    day_start, day_end = self._get_day_time_bounds(
-                        journey, city_idx, d_idx, city.days
-                    )
-                    if day_start or day_end:
-                        start_h = day_start.hour + day_start.minute / 60 if day_start else 9.0
-                        end_h = day_end.hour + day_end.minute / 60 if day_end else 21.0
-                        available = end_h - start_h
-                        reason = ""
-                        if day_start and day_start.hour > 9:
-                            reason = "arrival day — sightseeing starts later"
-                        if day_end and day_end.hour < 21:
-                            reason = "departure day — need to leave early"
-                        if reason:
-                            time_constraints.append({
-                                "day_num": d_idx + 1,
-                                "reason": reason,
-                                "available_hours": available,
-                            })
-
-                # Add time constraints from partial excursions (half-day/evening)
-                for d_idx, exc in partial_days.items():
-                    if exc.excursion_type == "half_day_morning":
-                        time_constraints.append({
-                            "day_num": d_idx + 1,
-                            "reason": f"{exc.name} (morning excursion)",
-                            "available_hours": 5,
-                        })
-                    elif exc.excursion_type == "half_day_afternoon":
-                        time_constraints.append({
-                            "day_num": d_idx + 1,
-                            "reason": f"{exc.name} (afternoon excursion)",
-                            "available_hours": 4,
-                        })
-                    elif exc.excursion_type == "evening":
-                        time_constraints.append({
-                            "day_num": d_idx + 1,
-                            "reason": f"{exc.name} (evening excursion)",
-                            "available_hours": 8,
-                        })
-
-                ai_plan = None
-
-                # -- Batched pipeline (when experience_themes available) --
-                if city.experience_themes:
+                    # Retry once
                     try:
-                        # Per-city landmark data for batch prompts (candidates already merged above)
-                        city_landmarks: list[dict] = []
-                        try:
-                            if city_name in self._landmark_cache:
-                                city_landmarks = self._landmark_cache[city_name]
-                            else:
-                                city_landmarks = await self.places.discover_landmarks(city_name)
-                                self._landmark_cache[city_name] = city_landmarks
-                        except Exception:
-                            pass
-
-                        ai_plan = await self._plan_city_batched(
-                            city=city,
-                            candidates=candidates,
-                            free_day_count=free_day_count,
-                            blocked_days=blocked_days,
-                            request=request,
-                            landmarks=city_landmarks,
-                            city_name=city_name,
-                            time_constraints=time_constraints,
+                        retry_plans = await self._process_city(
+                            i, city, journey, request,
+                            event_queue, total_cities,
                         )
-                    except Exception as exc:
+                        all_plans.extend(retry_plans)
+                    except Exception as e2:
                         logger.error(
-                            "[DayPlanOrchestrator] Batched planning failed for %s, "
-                            "falling back to single-shot: %s",
-                            city_name, exc,
+                            "[DayPlanOrchestrator] City %s retry failed: %s",
+                            city.name, e2,
                         )
-                        ai_plan = None  # fall through to single-shot
-
-                # -- Single-shot planning (fallback / no experience_themes) --
-                if ai_plan is None:
-                    from app.services.llm.exceptions import LLMValidationError
-                    try:
-                        ai_plan = await self.day_planner.plan_days(
-                            candidates=candidates,
-                            city_name=city_name,
-                            num_days=free_day_count,
-                            interests=request.interests,
-                            pace=request.pace.value,
-                            budget=request.budget.value if hasattr(request, 'budget') else "moderate",
-                            daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
-                            must_include=request.must_include if request.must_include else None,
-                            time_constraints=time_constraints if time_constraints else None,
-                            travelers_description=request.travelers.summary,
-                            country=city.country or "",
-                            highlights=city.highlights if city.highlights else None,
-                            best_time_to_visit=city.best_time_to_visit or "",
-                            hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
-                            experience_themes=city.experience_themes if city.experience_themes else None,
-                        )
-                    except LLMValidationError:
-                        logger.warning(
-                            "[DayPlanOrchestrator] Validation failed for %s, retrying...",
-                            city_name,
-                        )
-                        try:
-                            ai_plan = await self.day_planner.plan_days(
-                                candidates=candidates,
-                                city_name=city_name,
-                                num_days=free_day_count,
-                                interests=request.interests,
-                                pace=request.pace.value,
-                                budget=request.budget.value if hasattr(request, 'budget') else "moderate",
-                                daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
-                                must_include=request.must_include if request.must_include else None,
-                                time_constraints=time_constraints if time_constraints else None,
-                                travelers_description=request.travelers.summary,
-                                country=city.country or "",
-                                highlights=city.highlights if city.highlights else None,
-                                best_time_to_visit=city.best_time_to_visit or "",
-                                hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
-                                experience_themes=city.experience_themes if city.experience_themes else None,
-                            )
-                        except (LLMValidationError, Exception) as exc:
-                            logger.error(
-                                "[DayPlanOrchestrator] AI planning failed for %s after retry: %s",
-                                city_name, exc,
-                            )
-                            day_offset += city.days
-                            yield ProgressEvent(
-                                phase="city_complete",
-                                message=f"{city_name}: AI planning failed",
-                                progress=pct_end,
-                                data={"city": city_name, "day_plans": []},
-                            )
-                            continue
-                    except Exception as exc:
-                        logger.error(
-                            "[DayPlanOrchestrator] AI planning failed for %s: %s",
-                            city_name, exc,
-                        )
-                        day_offset += city.days
                         yield ProgressEvent(
-                            phase="city_complete",
-                            message=f"{city_name}: AI planning failed",
-                            progress=pct_end,
-                            data={"city": city_name, "day_plans": []},
+                            phase="city_error",
+                            message=f"Failed to plan {city.name}. You can regenerate day plans to try again.",
+                            data={"city": city.name},
                         )
-                        continue
+                else:
+                    all_plans.extend(r)
 
-                yield ProgressEvent(
-                    phase="city_progress",
-                    message=f"Building itinerary for {city_name}...",
-                    progress=pct_start + (pct_end - pct_start) // 2,
-                    data={"city": city_name},
-                )
+            # Drain any retry progress events
+            while not event_queue.empty():
+                event = await event_queue.get()
+                if event is not None:
+                    yield event
 
-                # Build a lookup of candidates by place_id
-                candidate_map: dict[str, PlaceCandidate] = {
-                    c.place_id: c for c in candidates
-                }
+            all_plans.sort(key=lambda dp: dp.day_number)
 
-                # Determine start location (hotel if available, fallback to city center)
-                start_location: Location | None = None
-                if (
-                    city.accommodation
-                    and city.accommodation.location
-                ):
-                    start_location = city.accommodation.location
-                elif city.accommodation and city.location:
-                    # Accommodation exists but wasn't geocoded — use city center
-                    logger.info(
-                        "[DayPlanOrchestrator] %s: accommodation has no location, "
-                        "falling back to city center for bookends",
-                        city_name,
-                    )
-                    start_location = city.location
-
-                # ----------------------------------------------------------
-                # 3. Fetch weather forecast for this city
-                # ----------------------------------------------------------
-                city_weather: dict[str, WeatherForecast] = {}
-                if self.weather and city.location:
-                    try:
-                        forecasts = await self.weather.get_daily_forecast(
-                            city.location, days=10
-                        )
-                        city_weather = {str(f.date): f for f in forecasts}
-                        if city_weather and len(city_weather) < city.days:
-                            logger.info(
-                                "[DayPlanOrchestrator] Weather covers %d/%d days for %s (API limit)",
-                                len(city_weather), city.days, city_name,
-                            )
-                    except Exception as exc:
-                        logger.warning(
-                            "[DayPlanOrchestrator] Weather fetch failed for %s: %s",
-                            city_name,
-                            exc,
-                        )
-
-                # ----------------------------------------------------------
-                # 4. Process each day group
-                # ----------------------------------------------------------
-                city_plans: list[DayPlan] = []
-
-                for day_idx, group in enumerate(ai_plan.day_groups):
-                    # Determine arrival/departure time adjustments
-                    day_start_time, day_end_time = self._get_day_time_bounds(
-                        journey, city_idx, day_idx, city.days
-                    )
-
-                    # a. Filter candidates to selected places for this day
-                    day_candidates = [
-                        candidate_map[pid]
-                        for pid in group.place_ids
-                        if pid in candidate_map
-                    ]
-
-                    if not day_candidates:
-                        logger.warning(
-                            "[DayPlanOrchestrator] No valid candidates for %s day %d, skipping",
-                            city_name,
-                            day_idx + 1,
-                        )
-                        city_plans.append(
-                            DayPlan(
-                                date=str(
-                                    request.start_date
-                                    + timedelta(days=day_offset + day_idx)
-                                ),
-                                day_number=day_offset + day_idx + 1,
-                                theme=group.theme,
-                                activities=[],
-                                city_name=city_name,
-                            )
-                        )
-                        continue
-
-                    # b. Optimize — TSP route optimization
-                    optimized = self.optimizer.optimize_day(
-                        activities=day_candidates,
-                        distance_fn=haversine_distance,
-                        start_location=start_location,
-                        preserve_order=True,
-                    )
-
-                    # c. Schedule — deterministic time slot assignment
-                    schedule_date = request.start_date + timedelta(
-                        days=day_offset + day_idx
-                    )
-                    activities = self.scheduler.build_schedule(
-                        places=optimized,
-                        pace=request.pace,
-                        durations=ai_plan.durations,
-                        start_location=start_location,
-                        schedule_date=schedule_date,
-                        day_start_time=day_start_time,
-                        day_end_time=day_end_time,
-                        cost_estimates=ai_plan.cost_estimates,
-                        country=city.country,
-                    )
-
-                    # d. Bookend — add hotel departure/return
-                    if start_location is not None and city.accommodation:
-                        activities = self._bookend_with_hotel(
-                            activities=activities,
-                            accommodation_name=city.accommodation.name,
-                            accommodation_location=start_location,
-                            accommodation_place_id=city.accommodation.place_id,
-                        )
-
-                    # e. Compute routes between consecutive activities
-                    activities = await self._compute_routes_via_matrix(
-                        activities, pace=request.pace,
-                    )
-
-                    # f. Attach weather and add warnings to outdoor activities
-                    day_weather: Weather | None = None
-                    forecast = city_weather.get(str(schedule_date))
-                    if forecast:
-                        day_weather = Weather(
-                            temperature_high_c=forecast.temperature_high_c,
-                            temperature_low_c=forecast.temperature_low_c,
-                            condition=forecast.condition,
-                            precipitation_chance_percent=forecast.precipitation_chance_percent,
-                            wind_speed_kmh=forecast.wind_speed_kmh,
-                            humidity_percent=forecast.humidity_percent,
-                            uv_index=forecast.uv_index,
-                        )
-                        activities = self._add_weather_warnings(activities, forecast)
-
-                    # g. Aggregate daily cost
-                    daily_cost = sum(
-                        a.estimated_cost_usd for a in activities
-                        if a.estimated_cost_usd is not None
-                    )
-
-                    # Budget warning
-                    if request.budget_usd and request.total_days:
-                        daily_budget = request.budget_usd / request.total_days
-                        if daily_cost > 0 and daily_cost > daily_budget * 1.2:
-                            logger.warning(
-                                "[DayPlanOrchestrator] %s day %d: estimated cost $%.0f exceeds "
-                                "daily budget $%.0f by %.0f%%",
-                                city_name, day_idx + 1, daily_cost, daily_budget,
-                                ((daily_cost / daily_budget) - 1) * 100,
-                            )
-
-                    city_plans.append(
-                        DayPlan(
-                            date=str(schedule_date),
-                            day_number=day_offset + day_idx + 1,
-                            theme=group.theme,
-                            activities=activities,
-                            city_name=city_name,
-                            weather=day_weather,
-                            daily_cost_usd=daily_cost if daily_cost > 0 else None,
-                        )
-                    )
-
-                yield ProgressEvent(
-                    phase="city_progress",
-                    message=f"Finalizing routes for {city_name}...",
-                    progress=pct_start + 3 * (pct_end - pct_start) // 4,
-                    data={"city": city_name},
-                )
-
-                # Merge excursion plans with city plans
-                if excursion_plans:
-                    city_plans.extend(excursion_plans)
-                    city_plans.sort(key=lambda dp: dp.day_number)
-
-                all_plans.extend(city_plans)
-                day_offset += city.days
-
-                yield ProgressEvent(
-                    phase="city_complete",
-                    message=f"{city_name} planned",
-                    progress=pct_end,
-                    data={
-                        "city": city_name,
-                        "day_plans": [dp.model_dump() for dp in city_plans],
-                    },
-                )
-
-            # Final event with all day plans
             yield ProgressEvent(
                 phase="complete",
                 message="All day plans generated",
@@ -1147,6 +712,579 @@ class DayPlanOrchestrator:
                 progress=0,
                 data=None,
             )
+
+    async def _process_city(
+        self,
+        city_idx: int,
+        city,
+        journey: JourneyPlan,
+        request: TripRequest,
+        event_queue: asyncio.Queue,
+        total_cities: int,
+    ) -> list[DayPlan]:
+        """Process a single city's day plan generation.
+
+        Extracted from the generate_stream loop body to enable parallel
+        city processing. All progress events are pushed to event_queue
+        instead of being yielded directly.
+
+        Args:
+            city_idx: Index of this city in journey.cities.
+            city: The CityStop to process.
+            journey: The full journey plan.
+            request: The original trip request.
+            event_queue: Queue for pushing ProgressEvent instances.
+            total_cities: Total number of cities (for progress calculation).
+
+        Returns:
+            List of DayPlan instances for this city.
+        """
+        # Compute day_offset locally (no shared state)
+        day_offset = sum(journey.cities[i].days for i in range(city_idx))
+
+        # Clear route cache for each new city
+        self._route_cache.clear()
+
+        city_name = city.name
+        pct_start = int((city_idx / total_cities) * 100)
+        pct_end = int(((city_idx + 1) / total_cities) * 100)
+        city_plans: list[DayPlan] = []
+
+        await event_queue.put(ProgressEvent(
+            phase="city_start",
+            message=f"Planning {city_name}...",
+            progress=pct_start,
+            data={"city": city_name},
+        ))
+
+        # ----------------------------------------------------------
+        # 0. Handle excursions
+        # ----------------------------------------------------------
+        excursions = self._extract_excursions(
+            city.highlights,
+            experience_themes=city.experience_themes if city.experience_themes else None,
+        )
+        blocked_days: dict[int, CityHighlight] = {}
+        partial_days: dict[int, CityHighlight] = {}
+        excursion_plans: list[DayPlan] = []
+
+        if excursions:
+            blocked_days, partial_days = self._compute_excursion_schedule(
+                excursions, city.days,
+            )
+            await event_queue.put(ProgressEvent(
+                phase="city_progress",
+                message=f"Planning excursions from {city_name}...",
+                progress=pct_start,
+                data={"city": city_name},
+            ))
+            excursion_plans = await self._plan_excursion_days(
+                excursions_by_day=blocked_days,
+                city=city,
+                request=request,
+                day_offset=day_offset,
+            )
+            logger.info(
+                "[DayPlanOrchestrator] %s: %d excursion days planned (%d partial)",
+                city_name, len(blocked_days), len(partial_days),
+            )
+
+        free_day_count = city.days - len(blocked_days)
+
+        # If ALL days are excursions, skip discovery + planning
+        if free_day_count <= 0:
+            city_plans = sorted(excursion_plans, key=lambda dp: dp.day_number)
+            await event_queue.put(ProgressEvent(
+                phase="city_complete",
+                message=f"{city_name} planned (excursions only)",
+                progress=pct_end,
+                data={
+                    "city": city_name,
+                    "day_plans": [dp.model_dump() for dp in excursion_plans],
+                },
+            ))
+            return city_plans
+
+        # ----------------------------------------------------------
+        # 1. Discover places
+        # ----------------------------------------------------------
+        if city.location is None or (abs(city.location.lat) < 0.01 and abs(city.location.lng) < 0.01):
+            logger.warning(
+                "[DayPlanOrchestrator] City %s has no valid location, skipping",
+                city_name,
+            )
+            await event_queue.put(ProgressEvent(
+                phase="city_complete",
+                message=f"{city_name}: could not locate on map — try a different spelling or check the city name",
+                progress=pct_end,
+                data={"city": city_name, "day_plans": []},
+            ))
+            return city_plans
+
+        try:
+            candidates = await self.places.discover_places(
+                location=city.location,
+                interests=request.interests,
+            )
+        except Exception as exc:
+            logger.error(
+                "[DayPlanOrchestrator] Place discovery failed for %s: %s",
+                city_name,
+                exc,
+            )
+            await event_queue.put(ProgressEvent(
+                phase="city_complete",
+                message=f"{city_name}: place discovery failed",
+                progress=pct_end,
+                data={"city": city_name, "day_plans": []},
+            ))
+            return city_plans
+
+        # Supplement with text searches for journey highlights
+        if city.highlights:
+            highlight_candidates = await self._discover_highlights(
+                city.highlights, city_name, city.location
+            )
+            if highlight_candidates:
+                # Merge, deduplicating by place_id
+                existing_ids = {c.place_id for c in candidates}
+                for hc in highlight_candidates:
+                    if hc.place_id not in existing_ids:
+                        candidates.append(hc)
+                        existing_ids.add(hc.place_id)
+
+        # Per-city landmark discovery (top attractions by review count)
+        try:
+            if city_name in self._landmark_cache:
+                city_landmarks = self._landmark_cache[city_name]
+            else:
+                city_landmarks = await self.places.discover_landmarks(city_name)
+                self._landmark_cache[city_name] = city_landmarks
+            if city_landmarks:
+                existing_ids = {c.place_id for c in candidates}
+
+                async def _search_lm(lm_name: str):
+                    try:
+                        return await self.places.text_search_places(
+                            query=f"{lm_name} {city_name}",
+                            location=city.location,
+                            max_results=1,
+                        )
+                    except Exception:
+                        return []
+
+                lm_results_all = await asyncio.gather(
+                    *(_search_lm(lm["name"]) for lm in city_landmarks)
+                )
+                for lm_results in lm_results_all:
+                    for lc in lm_results:
+                        if lc.place_id not in existing_ids:
+                            candidates.append(lc)
+                            existing_ids.add(lc.place_id)
+                logger.info(
+                    "[DayPlanOrchestrator] Added landmark candidates for %s",
+                    city_name,
+                )
+        except Exception as exc:
+            logger.warning("[DayPlanOrchestrator] Landmark discovery failed for %s: %s", city_name, exc)
+
+        # Theme-based discovery for far excursions
+        if city.experience_themes:
+            existing_ids = {c.place_id for c in candidates}
+            far_themes = [
+                et for et in city.experience_themes
+                if et.distance_from_city_km and et.distance_from_city_km > 20
+            ]
+            if far_themes:
+                async def _search_theme(theme_name: str):
+                    try:
+                        return await self.places.text_search_places(
+                            query=f"{theme_name} near {city_name}",
+                            location=city.location,
+                            max_results=3,
+                        )
+                    except Exception:
+                        return []
+
+                theme_results_all = await asyncio.gather(
+                    *(_search_theme(et.theme) for et in far_themes)
+                )
+                for theme_results in theme_results_all:
+                    for tr in theme_results:
+                        if tr.place_id not in existing_ids:
+                            candidates.append(tr)
+                            existing_ids.add(tr.place_id)
+
+        # Resolve photo references to full URLs
+        for c in candidates:
+            if c.photo_references:
+                c.photo_references = [
+                    self.places.get_photo_url(ref) for ref in c.photo_references
+                ]
+            if c.photo_reference:
+                c.photo_reference = self.places.get_photo_url(c.photo_reference)
+
+        if not candidates:
+            logger.warning(
+                "[DayPlanOrchestrator] No candidates found for %s, skipping",
+                city_name,
+            )
+            await event_queue.put(ProgressEvent(
+                phase="city_complete",
+                message=f"{city_name}: no suitable places found — try adjusting interests or pace",
+                progress=pct_end,
+                data={"city": city_name, "day_plans": []},
+            ))
+            return city_plans
+
+        await event_queue.put(ProgressEvent(
+            phase="city_progress",
+            message=f"Discovered {len(candidates)} places in {city_name}",
+            progress=pct_start + (pct_end - pct_start) // 4,
+            data={"city": city_name},
+        ))
+
+        # ----------------------------------------------------------
+        # 2. AI Plan — LLM selects + groups into themed days
+        # ----------------------------------------------------------
+        # Compute time constraints for arrival/departure days
+        time_constraints: list[dict] = []
+        for d_idx in range(city.days):
+            day_start, day_end = self._get_day_time_bounds(
+                journey, city_idx, d_idx, city.days
+            )
+            if day_start or day_end:
+                start_h = day_start.hour + day_start.minute / 60 if day_start else 9.0
+                end_h = day_end.hour + day_end.minute / 60 if day_end else 21.0
+                available = end_h - start_h
+                reason = ""
+                if day_start and day_start.hour > 9:
+                    reason = "arrival day — sightseeing starts later"
+                if day_end and day_end.hour < 21:
+                    reason = "departure day — need to leave early"
+                if reason:
+                    time_constraints.append({
+                        "day_num": d_idx + 1,
+                        "reason": reason,
+                        "available_hours": available,
+                    })
+
+        # Add time constraints from partial excursions (half-day/evening)
+        for d_idx, exc in partial_days.items():
+            if exc.excursion_type == "half_day_morning":
+                time_constraints.append({
+                    "day_num": d_idx + 1,
+                    "reason": f"{exc.name} (morning excursion)",
+                    "available_hours": 5,
+                })
+            elif exc.excursion_type == "half_day_afternoon":
+                time_constraints.append({
+                    "day_num": d_idx + 1,
+                    "reason": f"{exc.name} (afternoon excursion)",
+                    "available_hours": 4,
+                })
+            elif exc.excursion_type == "evening":
+                time_constraints.append({
+                    "day_num": d_idx + 1,
+                    "reason": f"{exc.name} (evening excursion)",
+                    "available_hours": 8,
+                })
+
+        ai_plan = None
+
+        # -- Batched pipeline (when experience_themes available) --
+        if city.experience_themes:
+            try:
+                # Per-city landmark data for batch prompts (candidates already merged above)
+                city_landmarks: list[dict] = []
+                try:
+                    if city_name in self._landmark_cache:
+                        city_landmarks = self._landmark_cache[city_name]
+                    else:
+                        city_landmarks = await self.places.discover_landmarks(city_name)
+                        self._landmark_cache[city_name] = city_landmarks
+                except Exception:
+                    pass
+
+                ai_plan = await self._plan_city_batched(
+                    city=city,
+                    candidates=candidates,
+                    free_day_count=free_day_count,
+                    blocked_days=blocked_days,
+                    request=request,
+                    landmarks=city_landmarks,
+                    city_name=city_name,
+                    time_constraints=time_constraints,
+                )
+            except Exception as exc:
+                logger.error(
+                    "[DayPlanOrchestrator] Batched planning failed for %s, "
+                    "falling back to single-shot: %s",
+                    city_name, exc,
+                )
+                ai_plan = None  # fall through to single-shot
+
+        # -- Single-shot planning (fallback / no experience_themes) --
+        if ai_plan is None:
+            from app.services.llm.exceptions import LLMValidationError
+            try:
+                ai_plan = await self.day_planner.plan_days(
+                    candidates=candidates,
+                    city_name=city_name,
+                    num_days=free_day_count,
+                    interests=request.interests,
+                    pace=request.pace.value,
+                    budget=request.budget.value if hasattr(request, 'budget') else "moderate",
+                    daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
+                    must_include=request.must_include if request.must_include else None,
+                    time_constraints=time_constraints if time_constraints else None,
+                    travelers_description=request.travelers.summary,
+                    country=city.country or "",
+                    highlights=city.highlights if city.highlights else None,
+                    best_time_to_visit=city.best_time_to_visit or "",
+                    hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
+                    experience_themes=city.experience_themes if city.experience_themes else None,
+                )
+            except LLMValidationError:
+                logger.warning(
+                    "[DayPlanOrchestrator] Validation failed for %s, retrying...",
+                    city_name,
+                )
+                try:
+                    ai_plan = await self.day_planner.plan_days(
+                        candidates=candidates,
+                        city_name=city_name,
+                        num_days=free_day_count,
+                        interests=request.interests,
+                        pace=request.pace.value,
+                        budget=request.budget.value if hasattr(request, 'budget') else "moderate",
+                        daily_budget_usd=(request.budget_usd / request.total_days) if request.budget_usd else None,
+                        must_include=request.must_include if request.must_include else None,
+                        time_constraints=time_constraints if time_constraints else None,
+                        travelers_description=request.travelers.summary,
+                        country=city.country or "",
+                        highlights=city.highlights if city.highlights else None,
+                        best_time_to_visit=city.best_time_to_visit or "",
+                        hotel_location=city.accommodation.location if city.accommodation and city.accommodation.location else None,
+                        experience_themes=city.experience_themes if city.experience_themes else None,
+                    )
+                except (LLMValidationError, Exception) as exc:
+                    logger.error(
+                        "[DayPlanOrchestrator] AI planning failed for %s after retry: %s",
+                        city_name, exc,
+                    )
+                    await event_queue.put(ProgressEvent(
+                        phase="city_complete",
+                        message=f"{city_name}: AI planning failed",
+                        progress=pct_end,
+                        data={"city": city_name, "day_plans": []},
+                    ))
+                    return city_plans
+            except Exception as exc:
+                logger.error(
+                    "[DayPlanOrchestrator] AI planning failed for %s: %s",
+                    city_name, exc,
+                )
+                await event_queue.put(ProgressEvent(
+                    phase="city_complete",
+                    message=f"{city_name}: AI planning failed",
+                    progress=pct_end,
+                    data={"city": city_name, "day_plans": []},
+                ))
+                return city_plans
+
+        await event_queue.put(ProgressEvent(
+            phase="city_progress",
+            message=f"Building itinerary for {city_name}...",
+            progress=pct_start + (pct_end - pct_start) // 2,
+            data={"city": city_name},
+        ))
+
+        # Build a lookup of candidates by place_id
+        candidate_map: dict[str, PlaceCandidate] = {
+            c.place_id: c for c in candidates
+        }
+
+        # Determine start location (hotel if available, fallback to city center)
+        start_location: Location | None = None
+        if (
+            city.accommodation
+            and city.accommodation.location
+        ):
+            start_location = city.accommodation.location
+        elif city.accommodation and city.location:
+            # Accommodation exists but wasn't geocoded — use city center
+            logger.info(
+                "[DayPlanOrchestrator] %s: accommodation has no location, "
+                "falling back to city center for bookends",
+                city_name,
+            )
+            start_location = city.location
+
+        # ----------------------------------------------------------
+        # 3. Fetch weather forecast for this city
+        # ----------------------------------------------------------
+        city_weather: dict[str, WeatherForecast] = {}
+        if self.weather and city.location:
+            try:
+                forecasts = await self.weather.get_daily_forecast(
+                    city.location, days=10
+                )
+                city_weather = {str(f.date): f for f in forecasts}
+                if city_weather and len(city_weather) < city.days:
+                    logger.info(
+                        "[DayPlanOrchestrator] Weather covers %d/%d days for %s (API limit)",
+                        len(city_weather), city.days, city_name,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "[DayPlanOrchestrator] Weather fetch failed for %s: %s",
+                    city_name,
+                    exc,
+                )
+
+        # ----------------------------------------------------------
+        # 4. Process each day group
+        # ----------------------------------------------------------
+
+        for day_idx, group in enumerate(ai_plan.day_groups):
+            # Determine arrival/departure time adjustments
+            day_start_time, day_end_time = self._get_day_time_bounds(
+                journey, city_idx, day_idx, city.days
+            )
+
+            # a. Filter candidates to selected places for this day
+            day_candidates = [
+                candidate_map[pid]
+                for pid in group.place_ids
+                if pid in candidate_map
+            ]
+
+            if not day_candidates:
+                logger.warning(
+                    "[DayPlanOrchestrator] No valid candidates for %s day %d, skipping",
+                    city_name,
+                    day_idx + 1,
+                )
+                city_plans.append(
+                    DayPlan(
+                        date=str(
+                            request.start_date
+                            + timedelta(days=day_offset + day_idx)
+                        ),
+                        day_number=day_offset + day_idx + 1,
+                        theme=group.theme,
+                        activities=[],
+                        city_name=city_name,
+                    )
+                )
+                continue
+
+            # b. Optimize — TSP route optimization
+            optimized = self.optimizer.optimize_day(
+                activities=day_candidates,
+                distance_fn=haversine_distance,
+                start_location=start_location,
+                preserve_order=True,
+            )
+
+            # c. Schedule — deterministic time slot assignment
+            schedule_date = request.start_date + timedelta(
+                days=day_offset + day_idx
+            )
+            activities = self.scheduler.build_schedule(
+                places=optimized,
+                pace=request.pace,
+                durations=ai_plan.durations,
+                start_location=start_location,
+                schedule_date=schedule_date,
+                day_start_time=day_start_time,
+                day_end_time=day_end_time,
+                cost_estimates=ai_plan.cost_estimates,
+                country=city.country,
+            )
+
+            # d. Bookend — add hotel departure/return
+            if start_location is not None and city.accommodation:
+                activities = self._bookend_with_hotel(
+                    activities=activities,
+                    accommodation_name=city.accommodation.name,
+                    accommodation_location=start_location,
+                    accommodation_place_id=city.accommodation.place_id,
+                )
+
+            # e. Compute routes between consecutive activities
+            activities = await self._compute_routes_via_matrix(
+                activities, pace=request.pace,
+            )
+
+            # f. Attach weather and add warnings to outdoor activities
+            day_weather: Weather | None = None
+            forecast = city_weather.get(str(schedule_date))
+            if forecast:
+                day_weather = Weather(
+                    temperature_high_c=forecast.temperature_high_c,
+                    temperature_low_c=forecast.temperature_low_c,
+                    condition=forecast.condition,
+                    precipitation_chance_percent=forecast.precipitation_chance_percent,
+                    wind_speed_kmh=forecast.wind_speed_kmh,
+                    humidity_percent=forecast.humidity_percent,
+                    uv_index=forecast.uv_index,
+                )
+                activities = self._add_weather_warnings(activities, forecast)
+
+            # g. Aggregate daily cost
+            daily_cost = sum(
+                a.estimated_cost_usd for a in activities
+                if a.estimated_cost_usd is not None
+            )
+
+            # Budget warning
+            if request.budget_usd and request.total_days:
+                daily_budget = request.budget_usd / request.total_days
+                if daily_cost > 0 and daily_cost > daily_budget * 1.2:
+                    logger.warning(
+                        "[DayPlanOrchestrator] %s day %d: estimated cost $%.0f exceeds "
+                        "daily budget $%.0f by %.0f%%",
+                        city_name, day_idx + 1, daily_cost, daily_budget,
+                        ((daily_cost / daily_budget) - 1) * 100,
+                    )
+
+            city_plans.append(
+                DayPlan(
+                    date=str(schedule_date),
+                    day_number=day_offset + day_idx + 1,
+                    theme=group.theme,
+                    activities=activities,
+                    city_name=city_name,
+                    weather=day_weather,
+                    daily_cost_usd=daily_cost if daily_cost > 0 else None,
+                )
+            )
+
+        await event_queue.put(ProgressEvent(
+            phase="city_progress",
+            message=f"Finalizing routes for {city_name}...",
+            progress=pct_start + 3 * (pct_end - pct_start) // 4,
+            data={"city": city_name},
+        ))
+
+        # Merge excursion plans with city plans
+        if excursion_plans:
+            city_plans.extend(excursion_plans)
+            city_plans.sort(key=lambda dp: dp.day_number)
+
+        await event_queue.put(ProgressEvent(
+            phase="city_complete",
+            message=f"{city_name} planned",
+            progress=pct_end,
+            data={
+                "city": city_name,
+                "day_plans": [dp.model_dump() for dp in city_plans],
+            },
+        ))
+
+        return city_plans
 
     # ------------------------------------------------------------------
     # Private helpers

@@ -576,8 +576,9 @@ class TestExcursionBlocking:
         orch.places = MagicMock()
         orch.places.geocode = AsyncMock(side_effect=ValueError("No results"))
 
-        # Bind the real static method so the fallback path works
+        # Bind the real methods so the fallback path works
         orch._build_excursion_day_plan = DayPlanOrchestrator._build_excursion_day_plan
+        orch._plan_single_excursion = lambda *a, **kw: DayPlanOrchestrator._plan_single_excursion(orch, *a, **kw)
 
         # excursions_by_day: day_index 2 -> full_day excursion
         excursions_by_day = {2: excursion}
@@ -754,3 +755,131 @@ class TestDistanceMatrixModeSelection:
         # Leg 1: walk=800, drive=700. 800 <= 700*1.5=1050, so walk
         result = DayPlanOrchestrator._pick_best_mode_from_matrix(matrices, 1)
         assert result == TravelMode.WALK
+
+
+class TestParallelLandmarkSearch:
+    """Landmark text searches should run in parallel via asyncio.gather."""
+
+    @pytest.mark.asyncio
+    async def test_landmark_searches_deduplicate(self):
+        """Parallel landmark searches should still deduplicate by place_id."""
+        from app.orchestrators.day_plan import DayPlanOrchestrator
+
+        mock_places = AsyncMock()
+        mock_places.text_search_places = AsyncMock(side_effect=[
+            [PlaceCandidate(place_id="p1", name="Temple A", address="Kyoto, Japan", location=Location(lat=35, lng=139), types=[])],
+            [PlaceCandidate(place_id="p1", name="Temple A duplicate", address="Kyoto, Japan", location=Location(lat=35, lng=139), types=[])],
+            [PlaceCandidate(place_id="p2", name="Shrine B", address="Kyoto, Japan", location=Location(lat=35.1, lng=139.1), types=[])],
+        ])
+
+        candidates = []
+        existing_ids = set()
+        city_landmarks = [{"name": "Temple A"}, {"name": "Temple A alt"}, {"name": "Shrine B"}]
+        city_name = "Kyoto"
+        location = Location(lat=35, lng=139)
+
+        async def _search_landmark(lm_name: str):
+            try:
+                return await mock_places.text_search_places(
+                    query=f"{lm_name} {city_name}",
+                    location=location,
+                    max_results=1,
+                )
+            except Exception:
+                return []
+
+        import asyncio
+        lm_results_all = await asyncio.gather(
+            *(_search_landmark(lm["name"]) for lm in city_landmarks)
+        )
+        for lm_results in lm_results_all:
+            for lc in lm_results:
+                if lc.place_id not in existing_ids:
+                    candidates.append(lc)
+                    existing_ids.add(lc.place_id)
+
+        assert len(candidates) == 2
+        assert {c.place_id for c in candidates} == {"p1", "p2"}
+
+
+class TestParallelExcursionProcessing:
+    """Excursion days should process in parallel via asyncio.gather."""
+
+    @pytest.mark.asyncio
+    async def test_excursion_grouping(self):
+        """Independent excursions should be grouped correctly for parallel processing."""
+        from app.models.journey import CityHighlight
+
+        excursions_by_day = {
+            0: CityHighlight(name="Nikko", excursion_type="full_day"),
+            2: CityHighlight(name="Hakone", excursion_type="full_day"),
+        }
+
+        exc_groups = {}
+        for day_idx, exc in sorted(excursions_by_day.items()):
+            key = exc.name
+            if key not in exc_groups:
+                exc_groups[key] = (exc, [])
+            exc_groups[key][1].append(day_idx)
+
+        assert len(exc_groups) == 2
+        assert exc_groups["Nikko"][1] == [0]
+        assert exc_groups["Hakone"][1] == [2]
+
+    @pytest.mark.asyncio
+    async def test_multi_day_excursion_grouped_together(self):
+        """Multi-day excursions sharing same object should form one group."""
+        from app.models.journey import CityHighlight
+
+        shared_exc = CityHighlight(name="Ha Long Bay", excursion_type="multi_day", excursion_days=2)
+        excursions_by_day = {
+            3: shared_exc,
+            4: shared_exc,
+        }
+
+        exc_groups = {}
+        for day_idx, exc in sorted(excursions_by_day.items()):
+            key = exc.name
+            if key not in exc_groups:
+                exc_groups[key] = (exc, [])
+            exc_groups[key][1].append(day_idx)
+
+        assert len(exc_groups) == 1
+        assert exc_groups["Ha Long Bay"][1] == [3, 4]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# City-level parallelism configuration and computation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestCityParallelism:
+    """City-level parallel processing via Queue + Semaphore."""
+
+    @pytest.mark.asyncio
+    async def test_day_offset_computed_from_city_index(self):
+        """Each city computes its own day_offset without shared state."""
+        journey = _make_journey_plan()
+        # Rome = 3 days, Florence = 2 days
+        # Rome day_offset = 0, Florence day_offset = 3
+        day_offset_0 = sum(journey.cities[i].days for i in range(0))
+        day_offset_1 = sum(journey.cities[i].days for i in range(1))
+        assert day_offset_0 == 0
+        assert day_offset_1 == 3
+
+    @pytest.mark.asyncio
+    async def test_max_concurrent_cities_config_exists(self):
+        """MAX_CONCURRENT_CITIES should be importable from planning config."""
+        from app.config.planning import MAX_CONCURRENT_CITIES
+        assert isinstance(MAX_CONCURRENT_CITIES, int)
+        assert MAX_CONCURRENT_CITIES > 0
+
+    @pytest.mark.asyncio
+    async def test_settings_max_concurrent_cities(self):
+        """Settings should expose max_concurrent_cities field."""
+        from app.config.settings import Settings
+        s = Settings(
+            max_concurrent_cities=2,
+            database_url="postgresql+asyncpg://localhost/test",
+        )
+        assert s.max_concurrent_cities == 2

@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     rate_limit_tips_requests: int = 30
     rate_limit_tips_window_seconds: int = 600
 
+    # Parallelization
+    max_concurrent_cities: int = 3
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
