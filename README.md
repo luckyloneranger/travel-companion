@@ -51,7 +51,7 @@ Discover places (Google) → AI plans days (with regional meal guidance + time c
 - **Dark mode** — full component coverage with system preference detection, theme-aware map InfoWindows
 - **Session persistence** — refreshing the page restores your current trip, tab state persisted in URL (?tab=cities)
 - **Quality scoring** — 7 context-aware weighted metrics: meal timing (20%), geographic clustering with auto city-scale detection (15%), route efficiency (15%), activity variety (15%), theme alignment (15%), opening hours (10%), duration realism (10%)
-- **Place filtering** — adaptive filters that adjust to result density (wider for sparse results, tighter for dense), filters out closed/low-rated places
+- **Place filtering** — adaptive filters that adjust to result density (wider for sparse results, tighter for dense), filters out closed/low-rated places, excludes lodging types from activity candidates
 - **Accommodation comparison** — view 3 alternative hotels per city with ratings, prices, and Google Maps links
 - **Full-screen day view** — swipeable single-day view with prev/next navigation
 - **Navigation sidebar** — floating action button with city/day tree for quick jump-to-day
@@ -61,7 +61,7 @@ Discover places (Google) → AI plans days (with regional meal guidance + time c
 - **Accessibility** — prefers-reduced-motion, aria-labels, focus rings, focus traps, 44px touch targets, semantic roles
 - **PWA** — installable via Add to Home Screen (manifest.json)
 - **Toast notifications** — user feedback for copy, share, export, errors, and destructive action confirmations
-- **LLM output robustness** — accommodation validation with placeholder fallback, fallback geocoding ("{city}, {country}"), reviewer score coercion (string/float), enriched data preservation after chat edits, orphan place ID detection, missing duration/cost logging
+- **LLM output robustness** — accommodation validation with placeholder fallback, fallback geocoding ("{city}, {country}"), reviewer score coercion (string/float), enriched data preservation after chat edits, orphan place ID detection, missing duration/cost logging, excursion `destination_name` for precise geocoding, cross-day duplicate prevention via `already_used` tracking
 - **Landmark discovery** — pre-Scout Google Places query discovers destination's top attractions by review count (multi-query: landmarks + best places + theme parks). Feeds to Scout (must-consider), Reviewer (validates coverage), Planner (fixes missing). Ensures iconic attractions like Universal Studios, major zoos, and famous landmarks are never missed — zero hardcoded attraction names
 
 ## Tech Stack
@@ -76,7 +76,7 @@ Discover places (Google) → AI plans days (with regional meal guidance + time c
 | Maps | Google Maps via @vis.gl/react-google-maps |
 | Streaming | Server-Sent Events (SSE) with AbortController + 180s stall timeout + pre-stream token refresh |
 | Export | weasyprint (PDF trip book with cover page) + icalendar (.ics) |
-| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 199 tests |
+| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 207 tests |
 
 ## Quick Start
 
@@ -240,7 +240,7 @@ travel-companion/
 │   │   ├── dependencies.py           # Depends() wiring for all services
 │   │   ├── config/
 │   │   │   ├── settings.py            # Pydantic BaseSettings (env vars)
-│   │   │   ├── planning.py            # Pace configs, fallback durations, adaptive place filters, interest mappings
+│   │   │   ├── planning.py            # Pace configs, fallback durations, adaptive place filters, interest mappings, LODGING_TYPES
 │   │   │   └── regional_transport.py  # LLM-driven transport guidance (replaces hardcoded profiles)
 │   │   ├── core/
 │   │   │   ├── auth.py                # JWT create/decode
@@ -285,7 +285,7 @@ travel-companion/
 │   │   │   ├── scheduler.py          # Time-slot builder (culture-aware meal placement ~80 countries, pace multipliers)
 │   │   │   └── quality/              # 7 context-aware evaluators (meal timing, clustering, efficiency, variety, hours, theme, duration)
 │   │   └── prompts/                   # 14 Markdown templates (journey, day_plan, chat, tips)
-│   └── tests/                         # 199 tests (pytest + testcontainers PostgreSQL)
+│   └── tests/                         # 207 tests (pytest + testcontainers PostgreSQL)
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx                    # Phase-based SPA (input → planning → preview/day-plans)
@@ -341,7 +341,7 @@ For separate frontend (e.g., Vercel) and backend (e.g., Azure App Service):
 ```bash
 cd backend && source venv/bin/activate
 
-# Run all tests (199 tests)
+# Run all tests (207 tests)
 pytest -v
 
 # Run specific test file
