@@ -73,7 +73,7 @@ class DayScoutAgent:
         time_constraints,
     ) -> str:
         """Format the user prompt template with candidate data."""
-        from app.config.planning import DAY_PLANNER_PACE_GUIDE, DINING_TYPES
+        from app.config.planning import DAY_PLANNER_PACE_GUIDE, DINING_TYPES, LODGING_TYPES
 
         guide = DAY_PLANNER_PACE_GUIDE.get(pace, DAY_PLANNER_PACE_GUIDE["moderate"])
 
@@ -103,7 +103,7 @@ class DayScoutAgent:
 
         # Sort by relevance, take top 25 attractions
         scored_candidates = sorted(
-            [c for c in candidates if not (set(c.types) & DINING_TYPES)],
+            [c for c in candidates if not (set(c.types) & (DINING_TYPES | LODGING_TYPES))],
             key=lambda c: -relevance_score(c)
         )
         filtered_attractions = scored_candidates[:25]
@@ -158,7 +158,7 @@ class DayScoutAgent:
                 lines.append(f"- **{lm.get('name')}** ({lm.get('user_ratings_total', 0):,} reviews, {lm.get('rating', 0)}★)")
             landmarks_section = "\n".join(lines)
 
-        used_text = ", ".join(sorted(already_used)[:20]) if already_used else "none"
+        used_text = ", ".join(sorted(already_used)) if already_used else "none"
 
         # Format time constraints for days in this batch
         time_constraints_section = ""

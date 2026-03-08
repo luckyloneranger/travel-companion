@@ -67,6 +67,7 @@ Return the COMPLETE fixed plan in JSON:
           "excursion_type": "full_day|half_day_morning|half_day_afternoon|multi_day|evening",
           "excursion_days": 2,
           "distance_from_city_km": 170,
+          "destination_name": "Nikko",
           "why": "Why this excursion is worth dedicating time to"
         }}
       ],
@@ -103,5 +104,5 @@ Return the COMPLETE fixed plan in JSON:
 - Use `experience_themes` ONLY — do NOT output a `highlights` array
 - Each city must have 5-8 experience_themes with category and why fields
 - Each city MUST include seasonal_notes, visa_notes, safety_notes, altitude_meters
-- Excursion themes MUST preserve excursion_type and distance_from_city_km
+- Excursion themes MUST preserve excursion_type, distance_from_city_km, and destination_name
 - Return ONLY the JSON object — no markdown fences, no text before or after

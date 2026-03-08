@@ -69,6 +69,15 @@ def get_adaptive_place_filters(result_count: int = 0) -> dict[str, float | int]:
 DINING_TYPES: set[str] = {"restaurant", "cafe", "bakery", "bar", "food", "dining"}
 
 # ---------------------------------------------------------------------------
+# Lodging type identifiers (used to filter hotels/motels from activity candidates)
+# ---------------------------------------------------------------------------
+LODGING_TYPES: set[str] = {
+    "lodging", "hotel", "resort_hotel", "motel", "inn",
+    "bed_and_breakfast", "hostel", "guest_house", "cottage",
+    "campground", "extended_stay_hotel", "farm_stay",
+}
+
+# ---------------------------------------------------------------------------
 # Day planner pace guide (stops per day)
 # ---------------------------------------------------------------------------
 DAY_PLANNER_PACE_GUIDE: dict[str, dict[str, int]] = {

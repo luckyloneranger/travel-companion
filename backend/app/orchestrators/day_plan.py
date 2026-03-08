@@ -93,6 +93,7 @@ class DayPlanOrchestrator:
                         name=et.theme,
                         description=et.why,
                         category=et.category,
+                        destination_name=et.destination_name,
                         excursion_type=et.excursion_type,
                         excursion_days=et.excursion_days,
                     ))
@@ -199,12 +200,13 @@ class DayPlanOrchestrator:
                 exc_day_indices = [day_idx]
 
             # 1. Geocode the excursion destination
+            geocode_name = exc.destination_name or exc.name
             try:
-                geo = await self.places.geocode(f"{exc.name}, {city.country or ''}")
+                geo = await self.places.geocode(f"{geocode_name}, {city.country or ''}")
                 exc_location = Location(lat=geo["lat"], lng=geo["lng"])
                 logger.info(
                     "[DayPlanOrchestrator] Geocoded excursion %r -> %.4f, %.4f",
-                    exc.name, geo["lat"], geo["lng"],
+                    geocode_name, geo["lat"], geo["lng"],
                 )
             except Exception as e:
                 logger.warning(
@@ -243,7 +245,7 @@ class DayPlanOrchestrator:
             # 3. Discover landmarks at the excursion destination
             exc_landmarks: list[dict] = []
             try:
-                exc_landmarks = await self.places.discover_landmarks(exc.name)
+                exc_landmarks = await self.places.discover_landmarks(geocode_name)
                 # Merge landmark PlaceCandidates into candidates
                 if exc_landmarks:
                     existing_ids = {c.place_id for c in exc_candidates}
@@ -253,7 +255,7 @@ class DayPlanOrchestrator:
                             continue
                         try:
                             lm_results = await self.places.text_search_places(
-                                query=f"{lm_name} {exc.name}",
+                                query=f"{lm_name} {geocode_name}",
                                 location=exc_location,
                                 max_results=1,
                             )
@@ -400,6 +402,7 @@ class DayPlanOrchestrator:
                         issues=review.issues,
                         candidates=exc_candidates,
                         destination=exc.name,
+                        already_used=set(),
                     )
                 except Exception:
                     break
@@ -1847,6 +1850,7 @@ class DayPlanOrchestrator:
                         issues=review.issues,
                         candidates=candidates,
                         destination=city_name,
+                        already_used=planned_ids,
                     )
                 except Exception as exc:
                     logger.warning(

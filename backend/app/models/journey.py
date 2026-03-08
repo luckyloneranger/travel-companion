@@ -21,6 +21,7 @@ class ExperienceTheme(BaseModel):
     """A category of experience available at a destination — used by Scout for journey-level planning."""
     theme: str
     category: str
+    destination_name: str | None = None
     excursion_type: str | None = None
     excursion_days: int | None = None
     distance_from_city_km: float | None = None
@@ -31,6 +32,7 @@ class CityHighlight(BaseModel):
     name: str
     description: str = ""
     category: str = ""
+    destination_name: str | None = None
     suggested_duration_hours: float | None = None
     excursion_type: str | None = None
     excursion_days: int | None = None
