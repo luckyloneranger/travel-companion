@@ -123,7 +123,11 @@ Travel dates: {travel_dates}
       "fare_usd": 45,
       "booking_tip": "How to book",
       "visa_requirement": "Entry requirement (cross-country only)",
-      "segments": []
+      "segments": [
+        {{"mode": "drive", "from_place": "City2", "to_place": "City2 Airport", "duration_hours": 0.5}},
+        {{"mode": "flight", "from_place": "City2 Airport", "to_place": "City3 Airport", "duration_hours": 2.0}},
+        {{"mode": "drive", "from_place": "City3 Airport", "to_place": "City3", "duration_hours": 0.5}}
+      ]
     }}
   ]
 }}

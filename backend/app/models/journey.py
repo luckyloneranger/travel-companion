@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .common import Location, TransportMode
 
@@ -59,12 +59,26 @@ class CityStop(BaseModel):
 class TransportSegment(BaseModel):
     """One segment of a multi-modal travel leg."""
     mode: str  # "flight", "drive", "bus", "train", "ferry", "walk"
-    from_place: str
-    to_place: str
+    from_place: str = ""
+    to_place: str = ""
     duration_hours: float = 0
     distance_km: float | None = None
     notes: str = ""
     is_grounded: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_from_to_aliases(cls, data: dict) -> dict:
+        """Accept 'from'/'to' as aliases for 'from_place'/'to_place'.
+
+        LLMs often return the shorter field names.
+        """
+        if isinstance(data, dict):
+            if "from" in data and "from_place" not in data:
+                data["from_place"] = data.pop("from")
+            if "to" in data and "to_place" not in data:
+                data["to_place"] = data.pop("to")
+        return data
 
 
 class TravelLeg(BaseModel):
