@@ -829,7 +829,7 @@ class DayPlanOrchestrator:
                 # -- Batched pipeline (when experience_themes available) --
                 if city.experience_themes:
                     try:
-                        # Per-city landmark discovery for batch prompts
+                        # Per-city landmark data for batch prompts (candidates already merged above)
                         city_landmarks: list[dict] = []
                         try:
                             if city_name in self._landmark_cache:
@@ -840,31 +840,6 @@ class DayPlanOrchestrator:
                         except Exception:
                             pass
 
-                        # Merge landmark places into candidate pool so Day Scout
-                        # can select them by place_id (not just see them as text)
-                        if city_landmarks:
-                            existing_ids = {c.place_id for c in candidates}
-                            for lm in city_landmarks[:7]:
-                                lm_name = lm.get("name", "")
-                                if not lm_name:
-                                    continue
-                                try:
-                                    lm_results = await self.places.text_search_places(
-                                        query=f"{lm_name} {city_name}",
-                                        location=city.location,
-                                        max_results=1,
-                                    )
-                                    for lc in lm_results:
-                                        if lc.place_id not in existing_ids:
-                                            candidates.append(lc)
-                                            existing_ids.add(lc.place_id)
-                                except Exception:
-                                    pass
-                            logger.info(
-                                "[DayPlanOrchestrator] Merged landmark candidates for %s (batched) — total: %d",
-                                city_name, len(candidates),
-                            )
-
                         ai_plan = await self._plan_city_batched(
                             city=city,
                             candidates=candidates,
@@ -873,6 +848,7 @@ class DayPlanOrchestrator:
                             request=request,
                             landmarks=city_landmarks,
                             city_name=city_name,
+                            time_constraints=time_constraints,
                         )
                     except Exception as exc:
                         logger.error(
@@ -1732,6 +1708,7 @@ class DayPlanOrchestrator:
         request,
         landmarks: list[dict] | None = None,
         city_name: str = "",
+        time_constraints: list[dict] | None = None,
     ) -> "AIPlan":
         """Plan a city's days using batched quality pipeline.
 
@@ -1806,6 +1783,7 @@ class DayPlanOrchestrator:
                     already_used=planned_ids,
                     meal_time_guidance=meal_guidance,
                     travelers_description=request.travelers.summary,
+                    time_constraints=time_constraints,
                 )
             except Exception as exc:
                 logger.error(

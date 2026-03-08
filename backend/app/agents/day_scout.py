@@ -32,6 +32,7 @@ class DayScoutAgent:
         already_used: set[str] | None = None,
         meal_time_guidance: str = "",
         travelers_description: str = "1 adult",
+        time_constraints: list[dict] | None = None,
     ) -> AIPlan:
         """Plan activities for a batch of 2-3 themed days.
 
@@ -44,6 +45,7 @@ class DayScoutAgent:
             already_used: Place IDs already planned on other days.
             meal_time_guidance: Regional meal timing guidance string.
             travelers_description: Description of the travel group.
+            time_constraints: Optional list of day-specific time limits.
 
         Returns:
             AIPlan with selected_place_ids, day_groups, durations, and cost_estimates.
@@ -52,6 +54,7 @@ class DayScoutAgent:
         user_prompt = self._build_user_prompt(
             candidates, batch_themes, destination, pace,
             landmarks, already_used, meal_time_guidance, travelers_description,
+            time_constraints,
         )
 
         logger.info(
@@ -67,6 +70,7 @@ class DayScoutAgent:
     def _build_user_prompt(
         self, candidates, batch_themes, destination, pace,
         landmarks, already_used, meal_time_guidance, travelers_description,
+        time_constraints,
     ) -> str:
         """Format the user prompt template with candidate data."""
         from app.config.planning import DAY_PLANNER_PACE_GUIDE, DINING_TYPES
@@ -156,6 +160,18 @@ class DayScoutAgent:
 
         used_text = ", ".join(sorted(already_used)[:20]) if already_used else "none"
 
+        # Format time constraints for days in this batch
+        time_constraints_section = ""
+        if time_constraints:
+            batch_day_set = set(batch_themes.keys())
+            relevant = [tc for tc in time_constraints if tc.get("day_num") in batch_day_set]
+            if relevant:
+                lines = ["## TIME-CONSTRAINED DAYS (plan fewer activities for these days):"]
+                for tc in relevant:
+                    hours = tc.get("available_hours", 12)
+                    lines.append(f"- Day {tc['day_num']}: only {hours:.0f} hours available — {tc.get('reason', '')}")
+                time_constraints_section = "\n".join(lines)
+
         template = day_plan_prompts.load("day_scout_user")
         return template.format(
             batch_day_numbers=", ".join(str(d) for d in sorted(batch_themes.keys())),
@@ -163,6 +179,7 @@ class DayScoutAgent:
             batch_themes=themes_text,
             pace=pace,
             activities_per_day=guide["total"],
+            time_constraints_section=time_constraints_section,
             landmarks_section=landmarks_section,
             already_used_ids=used_text,
             attractions_json=json.dumps(attractions, indent=2),

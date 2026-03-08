@@ -6,6 +6,9 @@ ASSIGNED THEMES (each day MUST cover its assigned theme):
 PACE: {pace} ({activities_per_day} total stops per day)
 
 **CRITICAL: Each day MUST have at least {activities_per_day} activities. Fewer is a failure.**
+**Exception: Days with reduced hours (arrival/departure/excursion) should have proportionally fewer activities.**
+
+{time_constraints_section}
 
 {landmarks_section}
 

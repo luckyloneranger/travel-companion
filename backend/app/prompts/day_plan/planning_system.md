@@ -35,18 +35,17 @@ A good day should follow a NATURAL progression:
 - **USE COORDINATES** to keep each day geographically clustered (places close together on map)
 
 ## KEY RULES
-1. Every day MUST have EXACTLY 2 dining stops — one for lunch, one for dinner. This is mandatory, not optional
+1. Every day MUST have 2 dining stops — one for lunch, one for dinner
 2. Put major attractions in the morning when energy is high
 3. Places on the same day should be **geographically close** (check their lat/lng)
 4. End days with a dinner restaurant
 5. Balance heavy activities (museums) with lighter ones (parks, walks)
 6. Prioritize well-reviewed places (high review count = more reliable)
-7. Famous/historic restaurants (e.g., Le Procope, Café de Flore) can count as BOTH dining AND cultural experience
+7. Famous/historic restaurants can count as BOTH dining AND cultural experience
 
 ## MEAL FLEXIBILITY
-- **Relaxed pace:** 2 dining stops (lunch + dinner)
-- **Moderate pace:** 2 dining stops (lunch + dinner)
-- **Packed pace:** 1-2 dining stops (at minimum dinner; lunch can be a quick café or street food)
+- **Relaxed/moderate pace:** 2 dining stops (lunch + dinner)
+- **Packed pace:** 2 dining stops, but lunch can be a quick café or street food spot
 - In street-food cultures (Bangkok, Tokyo, Mexico City), a market visit can replace a sit-down meal
 - **Packed pace recovery:** Even at packed pace, include at least one lighter activity (café, park rest, scenic viewpoint) between every 2-3 intensive activities (museums, temples, guided tours). Sustained high-intensity touring without breaks leads to burnout.
 

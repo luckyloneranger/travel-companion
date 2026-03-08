@@ -8,20 +8,19 @@ to resolve each issue. Do not redesign the entire trip — fix only what's broke
 1. Fix ALL critical and major issues — these are mandatory
 2. Fix minor issues when possible without disrupting the plan
 3. **PRESERVE** cities that have no issues — do not swap them unnecessarily
-4. **PRESERVE** highlights unless you are removing a city entirely
+4. **PRESERVE** experience_themes unless you are removing a city entirely
 5. Maintain the total days: **{total_days}**
 6. Keep the route geographically logical — no backtracking
-7. If you add a new city, it must have 3-5 highlights with vivid descriptions
+7. If you add a new city, it must have 5-8 experience_themes (categories, NOT specific attraction names)
 8. If you adjust transport, use modes that are actually available in the region
+9. Preserve excursion metadata (excursion_type, excursion_days, distance_from_city_km) on existing themes
+
+## EXPERIENCE THEME CATEGORIES
+Use ONLY these categories: `food`, `culture`, `nature`, `adventure`, `excursion`, `shopping`, `nightlife`, `entertainment`, `beach`, `wellness`, `religious`
 
 ## REASONING
 Before outputting the fixed plan, you MUST include a `"reasoning"` array that explains
 how you addressed each issue. This ensures accountability.
-
-## CATEGORY OPTIONS
-Use ONLY these categories for highlights:
-`culture`, `food`, `nature`, `history`, `shopping`, `nightlife`, `adventure`, `wellness`,
-`architecture`, `art`, `religious`, `markets`, `beach`, `entertainment`, `photography`, `local_life`
 
 ## OUTPUT
 Return ONLY the JSON object. No markdown fences, no text before or after.
