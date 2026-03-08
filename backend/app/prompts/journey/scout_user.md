@@ -137,7 +137,7 @@ Travel dates: {travel_dates}
 **STRICT RULES:**
 - Total days across all destinations MUST equal {total_days}
 - Each base destination: minimum 2 days, 5-8 experience_themes, 1 accommodation with name + why + estimated_nightly_usd
-- Nearby attractions (<2h) MUST be excursion themes on the base city, NOT separate destinations
+- Destinations commonly visited as day trips from a base MUST be excursion themes, NOT separate cities
 - Allocate days proportionally to attraction density — NOT equal splits
 - Use `experience_themes` ONLY — do NOT output a `highlights` array
 - Each city MUST include seasonal_notes, visa_notes, safety_notes, altitude_meters

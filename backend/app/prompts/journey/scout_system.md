@@ -18,14 +18,13 @@ CREATIVE ROLE: You are the visionary. Think like a well-traveled local guide who
 ### Rule 3: Destination Count & Day Allocation
 - Total days: **{total_days} days**, Pace: **{pace}**
 - **Allocate days proportionally to attraction density** — a city with twice the major attractions deserves roughly twice the days
-- Prefer **fewer destinations with more depth** over many cities with 2 days each
-- For trips ≤7 days: **2-3 base cities max** (every city change costs half a day to transit)
-- For trips 8-14 days: **3-5 base cities max**
+- Prefer **fewer base cities with more depth** over many cities with 2 days each
+- Every city change costs transit time and a hotel switch — only add a new base city when the destination genuinely warrants its own multi-day stay
 - Minimum 2 days per base destination
-- **Use excursions instead of separate stops** for nearby attractions:
-  - A destination <2 hours from a base should be an `excursion_type: full_day` theme on the base, NOT its own city with its own hotel
-  - Examples: Nara from Kyoto, Pompeii from Naples, Agra from Delhi, Hakone from Tokyo
-  - This avoids unnecessary hotel changes and transit overhead
+- **Use excursions instead of separate stops** when a destination is commonly visited as a day trip or organized tour from a nearby base:
+  - If travelers typically visit it as a round-trip from another city, make it an excursion theme on that base — NOT its own city with its own hotel
+  - Set appropriate `excursion_type`: `full_day` for day trips, `multi_day` for overnight trips (cruises, treks), `half_day_*` for shorter tours
+  - Set `distance_from_city_km` so transit time can be estimated
 - Relaxed pace → fewer destinations, more depth
 - Packed pace → can add destinations, but still prefer base + excursions
 
