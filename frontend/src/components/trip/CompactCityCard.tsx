@@ -6,7 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { DayTimeline } from '@/components/trip/DayTimeline';
 import { DayMap, DayMapLegend } from '@/components/maps';
 import type { CityStop, TravelLeg, DayPlan } from '@/types';
-import { api } from '@/services/api';
+import { api, photoUrl } from '@/services/api';
 import { showToast } from '@/components/ui/toast';
 
 interface CompactCityCardProps {
@@ -168,7 +168,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
           <div className="flex items-center gap-3 rounded-md border border-accent-200 dark:border-accent-500/30 bg-accent-50/30 dark:bg-accent-500/10 p-2.5">
             {city.accommodation.photo_url && (
               <img
-                src={city.accommodation.photo_url}
+                src={photoUrl(city.accommodation.photo_url)}
                 alt={city.accommodation.name}
                 loading="lazy"
                 className="h-12 w-12 rounded-md object-cover shrink-0"
@@ -220,7 +220,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                     >
                       {alt.photo_url && (
                         <img
-                          src={`${alt.photo_url}?w=200`}
+                          src={`${photoUrl(alt.photo_url)}?w=200`}
                           alt={alt.name}
                           loading="lazy"
                           className="h-8 w-8 rounded object-cover shrink-0"

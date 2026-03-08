@@ -16,6 +16,16 @@ import { AUTH_TOKEN_KEY } from '@/constants';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
+/**
+ * Prefix a photo URL with the API base for split-deploy compatibility.
+ * Photo URLs from the backend are relative (/api/places/photo/...) which
+ * only work on same-origin. On split deploy, they need the backend's domain.
+ */
+export function photoUrl(url: string): string {
+  if (!API_BASE || !url.startsWith('/api/')) return url;
+  return `${API_BASE}${url}`;
+}
+
 /** Return Bearer header if a token is stored (cross-origin / mobile). */
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem(AUTH_TOKEN_KEY);

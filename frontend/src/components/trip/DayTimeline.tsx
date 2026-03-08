@@ -20,6 +20,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Badge } from '@/components/ui/badge';
 import type { DayPlan, Activity } from '@/types';
+import { photoUrl } from '@/services/api';
 
 interface DayTimelineProps {
   dayPlan: DayPlan;
@@ -222,7 +223,7 @@ function TimelineActivity({
               {activity.place.photo_urls.slice(0, 3).map((url, i) => (
                 <img
                   key={i}
-                  src={`${url}${url.includes('?') ? '&' : '?'}w=400`}
+                  src={`${photoUrl(url)}${url.includes('?') ? '&' : '?'}w=400`}
                   alt={`${activity.place.name} photo ${i + 1}`}
                   loading="lazy"
                   className="h-20 w-28 sm:h-24 sm:w-32 rounded-md object-cover shrink-0"
