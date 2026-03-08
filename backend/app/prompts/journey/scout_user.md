@@ -13,11 +13,12 @@ Travel dates: {travel_dates}
 {landmarks_context}
 
 **Your Task:**
-1. Decide the optimal number of destinations based on days, pace, and regional distances
+1. Decide the optimal number of **base cities** — fewer is better, use excursions for nearby attractions
 2. Select destinations matching the interests — include iconic landmarks, not just major cities
-3. Allocate days (total must equal {total_days}, minimum 2 per destination)
-4. Create logical travel connections (no backtracking)
-5. Provide 5-8 experience_themes per destination (categories, NOT specific place names)
+3. Allocate days **weighted by attraction density** (total must equal {total_days}, minimum 2 per base)
+4. For nearby attractions (<2h from a base city): add as `excursion_type` themes on the base, NOT as separate cities
+5. Create logical travel connections (no backtracking)
+6. Provide 5-8 experience_themes per destination (categories, NOT specific place names)
 
 **EXAMPLE OUTPUT** (7-day Japan trip):
 ```json
@@ -135,7 +136,9 @@ Travel dates: {travel_dates}
 
 **STRICT RULES:**
 - Total days across all destinations MUST equal {total_days}
-- Each destination: minimum 2 days, 5-8 experience_themes, 1 accommodation with name + why + estimated_nightly_usd
+- Each base destination: minimum 2 days, 5-8 experience_themes, 1 accommodation with name + why + estimated_nightly_usd
+- Nearby attractions (<2h) MUST be excursion themes on the base city, NOT separate destinations
+- Allocate days proportionally to attraction density — NOT equal splits
 - Use `experience_themes` ONLY — do NOT output a `highlights` array
 - Each city MUST include seasonal_notes, visa_notes, safety_notes, altitude_meters
 - Cross-country travel legs MUST include visa_requirement
