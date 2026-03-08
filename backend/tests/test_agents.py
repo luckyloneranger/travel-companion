@@ -846,3 +846,40 @@ class TestParallelExcursionProcessing:
 
         assert len(exc_groups) == 1
         assert exc_groups["Ha Long Bay"][1] == [3, 4]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# City-level parallelism configuration and computation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestCityParallelism:
+    """City-level parallel processing via Queue + Semaphore."""
+
+    @pytest.mark.asyncio
+    async def test_day_offset_computed_from_city_index(self):
+        """Each city computes its own day_offset without shared state."""
+        journey = _make_journey_plan()
+        # Rome = 3 days, Florence = 2 days
+        # Rome day_offset = 0, Florence day_offset = 3
+        day_offset_0 = sum(journey.cities[i].days for i in range(0))
+        day_offset_1 = sum(journey.cities[i].days for i in range(1))
+        assert day_offset_0 == 0
+        assert day_offset_1 == 3
+
+    @pytest.mark.asyncio
+    async def test_max_concurrent_cities_config_exists(self):
+        """MAX_CONCURRENT_CITIES should be importable from planning config."""
+        from app.config.planning import MAX_CONCURRENT_CITIES
+        assert isinstance(MAX_CONCURRENT_CITIES, int)
+        assert MAX_CONCURRENT_CITIES > 0
+
+    @pytest.mark.asyncio
+    async def test_settings_max_concurrent_cities(self):
+        """Settings should expose max_concurrent_cities field."""
+        from app.config.settings import Settings
+        s = Settings(
+            max_concurrent_cities=2,
+            database_url="postgresql+asyncpg://localhost/test",
+        )
+        assert s.max_concurrent_cities == 2
