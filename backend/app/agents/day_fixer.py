@@ -20,6 +20,7 @@ class DayFixerAgent:
         issues: list,
         candidates: list,
         destination: str,
+        already_used: set[str] | None = None,
     ) -> AIPlan:
         """Fix quality issues in a batch of day plans."""
         system_prompt = day_plan_prompts.load("day_fixer_system")
@@ -34,11 +35,16 @@ class DayFixerAgent:
             for c in candidates[:30]
         ]
 
+        already_used_text = ""
+        if already_used:
+            already_used_text = ", ".join(sorted(already_used))
+
         user_prompt = day_plan_prompts.load("day_fixer_user").format(
             destination=destination,
             issues_detail=issues_detail,
             current_plan_json=json.dumps(current_plan.model_dump(), indent=2),
             candidates_json=json.dumps(candidate_entries, indent=2),
+            already_used_ids=already_used_text,
         )
 
         logger.info("[DayFixer] Fixing %d issues for %s", len(issues), destination)

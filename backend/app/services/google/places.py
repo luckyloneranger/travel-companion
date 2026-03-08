@@ -18,7 +18,7 @@ from app.models.internal import OpeningHours, PlaceCandidate
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://places.googleapis.com/v1"
-from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT, PLACES_MIN_RATING as MIN_RATING, PLACES_MIN_RATINGS_COUNT as MIN_RATINGS_COUNT, PLACES_DISCOVERY_RADIUS_KM
+from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT, PLACES_MIN_RATING as MIN_RATING, PLACES_MIN_RATINGS_COUNT as MIN_RATINGS_COUNT, PLACES_DISCOVERY_RADIUS_KM, LODGING_TYPES
 
 from app.config.planning import INTEREST_TO_TYPES as INTEREST_TYPE_MAP
 
@@ -732,6 +732,7 @@ class GooglePlacesService:
                 and c.user_ratings_total >= MIN_RATINGS_COUNT
             )
             and (c.business_status is None or c.business_status not in _CLOSED_STATUSES)
+            and not any(t in LODGING_TYPES for t in c.types)
         ]
 
         filtered.sort(

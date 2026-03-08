@@ -52,6 +52,7 @@ For each destination, provide `experience_themes` — categories of experiences,
   - `half_day_morning` / `half_day_afternoon`: cooking classes, tours
   - `multi_day`: overnight cruises, treks (set `excursion_days`)
   - `evening`: night markets, shows
+  - Set `destination_name` to the specific geocodable place name (e.g., "Nikko", "Ha Long Bay", "Ba Na Hills")
 
 **DO NOT output a `highlights` array. Use ONLY `experience_themes`.**
 

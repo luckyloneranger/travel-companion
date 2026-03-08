@@ -428,6 +428,7 @@ class TestCityHighlightExcursion:
         h = CityHighlight(name="Test")
         assert h.excursion_type is None
         assert h.excursion_days is None
+        assert h.destination_name is None
 
     def test_excursion_fields_set(self):
         from app.models.journey import CityHighlight
@@ -443,6 +444,16 @@ class TestCityHighlightExcursion:
         h = CityHighlight(name="Disney", excursion_type="full_day")
         assert h.excursion_type == "full_day"
         assert h.excursion_days is None
+
+    def test_destination_name_set(self):
+        from app.models.journey import CityHighlight
+        h = CityHighlight(
+            name="Forest shrines in mountain regions",
+            category="excursion",
+            destination_name="Nikko",
+            excursion_type="full_day",
+        )
+        assert h.destination_name == "Nikko"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -584,6 +595,71 @@ class TestExcursionBlocking:
         assert plan.date == "2026-04-12"  # start_date + 2 days
         assert len(plan.activities) == 1
         assert plan.activities[0].place.name == "Universal Studios"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# destination_name propagation & LODGING_TYPES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestDestinationNameField:
+    """Verify destination_name on ExperienceTheme and CityHighlight."""
+
+    def test_experience_theme_defaults_none(self):
+        from app.models.journey import ExperienceTheme
+        et = ExperienceTheme(theme="Temple circuit", category="religious")
+        assert et.destination_name is None
+
+    def test_experience_theme_set(self):
+        from app.models.journey import ExperienceTheme
+        et = ExperienceTheme(
+            theme="Forest shrines in mountain regions",
+            category="excursion",
+            destination_name="Nikko",
+            excursion_type="full_day",
+            distance_from_city_km=130,
+        )
+        assert et.destination_name == "Nikko"
+
+    def test_extract_excursions_preserves_destination_name(self):
+        from app.models.journey import ExperienceTheme
+        themes = [
+            ExperienceTheme(
+                theme="Limestone bay cruise",
+                category="excursion",
+                destination_name="Ha Long Bay",
+                excursion_type="multi_day",
+                excursion_days=2,
+            ),
+            ExperienceTheme(
+                theme="Street food markets",
+                category="food",
+            ),
+        ]
+        result = DayPlanOrchestrator._extract_excursions(
+            highlights=[], experience_themes=themes,
+        )
+        assert len(result) == 1
+        assert result[0].destination_name == "Ha Long Bay"
+        assert result[0].excursion_type == "multi_day"
+
+
+class TestLodgingTypes:
+    """Verify LODGING_TYPES exists and has expected members."""
+
+    def test_lodging_types_exists(self):
+        from app.config.planning import LODGING_TYPES
+        assert isinstance(LODGING_TYPES, set)
+        assert len(LODGING_TYPES) >= 5
+
+    def test_lodging_types_contains_expected(self):
+        from app.config.planning import LODGING_TYPES
+        for expected in ("lodging", "hotel", "resort_hotel", "hostel", "bed_and_breakfast"):
+            assert expected in LODGING_TYPES
+
+    def test_lodging_types_no_overlap_with_dining(self):
+        from app.config.planning import DINING_TYPES, LODGING_TYPES
+        assert not (DINING_TYPES & LODGING_TYPES), "DINING_TYPES and LODGING_TYPES must not overlap"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
