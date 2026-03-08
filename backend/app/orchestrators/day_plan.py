@@ -620,6 +620,12 @@ class DayPlanOrchestrator:
                     blocked_days, partial_days = self._compute_excursion_schedule(
                         excursions, city.days,
                     )
+                    yield ProgressEvent(
+                        phase="city_progress",
+                        message=f"Planning excursions from {city_name}...",
+                        progress=pct_start,
+                        data={"city": city_name},
+                    )
                     excursion_plans = await self._plan_excursion_days(
                         excursions_by_day=blocked_days,
                         city=city,
@@ -764,6 +770,13 @@ class DayPlanOrchestrator:
                         data={"city": city_name, "day_plans": []},
                     )
                     continue
+
+                yield ProgressEvent(
+                    phase="city_progress",
+                    message=f"Discovered {len(candidates)} places in {city_name}",
+                    progress=pct_start + (pct_end - pct_start) // 4,
+                    data={"city": city_name},
+                )
 
                 # ----------------------------------------------------------
                 # 2. AI Plan — LLM selects + groups into themed days
@@ -940,6 +953,13 @@ class DayPlanOrchestrator:
                         )
                         continue
 
+                yield ProgressEvent(
+                    phase="city_progress",
+                    message=f"Building itinerary for {city_name}...",
+                    progress=pct_start + (pct_end - pct_start) // 2,
+                    data={"city": city_name},
+                )
+
                 # Build a lookup of candidates by place_id
                 candidate_map: dict[str, PlaceCandidate] = {
                     c.place_id: c for c in candidates
@@ -1102,6 +1122,13 @@ class DayPlanOrchestrator:
                             daily_cost_usd=daily_cost if daily_cost > 0 else None,
                         )
                     )
+
+                yield ProgressEvent(
+                    phase="city_progress",
+                    message=f"Finalizing routes for {city_name}...",
+                    progress=pct_start + 3 * (pct_end - pct_start) // 4,
+                    data={"city": city_name},
+                )
 
                 # Merge excursion plans with city plans
                 if excursion_plans:
