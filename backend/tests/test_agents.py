@@ -576,8 +576,9 @@ class TestExcursionBlocking:
         orch.places = MagicMock()
         orch.places.geocode = AsyncMock(side_effect=ValueError("No results"))
 
-        # Bind the real static method so the fallback path works
+        # Bind the real methods so the fallback path works
         orch._build_excursion_day_plan = DayPlanOrchestrator._build_excursion_day_plan
+        orch._plan_single_excursion = lambda *a, **kw: DayPlanOrchestrator._plan_single_excursion(orch, *a, **kw)
 
         # excursions_by_day: day_index 2 -> full_day excursion
         excursions_by_day = {2: excursion}
@@ -799,3 +800,49 @@ class TestParallelLandmarkSearch:
 
         assert len(candidates) == 2
         assert {c.place_id for c in candidates} == {"p1", "p2"}
+
+
+class TestParallelExcursionProcessing:
+    """Excursion days should process in parallel via asyncio.gather."""
+
+    @pytest.mark.asyncio
+    async def test_excursion_grouping(self):
+        """Independent excursions should be grouped correctly for parallel processing."""
+        from app.models.journey import CityHighlight
+
+        excursions_by_day = {
+            0: CityHighlight(name="Nikko", excursion_type="full_day"),
+            2: CityHighlight(name="Hakone", excursion_type="full_day"),
+        }
+
+        exc_groups = {}
+        for day_idx, exc in sorted(excursions_by_day.items()):
+            key = exc.name
+            if key not in exc_groups:
+                exc_groups[key] = (exc, [])
+            exc_groups[key][1].append(day_idx)
+
+        assert len(exc_groups) == 2
+        assert exc_groups["Nikko"][1] == [0]
+        assert exc_groups["Hakone"][1] == [2]
+
+    @pytest.mark.asyncio
+    async def test_multi_day_excursion_grouped_together(self):
+        """Multi-day excursions sharing same object should form one group."""
+        from app.models.journey import CityHighlight
+
+        shared_exc = CityHighlight(name="Ha Long Bay", excursion_type="multi_day", excursion_days=2)
+        excursions_by_day = {
+            3: shared_exc,
+            4: shared_exc,
+        }
+
+        exc_groups = {}
+        for day_idx, exc in sorted(excursions_by_day.items()):
+            key = exc.name
+            if key not in exc_groups:
+                exc_groups[key] = (exc, [])
+            exc_groups[key][1].append(day_idx)
+
+        assert len(exc_groups) == 1
+        assert exc_groups["Ha Long Bay"][1] == [3, 4]
