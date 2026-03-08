@@ -23,6 +23,7 @@ CREATIVE ROLE: You are the visionary. Think like a well-traveled local guide who
 - Minimum 2 days per base destination
 - **Use excursions instead of separate stops** when a destination is commonly visited as a day trip or organized tour from a nearby base:
   - If travelers typically visit it as a round-trip from another city, make it an excursion theme on that base — NOT its own city with its own hotel
+  - Overnight cruises and guided tours where travelers return to their base city are `multi_day` excursions — the cruise ship or camp is the accommodation, so no separate hotel is needed (e.g., Ha Long Bay cruises from Hanoi, Komodo boat trips from Labuan Bajo)
   - Set appropriate `excursion_type`: `full_day` for day trips, `multi_day` for overnight trips (cruises, treks), `half_day_*` for shorter tours
   - Set `distance_from_city_km` so transit time can be estimated
 - Relaxed pace → fewer destinations, more depth
