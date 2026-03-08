@@ -5,6 +5,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useAuthStore } from '@/stores/authStore';
 import type { DayPlan } from '@/types';
 import { SSE_STALL_TIMEOUT_MS } from '@/constants';
+import { showToast } from '@/components/ui/toast';
 
 export function useStreamingDayPlans() {
   const abortRef = useRef<AbortController | null>(null);
@@ -55,6 +56,10 @@ export function useStreamingDayPlans() {
         if (event.phase === 'complete' && event.data) {
           const dayPlans = (event.data as Record<string, unknown>).day_plans as DayPlan[];
           setDayPlans(dayPlans);
+        }
+
+        if (event.phase === 'city_error') {
+          showToast(event.message, 'error');
         }
 
         if (event.phase === 'error') {
