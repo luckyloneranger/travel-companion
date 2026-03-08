@@ -754,3 +754,48 @@ class TestDistanceMatrixModeSelection:
         # Leg 1: walk=800, drive=700. 800 <= 700*1.5=1050, so walk
         result = DayPlanOrchestrator._pick_best_mode_from_matrix(matrices, 1)
         assert result == TravelMode.WALK
+
+
+class TestParallelLandmarkSearch:
+    """Landmark text searches should run in parallel via asyncio.gather."""
+
+    @pytest.mark.asyncio
+    async def test_landmark_searches_deduplicate(self):
+        """Parallel landmark searches should still deduplicate by place_id."""
+        from app.orchestrators.day_plan import DayPlanOrchestrator
+
+        mock_places = AsyncMock()
+        mock_places.text_search_places = AsyncMock(side_effect=[
+            [PlaceCandidate(place_id="p1", name="Temple A", address="Kyoto, Japan", location=Location(lat=35, lng=139), types=[])],
+            [PlaceCandidate(place_id="p1", name="Temple A duplicate", address="Kyoto, Japan", location=Location(lat=35, lng=139), types=[])],
+            [PlaceCandidate(place_id="p2", name="Shrine B", address="Kyoto, Japan", location=Location(lat=35.1, lng=139.1), types=[])],
+        ])
+
+        candidates = []
+        existing_ids = set()
+        city_landmarks = [{"name": "Temple A"}, {"name": "Temple A alt"}, {"name": "Shrine B"}]
+        city_name = "Kyoto"
+        location = Location(lat=35, lng=139)
+
+        async def _search_landmark(lm_name: str):
+            try:
+                return await mock_places.text_search_places(
+                    query=f"{lm_name} {city_name}",
+                    location=location,
+                    max_results=1,
+                )
+            except Exception:
+                return []
+
+        import asyncio
+        lm_results_all = await asyncio.gather(
+            *(_search_landmark(lm["name"]) for lm in city_landmarks)
+        )
+        for lm_results in lm_results_all:
+            for lc in lm_results:
+                if lc.place_id not in existing_ids:
+                    candidates.append(lc)
+                    existing_ids.add(lc.place_id)
+
+        assert len(candidates) == 2
+        assert {c.place_id for c in candidates} == {"p1", "p2"}

@@ -249,22 +249,26 @@ class DayPlanOrchestrator:
                 # Merge landmark PlaceCandidates into candidates
                 if exc_landmarks:
                     existing_ids = {c.place_id for c in exc_candidates}
-                    for lm in exc_landmarks[:7]:
-                        lm_name = lm.get("name", "")
-                        if not lm_name:
-                            continue
+                    valid_landmarks = [lm for lm in exc_landmarks[:7] if lm.get("name")]
+
+                    async def _search_exc_lm(lm_name: str):
                         try:
-                            lm_results = await self.places.text_search_places(
+                            return await self.places.text_search_places(
                                 query=f"{lm_name} {geocode_name}",
                                 location=exc_location,
                                 max_results=1,
                             )
-                            for lc in lm_results:
-                                if lc.place_id not in existing_ids:
-                                    exc_candidates.append(lc)
-                                    existing_ids.add(lc.place_id)
                         except Exception:
-                            pass
+                            return []
+
+                    exc_lm_results = await asyncio.gather(
+                        *(_search_exc_lm(lm["name"]) for lm in valid_landmarks)
+                    )
+                    for lm_results in exc_lm_results:
+                        for lc in lm_results:
+                            if lc.place_id not in existing_ids:
+                                exc_candidates.append(lc)
+                                existing_ids.add(lc.place_id)
             except Exception as e:
                 logger.warning(
                     "[DayPlanOrchestrator] Landmark discovery failed for excursion %r: %s",
@@ -716,12 +720,21 @@ class DayPlanOrchestrator:
                         self._landmark_cache[city_name] = city_landmarks
                     if city_landmarks:
                         existing_ids = {c.place_id for c in candidates}
-                        for lm in city_landmarks:
-                            lm_results = await self.places.text_search_places(
-                                query=lm["name"] + " " + city_name,
-                                location=city.location,
-                                max_results=1,
-                            )
+
+                        async def _search_lm(lm_name: str):
+                            try:
+                                return await self.places.text_search_places(
+                                    query=f"{lm_name} {city_name}",
+                                    location=city.location,
+                                    max_results=1,
+                                )
+                            except Exception:
+                                return []
+
+                        lm_results_all = await asyncio.gather(
+                            *(_search_lm(lm["name"]) for lm in city_landmarks)
+                        )
+                        for lm_results in lm_results_all:
                             for lc in lm_results:
                                 if lc.place_id not in existing_ids:
                                     candidates.append(lc)
@@ -736,20 +749,29 @@ class DayPlanOrchestrator:
                 # Theme-based discovery for far excursions
                 if city.experience_themes:
                     existing_ids = {c.place_id for c in candidates}
-                    for et in city.experience_themes:
-                        if et.distance_from_city_km and et.distance_from_city_km > 20:
+                    far_themes = [
+                        et for et in city.experience_themes
+                        if et.distance_from_city_km and et.distance_from_city_km > 20
+                    ]
+                    if far_themes:
+                        async def _search_theme(theme_name: str):
                             try:
-                                theme_results = await self.places.text_search_places(
-                                    query=f"{et.theme} near {city_name}",
+                                return await self.places.text_search_places(
+                                    query=f"{theme_name} near {city_name}",
                                     location=city.location,
                                     max_results=3,
                                 )
-                                for tr in theme_results:
-                                    if tr.place_id not in existing_ids:
-                                        candidates.append(tr)
-                                        existing_ids.add(tr.place_id)
                             except Exception:
-                                pass
+                                return []
+
+                        theme_results_all = await asyncio.gather(
+                            *(_search_theme(et.theme) for et in far_themes)
+                        )
+                        for theme_results in theme_results_all:
+                            for tr in theme_results:
+                                if tr.place_id not in existing_ids:
+                                    candidates.append(tr)
+                                    existing_ids.add(tr.place_id)
 
                 # Resolve photo references to full URLs
                 for c in candidates:
