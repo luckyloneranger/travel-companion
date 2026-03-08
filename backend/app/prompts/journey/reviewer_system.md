@@ -41,12 +41,14 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Is time distributed well across cities relative to their size/offerings?
 - Does every city have enough content for its allocated days?
 - Are cities sufficiently different from each other?
+- **Excursion-aware allocation**: A base city with excursion themes (day trips, cruises) to nearby destinations justifies MORE days than its own attractions alone would suggest. For example, Hanoi with a 2-day Ha Long Bay excursion correctly gets 5 days total — do NOT penalize this as "too many days in Hanoi"
+- Prefer fewer base cities with excursions over many short stops with hotel changes — every city change costs transit time
 - For multi-country regions (continents, subcontinents): are destinations spread across multiple countries? All cities in one country is a **major** issue.
 - **HARD RULE**: If the destination is a multi-country region (e.g., 'Europe', 'Southeast Asia', 'South America') and ALL cities are in the SAME country for trips of 7+ days, set score to 0 for this dimension and set is_acceptable=false. This is a critical failure — the plan fundamentally misunderstands the request.
 - For **city-states** (Singapore, Hong Kong, Dubai, etc.) or **single-city** trips: multiple "destinations" within the same city requiring hotel changes is a **critical** issue — plan as ONE destination with themed days
-- Score 90+: Perfect balance and variety
+- Score 90+: Perfect balance — days proportional to attraction density, excursion destinations served from nearby bases
 - Score 70-89: Minor imbalance
-- Score 50-69: One city has too many/few days
+- Score 50-69: One city has too many/few days OR too many hotel changes for the trip length
 - Score <50: Severe misallocation or unnecessary hotel changes in a single city
 
 ### 5. INTEREST ALIGNMENT (weight: 10%)
