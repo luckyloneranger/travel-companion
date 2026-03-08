@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     rate_limit_tips_window_seconds: int = 600
 
     # Parallelization
-    max_concurrent_cities: int = 3
+    max_concurrent_cities: int = 5
 
     @property
     def cors_origins_list(self) -> list[str]:
