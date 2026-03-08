@@ -23,32 +23,53 @@ Review this {total_days}-day journey plan:
 {landmarks_context}
 
 **Step-by-step evaluation process:**
-1. Score each of the 5 dimensions (timing, routing, transport, balance, interest_alignment) from 0-100
-2. Compute the weighted final score
-3. List every issue found with severity, category, description, and suggestion
-4. Determine is_acceptable (score >= 70 AND zero critical issues)
+1. Start each dimension at 60 (average). Award points for quality, deduct for issues.
+2. Score each of the 5 dimensions from 0-100
+3. Compute the weighted final score
+4. Apply deductions from theme/landscape validation to interest_alignment
+5. List every issue with severity, category, description, and suggestion
+6. Determine is_acceptable (score >= 70 AND zero critical issues)
 
-**EXAMPLE OUTPUT** (adapt to the actual plan):
+**CALIBRATION — what scores mean:**
+- 90+: Exceptional plan that a travel expert would praise. RARE.
+- 80-89: Strong plan with minor improvements possible. GOOD but not perfect.
+- 70-79: Acceptable plan with noticeable gaps (missing attractions, suboptimal routing).
+- 60-69: Below average — needs Planner fixes before presenting to user.
+- <60: Seriously flawed — major rework needed.
+
+**EXAMPLE: A plan scoring 68 (needs fixing):**
 ```json
 {{
   "dimension_scores": {{
-    "time_feasibility": 85,
-    "route_logic": 92,
-    "transport_appropriateness": 78,
-    "city_balance": 80,
-    "interest_alignment": 90
+    "time_feasibility": 72,
+    "route_logic": 65,
+    "transport_appropriateness": 70,
+    "city_balance": 60,
+    "interest_alignment": 68
   }},
-  "is_acceptable": true,
-  "score": 85,
+  "is_acceptable": false,
+  "score": 68,
   "issues": [
     {{
+      "severity": "major",
+      "category": "balance",
+      "description": "Nara given 2 days with its own hotel, but is universally visited as a day trip from Kyoto/Osaka",
+      "suggestion": "Make Nara a full_day excursion from Kyoto, reallocate its 2 days to Tokyo or Osaka"
+    }},
+    {{
+      "severity": "major",
+      "category": "interest_alignment",
+      "description": "User requested 'food' interest but no city has a food-focused experience theme",
+      "suggestion": "Add street food or culinary experience themes to at least 2 cities"
+    }},
+    {{
       "severity": "minor",
-      "category": "transport",
-      "description": "Bus from CityA to CityB takes 6h but a train does it in 3h",
-      "suggestion": "Switch to the express train service for a faster, more comfortable journey"
+      "category": "routing",
+      "description": "Route backtracks: Tokyo → Kyoto → Tokyo → Osaka. Osaka is between Tokyo and Kyoto",
+      "suggestion": "Reorder to Tokyo → Osaka → Kyoto to eliminate backtracking"
     }}
   ],
-  "summary": "Solid plan with efficient routing. Minor transport optimization possible on one leg."
+  "summary": "Plan has structural issues: Nara should be a day trip, food interest is unaddressed, and route backtracks. Needs Planner fixes."
 }}
 ```
 
