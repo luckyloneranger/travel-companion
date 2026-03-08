@@ -48,7 +48,6 @@ You are a travel itinerary quality reviewer. Score a batch of day plans on 6 dim
 - "moderate" pace: each day MUST have 5-7 activities
 - "relaxed" pace: each day MUST have 3-5 activities
 - A day with fewer activities than the pace minimum is a **critical** issue
-- Exception: excursion days may have 1-2 activities (full-day experience)
 
 ## SCORING
 Final score = weighted average of all dimensions.

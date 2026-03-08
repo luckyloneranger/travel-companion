@@ -542,6 +542,49 @@ class TestExcursionBlocking:
         assert blocked == {}
         assert partial == {}
 
+    @pytest.mark.asyncio
+    async def test_plan_excursion_days_geocode_failure_fallback(self):
+        """When geocoding fails, _plan_excursion_days falls back to placeholder DayPlan."""
+        from app.models.journey import CityHighlight
+
+        excursion = CityHighlight(
+            name="Universal Studios",
+            category="entertainment",
+            description="Theme park adventure",
+            excursion_type="full_day",
+        )
+        city = CityStop(name="Singapore", country="Singapore", days=3)
+
+        request = MagicMock()
+        request.start_date = date(2026, 4, 10)
+        request.interests = ["entertainment"]
+        request.pace = Pace.MODERATE
+
+        # Build a mock orchestrator with geocode that raises ValueError
+        orch = MagicMock(spec=DayPlanOrchestrator)
+        orch.places = MagicMock()
+        orch.places.geocode = AsyncMock(side_effect=ValueError("No results"))
+
+        # Bind the real static method so the fallback path works
+        orch._build_excursion_day_plan = DayPlanOrchestrator._build_excursion_day_plan
+
+        # excursions_by_day: day_index 2 -> full_day excursion
+        excursions_by_day = {2: excursion}
+
+        result = await DayPlanOrchestrator._plan_excursion_days(
+            orch, excursions_by_day, city, request, day_offset=0,
+        )
+
+        assert len(result) == 1
+        plan = result[0]
+        assert plan.is_excursion is True
+        assert "Universal Studios" in plan.excursion_name
+        assert plan.city_name == "Singapore"
+        assert plan.day_number == 3  # day_offset(0) + day_idx(2) + 1
+        assert plan.date == "2026-04-12"  # start_date + 2 days
+        assert len(plan.activities) == 1
+        assert plan.activities[0].place.name == "Universal Studios"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PlannerAgent dimension scores
