@@ -736,17 +736,37 @@ class OpeningHoursEvaluator(BaseEvaluator):
 
         # day_hours is list of time windows
         time_windows: list[tuple[time, time]] = day_hours  # type: ignore[assignment]
+
+        # Check if start time falls within any window
+        start_valid = False
+        matching_window = None
         for window in time_windows:
             if self._time_in_window(activity_time, window):
-                return "valid", None
+                start_valid = True
+                matching_window = window
+                break
 
-        hours_str = ", ".join(
-            f"{w[0].strftime('%H:%M')}-{w[1].strftime('%H:%M')}" for w in time_windows
-        )
-        return (
-            "closed",
-            f"'{activity.place.name}' scheduled at {activity.time_start} but opens {hours_str}",
-        )
+        if not start_valid:
+            hours_str = ", ".join(
+                f"{w[0].strftime('%H:%M')}-{w[1].strftime('%H:%M')}" for w in time_windows
+            )
+            return (
+                "closed",
+                f"'{activity.place.name}' scheduled at {activity.time_start} but opens {hours_str}",
+            )
+
+        # Check if end time exceeds closing time
+        activity_end = _parse_time(activity.time_end)
+        if activity_end and matching_window:
+            close = matching_window[1]
+            # Only flag if close is a real closing time (not midnight/all-day)
+            if close != time(0, 0) and activity_end > close:
+                return (
+                    "closed",
+                    f"'{activity.place.name}' ends at {activity.time_end} but closes at {close.strftime('%H:%M')}",
+                )
+
+        return "valid", None
 
     @staticmethod
     def _find_day_hours(
