@@ -294,6 +294,50 @@ class EnricherAgent:
                     city.name, result.name,
                     adjusted_nightly or 0, result.price_level,
                 )
+
+                # Check if hotel matches budget tier — search for alternative if not
+                from app.config.planning import price_level_matches_budget, get_target_price_levels, get_budget_fallback_nightly
+                if result.price_level is not None and not price_level_matches_budget(result.price_level, budget_tier):
+                    logger.info(
+                        "[Enricher] Hotel %s price_level=%s doesn't match budget=%s, searching alternatives",
+                        result.name, result.price_level, budget_tier,
+                    )
+                    from app.services.google.places import _PRICE_LEVEL_STRINGS
+                    target_levels = get_target_price_levels(budget_tier)
+                    google_levels = [_PRICE_LEVEL_STRINGS[pl] for pl in target_levels if pl in _PRICE_LEVEL_STRINGS]
+                    alt = await self.places.search_lodging(
+                        query=f"hotel {city.name}",
+                        location=city_location,
+                        radius_meters=15_000,
+                        price_levels=google_levels,
+                    )
+                    if alt and alt.rating and alt.rating >= 3.5:
+                        alt_nightly = adjust_price_for_budget(
+                            adjusted_nightly or get_budget_fallback_nightly(budget_tier),
+                            price_level=alt.price_level,
+                            budget=budget_tier,
+                        )
+                        logger.info(
+                            "[Enricher] Found budget-matched alternative for %s: %s (pl=%s, rating=%s, $%.0f/night)",
+                            city.name, alt.name, alt.price_level, alt.rating, alt_nightly,
+                        )
+                        city.accommodation = Accommodation(
+                            name=alt.name,
+                            why=f"Selected to match {budget_tier} budget",
+                            address=alt.address,
+                            location=alt.location,
+                            place_id=alt.place_id,
+                            rating=alt.rating,
+                            price_level=alt.price_level,
+                            estimated_nightly_usd=alt_nightly,
+                            website=alt.website,
+                            editorial_summary=alt.editorial_summary,
+                            photo_url=(
+                                self.places.get_photo_url(alt.photo_reference)
+                                if alt.photo_reference
+                                else None
+                            ),
+                        )
             else:
                 logger.warning(
                     "[Enricher] No lodging found for %s in %s",

@@ -143,3 +143,13 @@ class TestAccommodationPriceAdjustment:
         # budget=budget has range (30, 80), LLM says $300 -> clamp to 80
         result = adjust_price_for_budget(300, price_level=None, budget="budget")
         assert result == 80
+
+
+class TestSearchLodgingPriceLevels:
+    """Test price_level string mapping."""
+
+    def test_price_level_strings_mapping(self):
+        from app.services.google.places import _PRICE_LEVEL_STRINGS
+        assert _PRICE_LEVEL_STRINGS[1] == "PRICE_LEVEL_INEXPENSIVE"
+        assert _PRICE_LEVEL_STRINGS[4] == "PRICE_LEVEL_VERY_EXPENSIVE"
+        assert len(_PRICE_LEVEL_STRINGS) == 5
