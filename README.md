@@ -78,7 +78,7 @@ Discover places (Google) → AI plans all days (with regional meal guidance + ti
 | Maps | Google Maps via @vis.gl/react-google-maps |
 | Streaming | Server-Sent Events (SSE) with AbortController + 180s stall timeout + pre-stream token refresh |
 | Export | weasyprint (PDF trip book with cover page) + icalendar (.ics) |
-| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 223 tests |
+| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 235 tests |
 
 ## Quick Start
 
@@ -287,7 +287,7 @@ travel-companion/
 │   │   │   ├── scheduler.py          # Time-slot builder (culture-aware meal placement ~80 countries, pace multipliers)
 │   │   │   └── quality/              # 7 context-aware evaluators (meal timing, clustering, efficiency, variety, hours, theme, duration)
 │   │   └── prompts/                   # 16 Markdown templates (journey, day_plan, chat, tips)
-│   └── tests/                         # 223 tests (pytest + testcontainers PostgreSQL)
+│   └── tests/                         # 235 tests (pytest + testcontainers PostgreSQL)
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx                    # Phase-based SPA (input → planning → preview/day-plans)
@@ -343,7 +343,7 @@ For separate frontend (e.g., Vercel) and backend (e.g., Azure App Service):
 ```bash
 cd backend && source venv/bin/activate
 
-# Run all tests (223 tests)
+# Run all tests (235 tests)
 pytest -v
 
 # Run specific test file
