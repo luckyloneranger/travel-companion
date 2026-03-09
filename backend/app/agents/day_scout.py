@@ -15,6 +15,9 @@ from app.services.llm.base import LLMService
 
 logger = logging.getLogger(__name__)
 
+# Day-name abbreviations for formatting opening hours (Google format: 0=Sunday)
+_OH_DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
 
 class DayScoutAgent:
     """Selects activities for themed days from Google Places candidates."""
@@ -121,6 +124,13 @@ class DayScoutAgent:
             }
             if c.suggested_duration_minutes:
                 entry["suggested_duration_minutes"] = c.suggested_duration_minutes
+            if c.editorial_summary:
+                entry["description"] = c.editorial_summary[:120]
+            if c.opening_hours:
+                entry["hours"] = [
+                    f"{_OH_DAY_NAMES[oh.day]}: {oh.open_time}-{oh.close_time}"
+                    for oh in c.opening_hours[:3]
+                ]
             attractions.append(entry)
 
         # Dining: take top 15 by rating
@@ -140,6 +150,13 @@ class DayScoutAgent:
             }
             if c.suggested_duration_minutes:
                 entry["suggested_duration_minutes"] = c.suggested_duration_minutes
+            if c.editorial_summary:
+                entry["description"] = c.editorial_summary[:120]
+            if c.opening_hours:
+                entry["hours"] = [
+                    f"{_OH_DAY_NAMES[oh.day]}: {oh.open_time}-{oh.close_time}"
+                    for oh in c.opening_hours[:3]
+                ]
             dining.append(entry)
 
         themes_text = ""

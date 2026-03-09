@@ -308,3 +308,31 @@ class TestDurationAppropriatenessEvaluator:
         ])
         result = ev.evaluate([day])
         assert any("too short" in i.lower() for i in result.issues)
+
+
+class TestOpeningHoursEndTimeCheck:
+    """Tests that evaluator checks activity END time, not just start."""
+
+    def test_activity_ending_after_close_flagged(self):
+        """Activity starting within hours but ending after close should be flagged."""
+        act = _make_activity(
+            "Museum", "museum", "15:30", "17:30", 120,  # 15:30 + 120min = 17:30
+            opening_hours=["Wed: 09:00 \u2013 17:00"],
+        )
+        day = _make_day(1, [act], date="2026-04-15")  # Wednesday
+        evaluator = OpeningHoursEvaluator()
+        result = evaluator.evaluate([day])
+        assert result.issues, "Should flag activity ending after 17:00 close"
+        assert any("17:00" in issue for issue in result.issues)
+
+    def test_activity_fitting_within_hours_not_flagged(self):
+        """Activity fully within opening hours should not be flagged."""
+        act = _make_activity(
+            "Museum", "museum", "14:00", "15:30", 90,  # 14:00 + 90min = 15:30
+            opening_hours=["Wed: 09:00 \u2013 17:00"],
+        )
+        day = _make_day(1, [act], date="2026-04-15")  # Wednesday
+        evaluator = OpeningHoursEvaluator()
+        result = evaluator.evaluate([day])
+        opening_issues = [i for i in result.issues if "close" in i.lower() or "17:00" in i]
+        assert not opening_issues, "Should not flag activity that fits within hours"

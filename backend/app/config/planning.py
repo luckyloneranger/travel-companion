@@ -136,6 +136,8 @@ _FALLBACK_DURATION_BY_TYPE: dict[str, int] = {
     # Religious and historical sites
     "church": 30,
     "hindu_temple": 45,
+    "shinto_shrine": 45,
+    "buddhist_temple": 45,
     "temple": 60,
     "mosque": 45,
     "synagogue": 45,
@@ -143,7 +145,7 @@ _FALLBACK_DURATION_BY_TYPE: dict[str, int] = {
     "historical_landmark": 45,
     "monument": 30,
     "palace": 60,
-    "castle": 60,
+    "castle": 90,
     "fort": 60,
     "cemetery": 45,
     # Nature and outdoors
@@ -155,6 +157,8 @@ _FALLBACK_DURATION_BY_TYPE: dict[str, int] = {
     "national_park": 120,
     "beach": 90,
     "viewpoint": 30,
+    "observation_deck": 60,
+    "scenic_spot": 45,
     "waterfall": 60,
     "lake": 60,
     "mountain": 180,
@@ -163,10 +167,11 @@ _FALLBACK_DURATION_BY_TYPE: dict[str, int] = {
     "amusement_park": 480,
     "theme_park": 480,
     "water_park": 300,
-    "tourist_attraction": 45,
+    "tourist_attraction": 60,
     "stadium": 30,
     "movie_theater": 150,
     "performing_arts_theater": 120,
+    "cultural_center": 60,
     # Dining
     "restaurant": 75,
     "cafe": 45,
@@ -182,6 +187,9 @@ _FALLBACK_DURATION_BY_TYPE: dict[str, int] = {
     # Education
     "library": 60,
     "university": 60,
+    # Quick stops
+    "bridge": 15,
+    "sculpture": 15,
     # Default
     "default": 45,
 }
