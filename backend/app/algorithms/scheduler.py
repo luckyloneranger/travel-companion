@@ -544,6 +544,10 @@ class ScheduleBuilder:
                 if start.time() < open_time:
                     start = datetime.combine(current_time.date(), open_time)
 
+                # Midnight (00:00) means "open until midnight" or 24h — no truncation needed
+                if close_time == time(0, 0):
+                    return start, duration
+
                 # Already past closing time
                 if start.time() >= close_time:
                     return None

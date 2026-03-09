@@ -289,6 +289,21 @@ class TestScheduleBuilderOpeningHours:
         assert "09:00" in result[0].place.opening_hours[0]
         assert "17:00" in result[0].place.opening_hours[0]
 
+    def test_midnight_close_time_not_skipped(self):
+        """Place open until midnight (00:00) should not be skipped."""
+        place = _make_place(
+            name="Late Restaurant", types=["restaurant"],
+            opening_hours=[OpeningHours(day=3, open_time="11:00", close_time="00:00")],
+        )
+        builder = ScheduleBuilder()
+        result = builder.build_schedule(
+            [place],
+            schedule_date=date(2026, 4, 15),  # Wednesday
+            day_start_time=time(19, 0),
+        )
+        assert len(result) == 1
+        assert result[0].duration_minutes > 0
+
 
 class TestDurationByCategory:
     """Verify duration constants are reasonable."""
