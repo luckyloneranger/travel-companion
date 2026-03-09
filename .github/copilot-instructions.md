@@ -2,28 +2,33 @@
 
 ## Architecture
 
-Hybrid AI + deterministic approach: LLMs (Azure OpenAI, Anthropic, or Gemini) handle creative decisions, Google APIs provide real-time data.
+Hybrid AI + deterministic approach: LLMs (Azure OpenAI, Anthropic, or Gemini) handle creative decisions (place selection, theming, descriptions, cost estimation); deterministic layers handle calculations (distance, time, validation, scheduling, quality scoring).
 
-**Unified pipeline:** Multi-city journey planning with Scout -> Enrich -> Review -> Planner loop (max 3 iterations, score ≥70, returns best attempt). Day plans generated per-city in background with discover -> AI plan -> TSP optimize -> schedule (smart meal placement) -> auto-select transport mode -> weather integration.
+**Unified pipeline:** Multi-city journey planning with Landscape Discovery (Google) + Must-See Icons (LLM, parallel) -> Scout -> Enrich -> Review -> Planner loop (max 3 iterations, score ≥75, returns best attempt). Quality loop acceptance is decoupled: LLM reviewer's `is_acceptable` reflects only critical/feasibility issues (no score threshold in prompts); score threshold enforced purely in orchestrator code. Day plans generated per-city in background with quality pipeline: theme pre-mapping -> Day Scout -> Day Reviewer -> Day Fixer loop (max 2 iterations) -> TSP optimize -> schedule (culture-aware meal placement) -> pace-aware transport mode selection -> route computation -> weather integration. All free days in a city processed in a single Scout → Reviewer → Fixer pass (no intra-city batching).
 
 **Service flow**: `routers/` -> `orchestrators/` -> `agents/` + `services/` + `algorithms/`
 
 **Key directories:**
-- `app/config/` - Settings (`settings.py`), planning constants (`planning.py`), regional transport (`regional_transport.py` — 45+ profiles)
-- `app/prompts/` - 14 centralized .md templates loaded via `PromptLoader` (journey, day_plan, chat, tips)
-- `app/core/` - JWT auth (`auth.py`), shared HTTP client with retry (`http.py`), request tracing middleware (`middleware.py`)
-- `app/services/llm/` - Abstract LLM base + Azure OpenAI (o1/o3/gpt-5 support), Anthropic (tool_use), Gemini (json_schema)
+- `app/config/` - Settings (`settings.py` for env vars), planning constants (`planning.py` — pace configs, fallback durations, `MAX_CONCURRENT_CITIES`, `ROUTE_COMPUTATION_MODE`, score thresholds), regional transport (`regional_transport.py` — LLM-driven prompt guidance)
+- `app/prompts/` - 16 centralized .md templates loaded via `PromptLoader` (journey, day_plan, chat, tips)
+- `app/core/` - JWT auth (`auth.py`), shared HTTP client with retry/exponential backoff (`http.py`), request tracing middleware with security headers (`middleware.py`), per-user sliding window rate limiting (`rate_limit.py`)
+- `app/services/llm/` - Abstract LLM base + Azure OpenAI (o1/o3/gpt-5 support), Anthropic (tool_use), Gemini (json_schema). All providers strip null characters from output
 - `app/services/google/` - Places, Routes, Directions, Weather services
-- `app/agents/` - Scout, Enricher, Reviewer, Planner, DayPlanner agents
+- `app/services/` - `chat.py` (ChatService), `tips.py` (TipsService), `export.py` (PDF trip book via weasyprint + .ics calendar)
+- `app/agents/` - Journey: Scout, Enricher, Reviewer, Planner. Day plan: DayScout, DayReviewer, DayFixer, DayPlanner (legacy fallback)
 - `app/orchestrators/` - Journey and DayPlan orchestrators
-- `app/db/` - SQLAlchemy 2.0 async + asyncpg (PostgreSQL), auto-SSL for remote hosts
-- `app/algorithms/` - TSP solver, scheduler, quality scoring (7 weighted metrics)
+- `app/db/` - SQLAlchemy 2.0 async + asyncpg (PostgreSQL), auto-SSL for remote hosts. Alembic migrations
+- `app/algorithms/` - TSP solver, scheduler (culture-aware meal placement, ~80 countries/10 regional profiles), quality scoring (7 weighted metrics)
 - `app/dependencies.py` - FastAPI Depends() wiring for all services, auth, DB
+
+**Config separation:**
+- `settings.py` (env vars): external dependencies only (API keys, URLs, secrets, database, OAuth, rate limits)
+- `planning.py` (constants): internal product decisions (`MAX_CONCURRENT_CITIES`, `ROUTE_COMPUTATION_MODE`, score thresholds, pace configs)
 
 ## Code Style
 
 ### Python
-- **Types**: Generic hints (`list[str]`, `dict[str, Any]`)
+- **Types**: Generic hints (`list[str]`, `dict[str, Any]` — not `List`, `Dict`)
 - **Docstrings**: Google-style with Args/Returns
 - **Async**: All LLM/API calls `async` with `httpx.AsyncClient`
 - **Enums**: `class Pace(str, Enum)` for JSON serialization
@@ -47,7 +52,9 @@ class TripRequest(BaseModel):
 - Zustand 5 for state management (`tripStore`, `uiStore`, `authStore`)
 - shadcn/ui + Radix UI components with Tailwind CSS v4
 - Path alias: `@/*` maps to `src/*`
+- @dnd-kit for drag-and-drop activity reordering
 - Design: Inter (body) + Plus Jakarta Sans (display), Indigo primary, Orange accent
+- PWA: manifest.json for installability, theme-color meta tag
 
 ## Build and Test
 
@@ -57,7 +64,8 @@ cd backend && source venv/bin/activate
 pip install -r requirements.txt
 alembic upgrade head             # Run database migrations
 uvicorn app.main:app --reload --port 8000
-pytest -v                        # Run all 164 tests (requires Docker)
+pytest -v                        # Run all 223 tests (requires Docker)
+pytest -k "test_health"          # Run specific tests
 
 # Frontend
 cd frontend && npm install
@@ -93,6 +101,11 @@ llm = create_llm_service(settings)  # Azure OpenAI, Anthropic, or Gemini
 data = await llm.generate_structured(system, user, schema=MyModel)
 ```
 
+Each provider implements structured output differently:
+- Azure OpenAI: `response_format={"type": "json_object"}`, special handling for reasoning models (o1/o3/gpt-5: uses `max_completion_tokens`, omits temperature)
+- Anthropic: tool_use pattern with `tool_choice={"type": "tool", "name": "submit"}`
+- Gemini: `response_mime_type` + `response_json_schema` from Pydantic model
+
 ### SSE Streaming
 Events use `ProgressEvent` model: `scouting`, `enriching`, `reviewing`, `planning`, `improving`, `complete`, `error`.
 ```python
@@ -100,7 +113,7 @@ yield f"data: {event.model_dump_json()}\n\n"
 ```
 
 ### Authentication (Dual Auth)
-OAuth (Google/GitHub) via authlib. Cookie auth (same-origin) + Bearer token auth (cross-origin/mobile).
+OAuth (Google/GitHub) via authlib. Cookie auth (same-origin) + Bearer token auth (cross-origin/mobile). `get_current_user()` checks Bearer header first, falls back to cookie.
 ```python
 from app.dependencies import require_user, get_current_user
 # require_user raises 401; get_current_user returns None if unauthenticated
@@ -112,13 +125,27 @@ from app.config import get_settings  # lru_cached singleton
 settings = get_settings()
 ```
 
+### Tiered Route Computation
+`ROUTE_COMPUTATION_MODE` in `planning.py`: `full` (distance matrix + compute_route, ~$2.40/trip), `efficient` (haversine mode selection + compute_route, ~$1.20/trip), `minimal` (haversine everything, $0/trip, no polylines). Only affects day plan activity-to-activity routing; journey city-to-city routing (GoogleDirectionsService) is unaffected.
+
+## Design Principles
+
+- Prefer LLM prompt updates and Google API grounding over hardcoded heuristics
+- Deterministic layers serve as context-aware guardrails with generous defaults — accept overrides from LLM responses and API data via context dicts
+- Duration estimation priority: 1) LLM estimate, 2) Google Places `suggested_duration_minutes`, 3) fallback table
+- Must-see iconic attractions identified via parallel LLM call, injected into Reviewer/Planner as ground truth
+- City processing parallelized via `asyncio.Queue` + `asyncio.Semaphore` (bounded by `MAX_CONCURRENT_CITIES`, default 5)
+- Cross-day duplicate prevention passes full `already_used` set to both Day Scout and Day Fixer
+- Excursion days render full activity timeline with excursion banner — no simplified stub card
+- Lodging types (`LODGING_TYPES`) filtered from activity candidates at both discovery and scout levels
+
 ## Environment Variables
 
-Backend (`.env`): `LLM_PROVIDER`, `AZURE_OPENAI_*`, `ANTHROPIC_*`, `GEMINI_*`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_*`, `GITHUB_OAUTH_*`, `JWT_SECRET_KEY`, `JWT_EXPIRE_MINUTES`, `COOKIE_DOMAIN`, `APP_URL`, `BACKEND_URL`, `APP_ENV`, `DEBUG`, `LOG_LEVEL`, `CORS_ORIGINS`, `DATABASE_URL`
+Backend (`.env`): `LLM_PROVIDER`, `AZURE_OPENAI_*`, `ANTHROPIC_*`, `GEMINI_*`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_ROUTES_API_KEY`, `GOOGLE_WEATHER_API_KEY`, `GOOGLE_OAUTH_*`, `GITHUB_OAUTH_*`, `JWT_SECRET_KEY`, `JWT_EXPIRE_MINUTES`, `COOKIE_DOMAIN`, `APP_URL`, `BACKEND_URL`, `APP_ENV`, `DEBUG`, `LOG_LEVEL`, `CORS_ORIGINS`, `DATABASE_URL`, `RATE_LIMIT_*`
 
 Frontend (`.env.local`): `VITE_GOOGLE_MAPS_API_KEY` (do NOT set `VITE_API_BASE_URL` in dev — Vite proxy handles it)
 
-Frontend production (`.env.production`): `VITE_API_BASE_URL` (backend URL for split deploy)
+Frontend production (`.env.production`): `VITE_API_BASE_URL` (backend URL for split deploy), `VITE_GOOGLE_MAPS_API_KEY`
 
 ## API Endpoints
 
@@ -128,18 +155,22 @@ Frontend production (`.env.production`): `VITE_API_BASE_URL` (backend URL for sp
 | POST | `/api/trips/{id}/days/stream` | Stream day plan generation (SSE) |
 | POST | `/api/trips/{id}/chat` | Chat-based editing |
 | POST | `/api/trips/{id}/tips` | Generate activity tips |
-| GET | `/api/trips` | List saved trips |
+| PUT | `/api/trips/{id}/quick-edit` | Quick activity edits (remove, ±duration) |
+| PUT | `/api/trips/{id}/reorder` | Reorder activities within a day |
+| GET | `/api/trips` | List saved trips (pagination: `limit`/`offset`) |
 | GET | `/api/trips/{id}` | Get trip details |
 | DELETE | `/api/trips/{id}` | Delete trip |
 | POST | `/api/trips/{id}/share` | Create shareable link |
 | DELETE | `/api/trips/{id}/share` | Revoke sharing |
-| GET | `/api/trips/{id}/export/pdf` | Download PDF itinerary |
+| GET | `/api/trips/{id}/export/pdf` | Download PDF trip book |
 | GET | `/api/trips/{id}/export/calendar` | Download .ics calendar |
 | GET | `/api/auth/login/{provider}` | Initiate OAuth (google/github) |
 | GET | `/api/auth/callback/{provider}` | OAuth callback |
 | POST | `/api/auth/logout` | Logout |
 | GET | `/api/auth/me` | Get current user (public) |
 | GET | `/api/places/search` | Search places |
+| GET | `/api/places/photo/{ref}` | Proxy Google Places photos |
+| GET | `/api/places/alternatives` | Get alternative hotels |
 | GET | `/api/shared/{token}` | Get shared trip (public) |
 | GET | `/health` | Health check |
 
