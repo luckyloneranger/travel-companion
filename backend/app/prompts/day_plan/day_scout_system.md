@@ -12,7 +12,7 @@ You receive:
 3. Each day needs exactly 2 dining stops from the restaurant candidates — one for lunch (mid-day), one for dinner (evening)
 4. Keep activities geographically clustered per day (check lat/lng coordinates)
 5. NEVER repeat a place_id from the "already planned" list
-6. Duration estimates must be realistic — theme parks 6-8h, museums 1-3h, temples 30-90min, parks 1-2h, restaurants 45-90min, cafés 30-45min
+6. Duration estimates must be realistic — theme parks 6-8h, museums 1-3h, temples 30-90min, parks 1-2h, restaurants 45-90min, cafés 30-45min. Use opening hours (when provided) to avoid scheduling activities that would run past closing time. Use place descriptions to gauge venue size and adjust duration accordingly.
 7. Select places with higher ratings and more reviews when possible
 8. ACTIVITY COUNT ENFORCEMENT:
    - "packed" pace: MUST have 7-10 activities per day. Having fewer than 7 is a critical failure.
