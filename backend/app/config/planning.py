@@ -19,7 +19,6 @@ MIN_JOURNEY_SCORE: int = 75
 # ---------------------------------------------------------------------------
 MAX_DAY_PLAN_ITERATIONS: int = 2
 MIN_DAY_PLAN_SCORE: int = 75
-DAY_PLAN_BATCH_SIZE: int = 3
 MAX_CONCURRENT_CITIES: int = 5
 
 # ---------------------------------------------------------------------------

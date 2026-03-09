@@ -1851,10 +1851,10 @@ class DayPlanOrchestrator:
         city_name: str = "",
         time_constraints: list[dict] | None = None,
     ) -> "AIPlan":
-        """Plan a city's days using batched quality pipeline.
+        """Plan a city's free days using Day Scout -> Day Reviewer -> Day Fixer loop.
 
-        Plans in batches of 2-3 days with Day Scout -> Day Reviewer -> Day Fixer loop.
-        Each batch is reviewed and fixed before moving to the next.
+        Processes all free days in a single pass. Cities are already parallelized
+        at the orchestrator level, so no intra-city batching is needed.
 
         Args:
             city: The CityStop being planned.
@@ -1866,11 +1866,11 @@ class DayPlanOrchestrator:
             city_name: Name of the city being planned.
 
         Returns:
-            AIPlan with merged results from all batches.
+            AIPlan with activities for all free days.
         """
         from app.config.planning import (
             map_themes_to_days, MAX_DAY_PLAN_ITERATIONS,
-            MIN_DAY_PLAN_SCORE, DAY_PLAN_BATCH_SIZE,
+            MIN_DAY_PLAN_SCORE,
         )
         from app.agents.day_planner import _build_meal_time_guidance
         from app.models.internal import AIPlan
@@ -1881,12 +1881,6 @@ class DayPlanOrchestrator:
             free_day_count + len(blocked_days),
             blocked_days,
         )
-
-        all_day_groups = []
-        all_durations = {}
-        all_cost_estimates = {}
-        planned_ids: set[str] = set()
-        batch_size = DAY_PLAN_BATCH_SIZE
 
         # Get free day numbers (not blocked by excursions)
         free_day_nums = sorted(
@@ -1899,113 +1893,104 @@ class DayPlanOrchestrator:
         # Format landmarks for prompts
         landmarks_section = ""
         if landmarks:
-            lines = ["TOP LANDMARKS by visitor reviews (include at least one per batch):"]
+            lines = ["TOP LANDMARKS by visitor reviews (include these across the stay):"]
             for lm in landmarks[:5]:
                 lines.append(f"- {lm.get('name')} ({lm.get('user_ratings_total', 0):,} reviews)")
             landmarks_section = "\n".join(lines)
 
-        for batch_start in range(0, len(free_day_nums), batch_size):
-            batch_day_nums = free_day_nums[batch_start:batch_start + batch_size]
-            batch_themes = {d: theme_map.get(d, []) for d in batch_day_nums}
+        all_themes = {d: theme_map.get(d, []) for d in free_day_nums}
 
-            logger.info(
-                "[DayPlanOrchestrator] Batch planning days %s in %s",
-                batch_day_nums, city_name,
+        logger.info(
+            "[DayPlanOrchestrator] Planning days %s in %s",
+            free_day_nums, city_name,
+        )
+
+        # Day Scout: plan all free days at once
+        try:
+            city_plan = await self.day_scout.plan_batch(
+                candidates=candidates,
+                batch_themes=all_themes,
+                destination=city_name,
+                pace=request.pace.value,
+                landmarks=landmarks,
+                already_used=set(),
+                meal_time_guidance=meal_guidance,
+                travelers_description=request.travelers.summary,
+                time_constraints=time_constraints,
+            )
+        except Exception as exc:
+            logger.error(
+                "[DayPlanOrchestrator] Day Scout failed for %s: %s",
+                city_name, exc,
+            )
+            return AIPlan(
+                selected_place_ids=[],
+                day_groups=[],
+                durations={},
+                cost_estimates={},
             )
 
-            # Day Scout: plan this batch
+        # Quality loop: Day Reviewer -> Day Fixer
+        for iteration in range(MAX_DAY_PLAN_ITERATIONS):
+            # Format plan for reviewer
+            themes_text = ""
+            for d, themes in sorted(all_themes.items()):
+                theme_names = ", ".join(
+                    t.theme for t in themes
+                ) if themes else "general"
+                themes_text += f"Day {d}: {theme_names}\n"
+
+            plan_detail = ""
+            for i, group in enumerate(city_plan.day_groups):
+                day_num = free_day_nums[i] if i < len(free_day_nums) else i + 1
+                place_names = []
+                for pid in group.place_ids:
+                    name = next(
+                        (c.name for c in candidates if c.place_id == pid),
+                        pid,
+                    )
+                    dur = city_plan.durations.get(pid, "?")
+                    place_names.append(f"{name} ({dur}min)")
+                plan_detail += (
+                    f"Day {day_num} ({group.theme}): "
+                    f"{', '.join(place_names)}\n"
+                )
+
             try:
-                batch_plan = await self.day_scout.plan_batch(
-                    candidates=candidates,
-                    batch_themes=batch_themes,
+                review = await self.day_reviewer.review_batch(
+                    day_plans_detail=plan_detail,
+                    batch_themes=themes_text,
+                    landmarks_section=landmarks_section,
                     destination=city_name,
-                    pace=request.pace.value,
-                    landmarks=landmarks,
-                    already_used=planned_ids,
-                    meal_time_guidance=meal_guidance,
-                    travelers_description=request.travelers.summary,
-                    time_constraints=time_constraints,
                 )
             except Exception as exc:
-                logger.error(
-                    "[DayPlanOrchestrator] Day Scout failed for batch %s: %s",
-                    batch_day_nums, exc,
+                logger.warning(
+                    "[DayPlanOrchestrator] Day Reviewer failed: %s", exc,
                 )
-                continue
+                break
 
-            # Quality loop: Day Reviewer -> Day Fixer
-            for iteration in range(MAX_DAY_PLAN_ITERATIONS):
-                # Format batch plan for reviewer
-                themes_text = ""
-                for d, themes in sorted(batch_themes.items()):
-                    theme_names = ", ".join(
-                        t.theme for t in themes
-                    ) if themes else "general"
-                    themes_text += f"Day {d}: {theme_names}\n"
+            logger.info(
+                "[DayPlanOrchestrator] Review score: %d "
+                "(acceptable=%s, iteration=%d)",
+                review.score, review.is_acceptable, iteration + 1,
+            )
 
-                plan_detail = ""
-                for i, group in enumerate(batch_plan.day_groups):
-                    day_num = batch_day_nums[i] if i < len(batch_day_nums) else i + 1
-                    place_names = []
-                    for pid in group.place_ids:
-                        name = next(
-                            (c.name for c in candidates if c.place_id == pid),
-                            pid,
-                        )
-                        dur = batch_plan.durations.get(pid, "?")
-                        place_names.append(f"{name} ({dur}min)")
-                    plan_detail += (
-                        f"Day {day_num} ({group.theme}): "
-                        f"{', '.join(place_names)}\n"
-                    )
+            if review.is_acceptable and review.score >= MIN_DAY_PLAN_SCORE:
+                break
 
-                try:
-                    review = await self.day_reviewer.review_batch(
-                        day_plans_detail=plan_detail,
-                        batch_themes=themes_text,
-                        landmarks_section=landmarks_section,
-                        destination=city_name,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        "[DayPlanOrchestrator] Day Reviewer failed: %s", exc,
-                    )
-                    break
-
-                logger.info(
-                    "[DayPlanOrchestrator] Batch review score: %d "
-                    "(acceptable=%s, iteration=%d)",
-                    review.score, review.is_acceptable, iteration + 1,
+            # Day Fixer: fix issues
+            try:
+                city_plan = await self.day_fixer.fix_batch(
+                    current_plan=city_plan,
+                    issues=review.issues,
+                    candidates=candidates,
+                    destination=city_name,
+                    already_used=set(),
                 )
+            except Exception as exc:
+                logger.warning(
+                    "[DayPlanOrchestrator] Day Fixer failed: %s", exc,
+                )
+                break
 
-                if review.is_acceptable and review.score >= MIN_DAY_PLAN_SCORE:
-                    break
-
-                # Day Fixer: fix issues
-                try:
-                    batch_plan = await self.day_fixer.fix_batch(
-                        current_plan=batch_plan,
-                        issues=review.issues,
-                        candidates=candidates,
-                        destination=city_name,
-                        already_used=planned_ids,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        "[DayPlanOrchestrator] Day Fixer failed: %s", exc,
-                    )
-                    break
-
-            # Collect results from this batch
-            all_day_groups.extend(batch_plan.day_groups)
-            all_durations.update(batch_plan.durations)
-            all_cost_estimates.update(batch_plan.cost_estimates or {})
-            planned_ids.update(batch_plan.selected_place_ids or [])
-
-        # Return merged result as AIPlan
-        return AIPlan(
-            selected_place_ids=list(planned_ids),
-            day_groups=all_day_groups,
-            durations=all_durations,
-            cost_estimates=all_cost_estimates,
-        )
+        return city_plan
