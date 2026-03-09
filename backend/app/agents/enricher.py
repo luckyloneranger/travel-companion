@@ -9,6 +9,7 @@ Takes an LLM-generated JourneyPlan and enriches it with:
 import asyncio
 import logging
 
+from app.config.planning import adjust_price_for_budget
 from app.models.common import Location, TransportMode
 from app.models.journey import Accommodation, CityStop, JourneyPlan, TravelLeg
 from app.services.google import (
@@ -255,6 +256,21 @@ class EnricherAgent:
 
                 # Preserve LLM's cost estimate from the Scout agent
                 llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
+                # Adjust price using Google's price_level as ground truth
+                adjusted_nightly = llm_nightly
+                if llm_nightly is not None:
+                    adjusted_nightly = adjust_price_for_budget(
+                        llm_nightly,
+                        price_level=result.price_level,
+                        budget=budget_tier,
+                    )
+                    if adjusted_nightly != llm_nightly:
+                        logger.info(
+                            "[Enricher] Adjusted %s nightly rate: $%.0f -> $%.0f "
+                            "(price_level=%s, budget=%s)",
+                            city.name, llm_nightly, adjusted_nightly,
+                            result.price_level, budget_tier,
+                        )
                 llm_why = city.accommodation.why if city.accommodation else ""
                 city.accommodation = Accommodation(
                     name=result.name,
@@ -264,7 +280,7 @@ class EnricherAgent:
                     place_id=result.place_id,
                     rating=result.rating,
                     price_level=result.price_level,
-                    estimated_nightly_usd=llm_nightly,
+                    estimated_nightly_usd=adjusted_nightly,
                     website=result.website,
                     editorial_summary=result.editorial_summary,
                     photo_url=(
@@ -274,9 +290,9 @@ class EnricherAgent:
                     ),
                 )
                 logger.info(
-                    "[Enricher] Enriched accommodation for %s: %s",
-                    city.name,
-                    result.name,
+                    "[Enricher] Enriched accommodation for %s: %s ($%.0f/night, pl=%s)",
+                    city.name, result.name,
+                    adjusted_nightly or 0, result.price_level,
                 )
             else:
                 logger.warning(

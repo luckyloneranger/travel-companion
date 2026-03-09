@@ -123,3 +123,23 @@ class TestBudgetPriceMapping:
         assert price_level_matches_budget(1, "luxury") is False
         assert price_level_matches_budget(4, "budget") is False
         assert price_level_matches_budget(None, "moderate") is True
+
+
+class TestAccommodationPriceAdjustment:
+    """Tests for price adjustment in enrichment context."""
+
+    def test_price_clamped_when_too_high_for_level(self):
+        from app.config.planning import adjust_price_for_budget
+        result = adjust_price_for_budget(200, price_level=1, budget="moderate")
+        assert result <= 80
+
+    def test_price_raised_when_too_low_for_level(self):
+        from app.config.planning import adjust_price_for_budget
+        result = adjust_price_for_budget(80, price_level=4, budget="luxury")
+        assert result >= 250
+
+    def test_price_clamped_to_budget_range_when_no_level(self):
+        from app.config.planning import adjust_price_for_budget
+        # budget=budget has range (30, 80), LLM says $300 -> clamp to 80
+        result = adjust_price_for_budget(300, price_level=None, budget="budget")
+        assert result == 80
