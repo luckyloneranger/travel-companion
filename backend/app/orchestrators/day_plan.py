@@ -622,11 +622,10 @@ class DayPlanOrchestrator:
         Yields:
             ProgressEvent instances with phase, message, progress, and data.
         """
-        from app.config.settings import get_settings
-
+        from app.config.planning import MAX_CONCURRENT_CITIES
         event_queue: asyncio.Queue[ProgressEvent | None] = asyncio.Queue()
         total_cities = len(journey.cities)
-        max_concurrent = get_settings().max_concurrent_cities
+        max_concurrent = MAX_CONCURRENT_CITIES
 
         async def _run_all_cities():
             sem = asyncio.Semaphore(max_concurrent)
@@ -1524,8 +1523,8 @@ class DayPlanOrchestrator:
         if len(activities) < 2:
             return activities
 
-        from app.config.settings import get_settings
-        mode = get_settings().route_computation_mode
+        from app.config.planning import ROUTE_COMPUTATION_MODE
+        mode = ROUTE_COMPUTATION_MODE
 
         if mode == "full":
             return await self._compute_routes_full(activities, pace)

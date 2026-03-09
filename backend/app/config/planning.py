@@ -21,6 +21,9 @@ MAX_DAY_PLAN_ITERATIONS: int = 2
 MIN_DAY_PLAN_SCORE: int = 75
 MAX_CONCURRENT_CITIES: int = 5
 
+# Route computation: "full" (distance matrix + route API), "efficient" (haversine + route API), "minimal" (haversine only)
+ROUTE_COMPUTATION_MODE: str = "minimal"
+
 # ---------------------------------------------------------------------------
 # Service timeouts (seconds)
 # ---------------------------------------------------------------------------

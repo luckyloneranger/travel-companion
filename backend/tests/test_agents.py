@@ -874,16 +874,6 @@ class TestCityParallelism:
         assert isinstance(MAX_CONCURRENT_CITIES, int)
         assert MAX_CONCURRENT_CITIES > 0
 
-    @pytest.mark.asyncio
-    async def test_settings_max_concurrent_cities(self):
-        """Settings should expose max_concurrent_cities field."""
-        from app.config.settings import Settings
-        s = Settings(
-            max_concurrent_cities=2,
-            database_url="postgresql+asyncpg://localhost/test",
-        )
-        assert s.max_concurrent_cities == 2
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Must-See Iconic Attractions
@@ -1006,14 +996,6 @@ class TestHaversineModeSelection:
         assert DayPlanOrchestrator._format_duration(5400) == "1 hr 30 min"
 
     def test_route_computation_mode_config(self):
-        from app.config.settings import Settings
-        s = Settings(
-            route_computation_mode="minimal",
-            database_url="postgresql+asyncpg://localhost/test",
-        )
-        assert s.route_computation_mode == "minimal"
-
-    def test_route_computation_mode_default(self):
-        from app.config.settings import Settings
-        s = Settings(database_url="postgresql+asyncpg://localhost/test")
-        assert s.route_computation_mode == "efficient"
+        from app.config.planning import ROUTE_COMPUTATION_MODE
+        assert isinstance(ROUTE_COMPUTATION_MODE, str)
+        assert ROUTE_COMPUTATION_MODE in ("full", "efficient", "minimal")

@@ -160,8 +160,6 @@ apt-get install libpango-1.0-0 libglib2.0-0
 | `APP_ENV` | `development`, `production`, or `test` |
 | `DEBUG` | Enable debug mode (default: `true`) |
 | `LOG_LEVEL` | Logging level (default: `INFO`) |
-| `MAX_CONCURRENT_CITIES` | Max cities processed in parallel (default: `5`) |
-| `ROUTE_COMPUTATION_MODE` | Route tier: `full`, `efficient` (default), or `minimal` |
 
 ### Frontend (`frontend/.env.local`)
 
