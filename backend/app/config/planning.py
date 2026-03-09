@@ -398,3 +398,82 @@ def map_themes_to_days(
             day_map[d].append(regular_themes[theme_idx])
 
     return day_map
+
+
+# ── Budget ↔ Price Level Mapping ─────────────────────────────────────
+# Google price_level: 0=free, 1=inexpensive, 2=moderate, 3=expensive, 4=very_expensive
+
+_PRICE_LEVEL_USD_RANGES: dict[int, tuple[int, int]] = {
+    0: (0, 30),
+    1: (30, 80),
+    2: (80, 200),
+    3: (150, 350),
+    4: (250, 600),
+}
+
+_BUDGET_TARGET_PRICE_LEVELS: dict[str, list[int]] = {
+    "budget": [1, 2],
+    "moderate": [2, 3],
+    "expensive": [3, 4],
+    "luxury": [4],
+}
+
+_BUDGET_USD_RANGES: dict[str, tuple[int, int]] = {
+    "budget": (30, 80),
+    "moderate": (80, 200),
+    "expensive": (150, 350),
+    "luxury": (250, 600),
+}
+
+
+def get_target_price_levels(budget: str) -> list[int]:
+    """Return acceptable Google price_levels for a budget tier."""
+    return _BUDGET_TARGET_PRICE_LEVELS.get(budget, [2, 3])
+
+
+def get_budget_usd_range(budget: str) -> tuple[int, int]:
+    """Return (min, max) nightly USD range for a budget tier."""
+    return _BUDGET_USD_RANGES.get(budget, (80, 200))
+
+
+def get_budget_fallback_nightly(budget: str) -> int:
+    """Return midpoint nightly USD for a budget tier (used as fallback)."""
+    lo, hi = get_budget_usd_range(budget)
+    return (lo + hi) // 2
+
+
+def adjust_price_for_budget(
+    llm_estimate: float,
+    price_level: int | None,
+    budget: str,
+) -> float:
+    """Adjust LLM nightly estimate using Google's price_level as ground truth.
+
+    If price_level is available, clamp the estimate to the USD range for
+    that price_level. If not, clamp to the budget tier's own USD range
+    as a soft guardrail.
+    """
+    if price_level is None:
+        # No Google data — clamp to budget tier range
+        budget_lo, budget_hi = get_budget_usd_range(budget)
+        return max(budget_lo, min(llm_estimate, budget_hi))
+
+    usd_range = _PRICE_LEVEL_USD_RANGES.get(price_level)
+    if not usd_range:
+        return llm_estimate
+
+    lo, hi = usd_range
+    if llm_estimate < lo:
+        return float(lo)
+    if llm_estimate > hi:
+        return float(hi)
+    return llm_estimate
+
+
+def price_level_matches_budget(
+    price_level: int | None, budget: str
+) -> bool:
+    """Check if a Google price_level is acceptable for the given budget."""
+    if price_level is None:
+        return True
+    return price_level in get_target_price_levels(budget)
