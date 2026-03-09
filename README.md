@@ -64,6 +64,7 @@ Discover places (Google) → AI plans all days (with regional meal guidance + ti
 - **LLM output robustness** — accommodation validation with placeholder fallback, fallback geocoding ("{city}, {country}"), reviewer score coercion (string/float), enriched data preservation after chat edits, orphan place ID detection, missing duration/cost logging, excursion `destination_name` for precise geocoding, cross-day duplicate prevention via `already_used` tracking
 - **Landmark discovery** — pre-Scout Google Places query discovers destination's top attractions by review count (multi-query: landmarks + best places + theme parks + nature). Must-see iconic attractions identified via parallel LLM call and injected into Reviewer/Planner as ground truth. Feeds to Scout (must-consider), Reviewer (validates coverage with -15 deduction per missing icon), Planner (fixes missing). Ensures iconic attractions are never missed — zero hardcoded attraction names
 - **Parallel city processing** — all cities processed concurrently via `asyncio.Queue` + `asyncio.Semaphore` (bounded by `MAX_CONCURRENT_CITIES`). Excursions and landmark searches also parallelized via `asyncio.gather`. ~2-3x speedup for multi-city trips
+- **Excursion day rendering** — excursion days (day trips, multi-day excursions) render the full activity timeline with photos, routes, tips, reorder, and weather — same as regular city days. Excursion banner with accent styling shows destination context. Day navigator tabs use accent-colored indicators for excursion days
 
 ## Tech Stack
 
@@ -77,7 +78,7 @@ Discover places (Google) → AI plans all days (with regional meal guidance + ti
 | Maps | Google Maps via @vis.gl/react-google-maps |
 | Streaming | Server-Sent Events (SSE) with AbortController + 180s stall timeout + pre-stream token refresh |
 | Export | weasyprint (PDF trip book with cover page) + icalendar (.ics) |
-| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 225 tests |
+| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 223 tests |
 
 ## Quick Start
 
@@ -286,7 +287,7 @@ travel-companion/
 │   │   │   ├── scheduler.py          # Time-slot builder (culture-aware meal placement ~80 countries, pace multipliers)
 │   │   │   └── quality/              # 7 context-aware evaluators (meal timing, clustering, efficiency, variety, hours, theme, duration)
 │   │   └── prompts/                   # 16 Markdown templates (journey, day_plan, chat, tips)
-│   └── tests/                         # 225 tests (pytest + testcontainers PostgreSQL)
+│   └── tests/                         # 223 tests (pytest + testcontainers PostgreSQL)
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx                    # Phase-based SPA (input → planning → preview/day-plans)
@@ -342,7 +343,7 @@ For separate frontend (e.g., Vercel) and backend (e.g., Azure App Service):
 ```bash
 cd backend && source venv/bin/activate
 
-# Run all tests (225 tests)
+# Run all tests (223 tests)
 pytest -v
 
 # Run specific test file
