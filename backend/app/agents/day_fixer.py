@@ -7,6 +7,9 @@ from app.services.llm.base import LLMService
 
 logger = logging.getLogger(__name__)
 
+# Day-name abbreviations for formatting opening hours (Google format: 0=Sunday)
+_OH_DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
 
 class DayFixerAgent:
     """Fixes day plan quality issues identified by the reviewer."""
@@ -30,10 +33,17 @@ class DayFixerAgent:
             for i in issues
         )
 
-        candidate_entries = [
-            {"place_id": c.place_id, "name": c.name, "types": c.types[:3], "rating": c.rating}
-            for c in candidates[:30]
-        ]
+        candidate_entries = []
+        for c in candidates[:30]:
+            entry = {"place_id": c.place_id, "name": c.name, "types": c.types[:3], "rating": c.rating}
+            if c.opening_hours:
+                entry["hours"] = [
+                    f"{_OH_DAY_NAMES[oh.day]}: {oh.open_time}-{oh.close_time}"
+                    for oh in c.opening_hours[:3]
+                ]
+            if c.editorial_summary:
+                entry["description"] = c.editorial_summary[:100]
+            candidate_entries.append(entry)
 
         already_used_text = ""
         if already_used:
