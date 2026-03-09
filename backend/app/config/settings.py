@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     # Parallelization
     max_concurrent_cities: int = 5
 
+    # Route computation
+    route_computation_mode: str = "efficient"  # "full" | "efficient" | "minimal"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

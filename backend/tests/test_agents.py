@@ -960,3 +960,60 @@ class TestMustSeeFormatting:
         context = TestMustSeeFormatting._make_orchestrator(self)._format_user_must_include_only(["Taj Mahal"])
         assert "Taj Mahal" in context
         assert "highest priority" in context
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tiered Route Computation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestHaversineModeSelection:
+    """Haversine-based transport mode selection for efficient/minimal tiers."""
+
+    def test_short_distance_selects_walk(self):
+        from app.orchestrators.day_plan import DayPlanOrchestrator
+        from app.models.common import Location, Pace
+        # ~500m apart (well within walk threshold)
+        origin = Location(lat=35.6762, lng=139.6503)
+        destination = Location(lat=35.6795, lng=139.6503)
+        mode = DayPlanOrchestrator._pick_mode_from_haversine(origin, destination, Pace.MODERATE)
+        assert mode.value == "WALK"
+
+    def test_long_distance_selects_drive(self):
+        from app.orchestrators.day_plan import DayPlanOrchestrator
+        from app.models.common import Location, Pace
+        # ~10km apart (far beyond walk threshold)
+        origin = Location(lat=35.6762, lng=139.6503)
+        destination = Location(lat=35.7620, lng=139.6503)
+        mode = DayPlanOrchestrator._pick_mode_from_haversine(origin, destination, Pace.MODERATE)
+        assert mode.value == "DRIVE"
+
+    def test_relaxed_pace_walks_further(self):
+        from app.orchestrators.day_plan import DayPlanOrchestrator
+        from app.models.common import Location, Pace
+        # ~1.5km — walkable for relaxed, borderline for packed
+        origin = Location(lat=35.6762, lng=139.6503)
+        destination = Location(lat=35.6898, lng=139.6503)
+        relaxed = DayPlanOrchestrator._pick_mode_from_haversine(origin, destination, Pace.RELAXED)
+        packed = DayPlanOrchestrator._pick_mode_from_haversine(origin, destination, Pace.PACKED)
+        assert relaxed.value == "WALK"
+        assert packed.value == "DRIVE"
+
+    def test_format_duration(self):
+        from app.orchestrators.day_plan import DayPlanOrchestrator
+        assert DayPlanOrchestrator._format_duration(30) == "1 min"
+        assert DayPlanOrchestrator._format_duration(600) == "10 min"
+        assert DayPlanOrchestrator._format_duration(3600) == "1 hr"
+        assert DayPlanOrchestrator._format_duration(5400) == "1 hr 30 min"
+
+    def test_route_computation_mode_config(self):
+        from app.config.settings import Settings
+        s = Settings(
+            route_computation_mode="minimal",
+            database_url="postgresql+asyncpg://localhost/test",
+        )
+        assert s.route_computation_mode == "minimal"
+
+    def test_route_computation_mode_default(self):
+        from app.config.settings import Settings
+        s = Settings(database_url="postgresql+asyncpg://localhost/test")
+        assert s.route_computation_mode == "efficient"

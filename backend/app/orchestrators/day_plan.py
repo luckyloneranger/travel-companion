@@ -1511,22 +1511,41 @@ class DayPlanOrchestrator:
         activities: list[Activity],
         pace: Pace = Pace.MODERATE,
     ) -> list[Activity]:
-        """Compute routes using distance matrix for mode selection + individual calls for polylines.
+        """Compute routes between consecutive activities.
 
-        Phase 1: 3 matrix calls (WALK, DRIVE, TRANSIT) to get distance/duration for all legs.
-        Phase 2: Pick best mode per leg, then fetch polyline with 1 compute_route call per leg.
-
-        This uses ~8 API calls per day instead of ~15 (47% reduction).
+        Respects ``route_computation_mode`` from settings:
+        - **full**: 3 distance matrix calls (WALK/DRIVE/TRANSIT) for mode selection
+          + compute_route per leg for polylines. Most accurate, highest cost.
+        - **efficient** (default): Haversine-based mode selection (no matrix calls)
+          + compute_route per leg for real durations and polylines. 50% cheaper.
+        - **minimal**: Haversine for everything — no Google Routes API calls at all.
+          Approximate durations, no polylines. Free.
         """
         if len(activities) < 2:
             return activities
 
+        from app.config.settings import get_settings
+        mode = get_settings().route_computation_mode
+
+        if mode == "full":
+            return await self._compute_routes_full(activities, pace)
+        elif mode == "minimal":
+            return self._compute_routes_minimal(activities, pace)
+        else:  # "efficient" (default)
+            return await self._compute_routes_efficient(activities, pace)
+
+    async def _compute_routes_full(
+        self,
+        activities: list[Activity],
+        pace: Pace = Pace.MODERATE,
+    ) -> list[Activity]:
+        """Full mode: distance matrix for mode selection + compute_route for polylines."""
         locations = [a.place.location for a in activities]
         origins = locations[:-1]
         destinations = locations[1:]
         n_legs = len(origins)
 
-        # Phase 1: 3 matrix calls in parallel
+        # 3 matrix calls in parallel
         matrices = await asyncio.gather(
             self.routes.get_distance_matrix(origins, destinations, TravelMode.WALK),
             self.routes.get_distance_matrix(origins, destinations, TravelMode.DRIVE),
@@ -1534,7 +1553,7 @@ class DayPlanOrchestrator:
             return_exceptions=True,
         )
 
-        # Phase 2: Pick best mode per leg, fetch polyline for selected mode only
+        # Pick best mode per leg, fetch polyline for selected mode only
         tasks: list[asyncio.Task | None] = []
         selected_modes: list[TravelMode] = []
 
@@ -1555,7 +1574,6 @@ class DayPlanOrchestrator:
                     )
                 )
 
-        # Gather polyline fetches
         actual_tasks = [t for t in tasks if t is not None]
         if actual_tasks:
             fetched = await asyncio.gather(*actual_tasks, return_exceptions=True)
@@ -1585,6 +1603,130 @@ class DayPlanOrchestrator:
                         activities[i].route_to_next = result
 
         return activities
+
+    async def _compute_routes_efficient(
+        self,
+        activities: list[Activity],
+        pace: Pace = Pace.MODERATE,
+    ) -> list[Activity]:
+        """Efficient mode: haversine mode selection + compute_route for real durations/polylines."""
+        from app.config.planning import compute_haversine_fallback
+
+        locations = [a.place.location for a in activities]
+        origins = locations[:-1]
+        destinations = locations[1:]
+        n_legs = len(origins)
+
+        # Pick mode via haversine, then fetch polyline for selected mode
+        tasks: list[asyncio.Task | None] = []
+        selected_modes: list[TravelMode] = []
+
+        for i in range(n_legs):
+            cache_key = (
+                round(origins[i].lat, 5), round(origins[i].lng, 5),
+                round(destinations[i].lat, 5), round(destinations[i].lng, 5),
+            )
+            if cache_key in self._route_cache:
+                tasks.append(None)
+                selected_modes.append(TravelMode.WALK)
+            else:
+                best_mode = self._pick_mode_from_haversine(origins[i], destinations[i], pace)
+                selected_modes.append(best_mode)
+                tasks.append(
+                    asyncio.ensure_future(
+                        self.routes.compute_route(origins[i], destinations[i], best_mode)
+                    )
+                )
+
+        actual_tasks = [t for t in tasks if t is not None]
+        if actual_tasks:
+            fetched = await asyncio.gather(*actual_tasks, return_exceptions=True)
+        else:
+            fetched = []
+
+        fetch_idx = 0
+        for i in range(n_legs):
+            cache_key = (
+                round(origins[i].lat, 5), round(origins[i].lng, 5),
+                round(destinations[i].lat, 5), round(destinations[i].lng, 5),
+            )
+            if cache_key in self._route_cache:
+                activities[i].route_to_next = self._route_cache[cache_key]
+            else:
+                if fetch_idx < len(fetched):
+                    result = fetched[fetch_idx]
+                    fetch_idx += 1
+                    if isinstance(result, Exception):
+                        logger.warning(
+                            "[DayPlanOrchestrator] Route fetch failed for leg %d: %s",
+                            i, result,
+                        )
+                        activities[i].route_to_next = self.routes._fallback_route(TravelMode.WALK)
+                    else:
+                        self._route_cache[cache_key] = result
+                        activities[i].route_to_next = result
+
+        return activities
+
+    def _compute_routes_minimal(
+        self,
+        activities: list[Activity],
+        pace: Pace = Pace.MODERATE,
+    ) -> list[Activity]:
+        """Minimal mode: haversine for everything — no Google Routes API calls."""
+        from app.config.planning import compute_haversine_fallback
+        from app.models.day_plan import Route
+
+        locations = [a.place.location for a in activities]
+        origins = locations[:-1]
+        destinations = locations[1:]
+
+        for i in range(len(origins)):
+            best_mode = self._pick_mode_from_haversine(origins[i], destinations[i], pace)
+            distance_m, duration_s = compute_haversine_fallback(
+                origins[i].lat, origins[i].lng,
+                destinations[i].lat, destinations[i].lng,
+            )
+            # Adjust duration for driving (assume ~30 km/h city driving)
+            if best_mode == TravelMode.DRIVE:
+                duration_s = max(int(distance_m / (30_000 / 3600)), 120)  # min 2 min
+
+            activities[i].route_to_next = Route(
+                distance_meters=distance_m,
+                duration_seconds=duration_s,
+                duration_text=self._format_duration(duration_s),
+                travel_mode=best_mode,
+                polyline=None,
+            )
+
+        return activities
+
+    @classmethod
+    def _pick_mode_from_haversine(
+        cls, origin: Location, destination: Location, pace: Pace,
+    ) -> TravelMode:
+        """Select transport mode using haversine distance and pace-aware thresholds."""
+        from app.config.planning import compute_haversine_fallback
+        _distance_m, walk_duration_s = compute_haversine_fallback(
+            origin.lat, origin.lng, destination.lat, destination.lng,
+        )
+        if walk_duration_s <= cls._walk_threshold_seconds(pace):
+            return TravelMode.WALK
+        return TravelMode.DRIVE
+
+    @staticmethod
+    def _format_duration(seconds: int) -> str:
+        """Format seconds into human-readable duration text."""
+        if seconds < 60:
+            return "1 min"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes} min"
+        hours = minutes // 60
+        remaining = minutes % 60
+        if remaining == 0:
+            return f"{hours} hr"
+        return f"{hours} hr {remaining} min"
 
     async def _compute_best_route_for_leg(
         self,
