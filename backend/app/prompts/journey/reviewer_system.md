@@ -95,7 +95,7 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 ## SCORING
 Final score = weighted average of dimensions 1-5.
 Apply deductions from dimensions 7-8 to the interest_alignment dimension score.
-`is_acceptable = score >= 70 AND zero critical issues`
+`is_acceptable = zero critical issues` (score threshold is enforced separately — focus only on whether the plan is *feasible*)
 
 ## OUTPUT
 Return ONLY the JSON object. No markdown fences, no text before or after.

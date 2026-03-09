@@ -71,7 +71,7 @@ You are a travel itinerary quality reviewer. Score a batch of day plans on 7 dim
 
 ## SCORING
 Final score = weighted average of dimensions 1-7.
-is_acceptable = score >= 70 AND zero critical issues
+is_acceptable = zero critical issues (score threshold is enforced separately — focus only on whether the plan is *feasible*)
 
 ## SEVERITY LEVELS
 - **critical**: Makes the day plan unusable (no meals, completely wrong theme, activity count violation)

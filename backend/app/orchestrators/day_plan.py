@@ -426,7 +426,7 @@ class DayPlanOrchestrator:
                 exc.name, review.score, review.is_acceptable, iteration + 1,
             )
 
-            if review.is_acceptable or review.score >= MIN_DAY_PLAN_SCORE:
+            if review.is_acceptable and review.score >= MIN_DAY_PLAN_SCORE:
                 break
 
             try:
@@ -1978,7 +1978,7 @@ class DayPlanOrchestrator:
                     review.score, review.is_acceptable, iteration + 1,
                 )
 
-                if review.is_acceptable or review.score >= MIN_DAY_PLAN_SCORE:
+                if review.is_acceptable and review.score >= MIN_DAY_PLAN_SCORE:
                     break
 
                 # Day Fixer: fix issues

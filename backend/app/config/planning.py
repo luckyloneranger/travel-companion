@@ -12,13 +12,13 @@ from dataclasses import dataclass
 # Journey orchestration
 # ---------------------------------------------------------------------------
 MAX_JOURNEY_ITERATIONS: int = 3
-MIN_JOURNEY_SCORE: int = 70
+MIN_JOURNEY_SCORE: int = 75
 
 # ---------------------------------------------------------------------------
 # Day plan orchestration
 # ---------------------------------------------------------------------------
 MAX_DAY_PLAN_ITERATIONS: int = 2
-MIN_DAY_PLAN_SCORE: int = 70
+MIN_DAY_PLAN_SCORE: int = 75
 DAY_PLAN_BATCH_SIZE: int = 3
 MAX_CONCURRENT_CITIES: int = 5
 

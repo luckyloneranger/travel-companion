@@ -158,7 +158,7 @@ class JourneyOrchestrator:
                     best_score = review.score
                     best_plan = plan
 
-                if review.is_acceptable or iteration == self.MAX_ITERATIONS:
+                if (review.is_acceptable and review.score >= self.MIN_SCORE) or iteration == self.MAX_ITERATIONS:
                     break
 
                 # Fix with Planner
