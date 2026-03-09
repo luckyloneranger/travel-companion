@@ -362,29 +362,39 @@ class GooglePlacesService:
         """Discover a destination's most popular attractions by review count.
 
         Uses multiple search queries to cast a wide net (landmarks, theme
-        parks, best places), deduplicates, and sorts by user_ratings_total.
+        parks, nature, best places), deduplicates, and guarantees diversity
+        by taking top results per query before merging.
         No hardcoded names — Google's review data determines what's iconic.
         """
         queries = [
             f"top attractions and landmarks in {destination}",
             f"best places to visit {destination}",
             f"theme parks and entertainment in {destination}",
+            f"famous natural landmarks and scenic spots in {destination}",
         ]
         import asyncio as _asyncio
         results_lists = await _asyncio.gather(
             *(self.text_search(q, max_results=15) for q in queries),
             return_exceptions=True,
         )
+        # Take top results per query to ensure category diversity,
+        # then merge and sort globally. This prevents urban attractions
+        # from drowning out nature/scenic results.
+        per_query_limit = max(max_results // len(queries), 5)
         seen: set[str] = set()
         all_results: list[dict[str, Any]] = []
         for results in results_lists:
             if isinstance(results, Exception):
                 continue
+            count = 0
             for r in results:
                 pid = r.get("place_id", "")
                 if pid and pid not in seen:
                     seen.add(pid)
                     all_results.append(r)
+                    count += 1
+                    if count >= per_query_limit:
+                        break
         all_results.sort(key=lambda p: p.get("user_ratings_total") or 0, reverse=True)
         return all_results[:max_results]
 
@@ -397,7 +407,7 @@ class GooglePlacesService:
         by type with top attractions by review count. Used to inform Scout's
         experience_themes, NOT for specific attraction selection.
         """
-        landmarks = await self.discover_landmarks(destination, max_results=15)
+        landmarks = await self.discover_landmarks(destination, max_results=30)
         if not landmarks:
             return ""
 
@@ -420,15 +430,23 @@ class GooglePlacesService:
             "park": "Nature & wildlife",
             "national_park": "Nature & wildlife",
             "garden": "Nature & wildlife",
+            "mountain_peak": "Nature & wildlife",
+            "natural_feature": "Nature & wildlife",
+            "scenic_spot": "Nature & wildlife",
+            "hiking_area": "Nature & wildlife",
+            "wildlife_park": "Nature & wildlife",
+            "nature_preserve": "Nature & wildlife",
             "museum": "Cultural & historical",
             "art_gallery": "Cultural & historical",
             "historical_landmark": "Cultural & historical",
             "monument": "Cultural & historical",
+            "castle": "Cultural & historical",
             "temple": "Religious & spiritual",
             "church": "Religious & spiritual",
             "mosque": "Religious & spiritual",
             "hindu_temple": "Religious & spiritual",
             "buddhist_temple": "Religious & spiritual",
+            "shinto_shrine": "Religious & spiritual",
             "shopping_mall": "Shopping & markets",
             "market": "Shopping & markets",
             "tourist_attraction": "Landmarks & viewpoints",

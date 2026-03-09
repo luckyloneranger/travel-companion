@@ -883,3 +883,80 @@ class TestCityParallelism:
             database_url="postgresql+asyncpg://localhost/test",
         )
         assert s.max_concurrent_cities == 2
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Must-See Iconic Attractions
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestMustSeeModels:
+    """MustSeeAttraction / MustSeeAttractions model validation."""
+
+    def test_must_see_model_valid(self):
+        from app.models.journey import MustSeeAttraction, MustSeeAttractions
+        result = MustSeeAttractions(attractions=[
+            MustSeeAttraction(
+                name="Colosseum",
+                city_or_region="Rome",
+                why_iconic="Ancient gladiatorial arena, symbol of the Roman Empire",
+            ),
+        ])
+        assert len(result.attractions) == 1
+        assert result.attractions[0].name == "Colosseum"
+
+    def test_must_see_model_rejects_empty(self):
+        from app.models.journey import MustSeeAttractions
+        import pydantic
+        with pytest.raises(pydantic.ValidationError):
+            MustSeeAttractions(attractions=[])
+
+    def test_must_see_model_max_length(self):
+        from app.models.journey import MustSeeAttraction, MustSeeAttractions
+        import pydantic
+        with pytest.raises(pydantic.ValidationError):
+            MustSeeAttractions(attractions=[
+                MustSeeAttraction(name=f"Place{i}", city_or_region="City", why_iconic="Reason")
+                for i in range(8)
+            ])
+
+
+class TestMustSeeFormatting:
+    """JourneyOrchestrator must-see context formatting."""
+
+    def _make_orchestrator(self):
+        from app.orchestrators.journey import JourneyOrchestrator
+        from unittest.mock import MagicMock
+        llm = MagicMock()
+        places = MagicMock()
+        routes = MagicMock()
+        directions = MagicMock()
+        return JourneyOrchestrator(llm, places, routes, directions)
+
+    def test_format_must_see_context(self):
+        from app.models.journey import MustSeeAttraction, MustSeeAttractions
+        orch = self._make_orchestrator()
+        result = MustSeeAttractions(attractions=[
+            MustSeeAttraction(name="Eiffel Tower", city_or_region="Paris", why_iconic="Iconic iron lattice tower"),
+            MustSeeAttraction(name="Louvre Museum", city_or_region="Paris", why_iconic="World's largest art museum"),
+        ])
+        context = orch._format_must_see_context(result, [])
+        assert "Eiffel Tower" in context
+        assert "Louvre Museum" in context
+        assert "Must-See Iconic Attractions" in context
+
+    def test_format_merges_user_must_include(self):
+        from app.models.journey import MustSeeAttraction, MustSeeAttractions
+        orch = self._make_orchestrator()
+        result = MustSeeAttractions(attractions=[
+            MustSeeAttraction(name="Eiffel Tower", city_or_region="Paris", why_iconic="Iconic tower"),
+        ])
+        context = orch._format_must_see_context(result, ["Mont Saint-Michel", "Eiffel Tower"])
+        assert "Mont Saint-Michel" in context
+        assert "highest priority" in context
+        # Eiffel Tower should NOT appear twice (dedup)
+        assert context.count("Eiffel Tower") == 1
+
+    def test_format_user_must_include_only(self):
+        context = TestMustSeeFormatting._make_orchestrator(self)._format_user_must_include_only(["Taj Mahal"])
+        assert "Taj Mahal" in context
+        assert "highest priority" in context

@@ -39,6 +39,10 @@ LLM_SCOUT_TEMPERATURE: float = 0.8
 LLM_REVIEWER_MAX_TOKENS: int = 64000
 LLM_REVIEWER_TEMPERATURE: float = 0.3
 
+# Must-see attractions identification (fast, factual retrieval)
+LLM_MUST_SEE_MAX_TOKENS: int = 1500
+LLM_MUST_SEE_TEMPERATURE: float = 0.2
+
 # ---------------------------------------------------------------------------
 # Place quality filters
 # ---------------------------------------------------------------------------

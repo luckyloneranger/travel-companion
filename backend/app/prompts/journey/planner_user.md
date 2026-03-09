@@ -24,6 +24,8 @@ Fix this journey plan based on the review feedback:
 
 {landmarks_context}
 
+{must_see_context}
+
 **Step-by-step process:**
 1. For each critical/major issue, determine the minimum change needed
 2. Check if the fix introduces new problems (e.g., changing a city breaks the route)

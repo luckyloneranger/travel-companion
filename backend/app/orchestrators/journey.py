@@ -5,6 +5,7 @@ Yields ``ProgressEvent`` objects as an async generator so that callers
 updates to the client.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 
@@ -12,7 +13,7 @@ from app.agents.enricher import EnricherAgent
 from app.agents.planner import PlannerAgent
 from app.agents.reviewer import ReviewerAgent
 from app.agents.scout import ScoutAgent
-from app.models.journey import JourneyPlan, ReviewResult
+from app.models.journey import JourneyPlan, MustSeeAttractions, ReviewResult
 from app.models.progress import ProgressEvent
 from app.models.trip import TripRequest
 from app.services.google.directions import GoogleDirectionsService
@@ -55,12 +56,14 @@ class JourneyOrchestrator:
         from app.config.planning import MAX_JOURNEY_ITERATIONS, MIN_JOURNEY_SCORE
         self.MAX_ITERATIONS = MAX_JOURNEY_ITERATIONS
         self.MIN_SCORE = MIN_JOURNEY_SCORE
+        self.llm = llm
         self.places = places
         self.scout = ScoutAgent(llm)
         self.enricher = EnricherAgent(places, routes, directions)
         self.reviewer = ReviewerAgent(llm)
         self.planner = PlannerAgent(llm)
         self._landmarks_context = ""
+        self._must_see_context = ""
 
     async def plan_stream(
         self, request: TripRequest
@@ -81,20 +84,42 @@ class JourneyOrchestrator:
             complete, or error phases.
         """
         try:
-            # ── Step 0: Discover destination landscape ─────────────
+            # ── Step 0: Discover destination landscape + must-see icons ──
             landscape_context = ""
+            must_see_context = ""
             try:
-                landscape_context = await self.places.discover_destination_landscape(
-                    request.destination
+                landscape_result, must_see_result = await asyncio.gather(
+                    self.places.discover_destination_landscape(request.destination),
+                    self._identify_must_see_attractions(request),
+                    return_exceptions=True,
                 )
-                if landscape_context:
-                    logger.info(
-                        "[Orchestrator] Landscape discovered for %s",
-                        request.destination,
-                    )
+
+                if isinstance(landscape_result, Exception):
+                    logger.warning("[Orchestrator] Landscape discovery failed: %s", landscape_result)
+                else:
+                    landscape_context = landscape_result or ""
+                    if landscape_context:
+                        logger.info(
+                            "[Orchestrator] Landscape discovered for %s",
+                            request.destination,
+                        )
+
+                if isinstance(must_see_result, Exception):
+                    logger.warning("[Orchestrator] Must-see identification failed: %s", must_see_result)
+                    if request.must_include:
+                        must_see_context = self._format_user_must_include_only(request.must_include)
+                else:
+                    must_see_context = must_see_result or ""
+                    if must_see_context:
+                        logger.info(
+                            "[Orchestrator] Must-see attractions identified for %s",
+                            request.destination,
+                        )
             except Exception as exc:
-                logger.warning("[Orchestrator] Landscape discovery failed: %s", exc)
+                logger.warning("[Orchestrator] Step 0 failed: %s", exc)
+
             self._landmarks_context = landscape_context
+            self._must_see_context = must_see_context
 
             # ── Step 1: Scout ────────────────────────────────────────
             yield ProgressEvent(
@@ -144,7 +169,7 @@ class JourneyOrchestrator:
                 logger.info(
                     "[Orchestrator] Reviewing plan (iteration %d)", iteration
                 )
-                review = await self.reviewer.review(plan, request, iteration, landmarks_context=self._landmarks_context)
+                review = await self.reviewer.review(plan, request, iteration, landmarks_context=self._landmarks_context, must_see_context=self._must_see_context)
                 plan.review_score = review.score
                 logger.info(
                     "[Orchestrator] Review score: %d (acceptable=%s, iteration=%d)",
@@ -172,7 +197,7 @@ class JourneyOrchestrator:
                     review.score,
                     iteration,
                 )
-                plan = await self.planner.fix_plan(plan, review, request, landmarks_context=self._landmarks_context)
+                plan = await self.planner.fix_plan(plan, review, request, landmarks_context=self._landmarks_context, must_see_context=self._must_see_context)
                 iteration += 1
 
             # Use the best plan seen across all iterations
@@ -198,3 +223,80 @@ class JourneyOrchestrator:
                 message=str(exc),
                 progress=0,
             )
+
+    async def _identify_must_see_attractions(self, request: TripRequest) -> str:
+        """Identify globally iconic must-see attractions via a fast LLM call.
+
+        Returns a formatted string for injection into Reviewer/Planner prompts.
+        Merges LLM-identified attractions with user-specified must_include items.
+        Returns empty string on failure (graceful degradation).
+        """
+        from app.config.planning import LLM_MUST_SEE_MAX_TOKENS, LLM_MUST_SEE_TEMPERATURE
+        from app.prompts import journey_prompts
+
+        try:
+            system_prompt = journey_prompts.load("must_see_system")
+            user_prompt = journey_prompts.load("must_see_user").format(
+                destination=request.destination,
+                total_days=request.total_days,
+                interests=", ".join(request.interests) if request.interests else "general sightseeing",
+            )
+
+            result = await self.llm.generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=MustSeeAttractions,
+                max_tokens=LLM_MUST_SEE_MAX_TOKENS,
+                temperature=LLM_MUST_SEE_TEMPERATURE,
+            )
+
+            return self._format_must_see_context(result, request.must_include)
+
+        except Exception as exc:
+            logger.warning("[Orchestrator] Must-see identification failed: %s", exc)
+            if request.must_include:
+                return self._format_user_must_include_only(request.must_include)
+            return ""
+
+    def _format_must_see_context(
+        self, result: MustSeeAttractions, user_must_include: list[str]
+    ) -> str:
+        """Format must-see attractions as a prompt-ready string."""
+        lines = [
+            "## Must-See Iconic Attractions",
+            "The following are globally iconic attractions for this destination.",
+            "Check that the plan's experience themes would naturally lead travelers to these places:",
+            "",
+        ]
+
+        llm_names_lower = set()
+        for i, a in enumerate(result.attractions, 1):
+            lines.append(
+                f"{i}. **{a.name}** ({a.city_or_region}) — {a.why_iconic}"
+            )
+            llm_names_lower.add(a.name.lower())
+
+        # Merge user-specified must_include, skipping duplicates
+        if user_must_include:
+            user_unique = [
+                m for m in user_must_include
+                if m.lower() not in llm_names_lower
+            ]
+            if user_unique:
+                lines.append("")
+                lines.append("**Traveler-specified must-sees (highest priority):**")
+                for m in user_unique:
+                    lines.append(f"- {m}")
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _format_user_must_include_only(user_must_include: list[str]) -> str:
+        """Format user must_include when LLM call fails."""
+        lines = [
+            "## Must-See Attractions",
+            "**Traveler-specified must-sees (highest priority):**",
+        ]
+        for m in user_must_include:
+            lines.append(f"- {m}")
+        return "\n".join(lines)

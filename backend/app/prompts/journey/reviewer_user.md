@@ -22,6 +22,8 @@ Review this {total_days}-day journey plan:
 
 {landmarks_context}
 
+{must_see_context}
+
 **Step-by-step evaluation process:**
 1. Start each dimension at 60 (average). Award points for quality, deduct for issues.
 2. Score each of the 5 dimensions from 0-100

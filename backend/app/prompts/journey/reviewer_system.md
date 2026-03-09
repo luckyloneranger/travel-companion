@@ -57,13 +57,14 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 ### 5. INTEREST ALIGNMENT & ICONIC COVERAGE (weight: 15%)
 - Do destinations match the traveler's stated interests?
 - Does the plan include the region's ICONIC, must-see destinations?
+- **If a "Must-See Iconic Attractions" list is provided, cross-reference it against the plan's experience themes. Each iconic attraction should be naturally discoverable through at least one theme. Missing coverage is a major issue.**
 - Missing a globally famous attraction (Angkor Wat in Cambodia, Colosseum in Rome, Taj Mahal for India trips) is a **major** issue, not minor.
 - Is there variety (mix of urban and non-urban)?
-- Score 90+: Interests fully matched AND all iconic destinations included
+- Score 90+: Interests fully matched AND all iconic destinations covered by themes
 - Score 70-89: Good match with 1-2 minor gaps
 - Score 60-69: Partial match — missing iconic destinations or weak interest coverage
 - Score <50: Poor match to interests
-- **Deductions**: -15 for each globally iconic attraction missing. -10 for an interest not covered by any theme.
+- **Deductions**: -15 for each iconic attraction from the must-see list not covered by any theme. -10 for an interest not covered by any theme.
 
 ### 6. SEASONAL, SAFETY & PRACTICAL CHECK (does not contribute to weighted score, but can set is_acceptable=false)
 - Travel dates overlap with worst season (monsoon, hurricane, extreme cold)?

@@ -12,7 +12,7 @@ class ReviewerAgent:
     def __init__(self, llm: LLMService):
         self.llm = llm
 
-    async def review(self, plan: JourneyPlan, request: TripRequest, iteration: int = 1, landmarks_context: str = "") -> ReviewResult:
+    async def review(self, plan: JourneyPlan, request: TripRequest, iteration: int = 1, landmarks_context: str = "", must_see_context: str = "") -> ReviewResult:
         """Review a journey plan for feasibility and quality."""
         system_prompt = journey_prompts.load("reviewer_system")
 
@@ -35,6 +35,7 @@ class ReviewerAgent:
             cities_detail=cities_detail,
             travel_detail=travel_detail,
             landmarks_context=landmarks_context,
+            must_see_context=must_see_context,
         )
 
         from app.config.planning import LLM_REVIEWER_MAX_TOKENS, LLM_REVIEWER_TEMPERATURE

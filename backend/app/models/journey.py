@@ -28,6 +28,20 @@ class ExperienceTheme(BaseModel):
     why: str = ""
 
 
+class MustSeeAttraction(BaseModel):
+    """A globally iconic, must-visit attraction at a destination."""
+    name: str
+    city_or_region: str
+    why_iconic: str
+
+
+class MustSeeAttractions(BaseModel):
+    """LLM-identified must-see attractions for a destination."""
+    attractions: list[MustSeeAttraction] = Field(
+        ..., min_length=1, max_length=7
+    )
+
+
 class CityHighlight(BaseModel):
     name: str
     description: str = ""
