@@ -5,22 +5,28 @@ from datetime import date, time
 import pytest
 from app.algorithms.scheduler import ScheduleBuilder, ScheduleConfig, DURATION_BY_CATEGORY, PACE_MULTIPLIERS
 from app.models.common import Location, Pace
-from app.models.internal import PlaceCandidate
+from app.models.internal import OpeningHours, PlaceCandidate
 
 
 def _make_place(
-    name: str,
+    place_id: str = "p1",
+    name: str = "Test Place",
     types: list[str] | None = None,
-    suggested_duration: int | None = None,
+    lat: float = 48.0,
+    lng: float = 2.0,
+    suggested_duration_minutes: int | None = None,
+    opening_hours: list | None = None,
 ) -> PlaceCandidate:
     """Helper to build a PlaceCandidate."""
     return PlaceCandidate(
-        place_id=f"place_{name}",
+        place_id=place_id,
         name=name,
-        address=f"{name} address",
-        location=Location(lat=48.0, lng=2.0),
+        address="123 Test St",
+        location=Location(lat=lat, lng=lng),
         types=types or ["tourist_attraction"],
-        suggested_duration_minutes=suggested_duration,
+        rating=4.5,
+        suggested_duration_minutes=suggested_duration_minutes,
+        opening_hours=opening_hours,
     )
 
 
@@ -34,7 +40,7 @@ class TestScheduleBuilderBasic:
 
     def test_single_activity(self):
         builder = ScheduleBuilder()
-        places = [_make_place("Museum", types=["museum"])]
+        places = [_make_place(name="Museum", types=["museum"])]
         result = builder.build_schedule(places, schedule_date=date(2026, 3, 4))
         assert len(result) == 1
         assert result[0].place.name == "Museum"
@@ -43,9 +49,9 @@ class TestScheduleBuilderBasic:
     def test_multiple_activities_sequential(self):
         builder = ScheduleBuilder()
         places = [
-            _make_place("A", types=["tourist_attraction"]),
-            _make_place("B", types=["tourist_attraction"]),
-            _make_place("C", types=["tourist_attraction"]),
+            _make_place(place_id="a", name="A", types=["tourist_attraction"]),
+            _make_place(place_id="b", name="B", types=["tourist_attraction"]),
+            _make_place(place_id="c", name="C", types=["tourist_attraction"]),
         ]
         result = builder.build_schedule(places, schedule_date=date(2026, 3, 4))
         assert len(result) == 3
@@ -55,7 +61,7 @@ class TestScheduleBuilderBasic:
 
     def test_custom_start_time(self):
         builder = ScheduleBuilder()
-        places = [_make_place("A")]
+        places = [_make_place(name="A")]
         result = builder.build_schedule(
             places,
             schedule_date=date(2026, 3, 4),
@@ -66,9 +72,9 @@ class TestScheduleBuilderBasic:
     def test_custom_end_time_caps_activities(self):
         builder = ScheduleBuilder()
         places = [
-            _make_place("A", types=["amusement_park"]),  # 180 min
-            _make_place("B", types=["amusement_park"]),  # 180 min
-            _make_place("C", types=["amusement_park"]),  # 180 min
+            _make_place(place_id="a", name="A", types=["amusement_park"]),  # 180 min
+            _make_place(place_id="b", name="B", types=["amusement_park"]),  # 180 min
+            _make_place(place_id="c", name="C", types=["amusement_park"]),  # 180 min
         ]
         result = builder.build_schedule(
             places,
@@ -85,7 +91,7 @@ class TestScheduleBuilderPace:
 
     def test_relaxed_longer_durations(self):
         builder = ScheduleBuilder()
-        place = _make_place("Museum", types=["museum"])  # 90 min base
+        place = _make_place(name="Museum", types=["museum"])  # 90 min base
         relaxed = builder.build_schedule(
             [place], pace=Pace.RELAXED, schedule_date=date(2026, 3, 4)
         )
@@ -96,7 +102,7 @@ class TestScheduleBuilderPace:
 
     def test_packed_shorter_durations(self):
         builder = ScheduleBuilder()
-        place = _make_place("Museum", types=["museum"])  # 90 min base
+        place = _make_place(name="Museum", types=["museum"])  # 90 min base
         packed = builder.build_schedule(
             [place], pace=Pace.PACKED, schedule_date=date(2026, 3, 4)
         )
@@ -112,9 +118,9 @@ class TestScheduleBuilderMeals:
     def test_lunch_scheduled_in_window(self):
         builder = ScheduleBuilder()
         places = [
-            _make_place("Morning activity", types=["museum"]),  # 90 min: 09:00-10:30
-            _make_place("Stroll", types=["park"]),               # 60 min: 10:45-11:45
-            _make_place("Lunch spot", types=["restaurant"]),
+            _make_place(name="Morning activity", types=["museum"]),  # 90 min: 09:00-10:30
+            _make_place(name="Stroll", types=["park"]),               # 60 min: 10:45-11:45
+            _make_place(name="Lunch spot", types=["restaurant"]),
         ]
         result = builder.build_schedule(places, schedule_date=date(2026, 3, 4))
         lunch = next(a for a in result if a.place.name == "Lunch spot")
@@ -124,13 +130,13 @@ class TestScheduleBuilderMeals:
     def test_dinner_scheduled_in_window(self):
         builder = ScheduleBuilder()
         places = [
-            _make_place("Activity 1", types=["museum"]),            # 90 min: 09:00-10:30
-            _make_place("Activity 2", types=["park"]),              # 60 min: 10:45-11:45
-            _make_place("Lunch", types=["restaurant"]),             # 75 min: ~12:30-13:45
-            _make_place("Activity 3", types=["museum"]),            # 90 min: ~14:00-15:30
-            _make_place("Activity 4", types=["park"]),              # 60 min: ~15:45-16:45
-            _make_place("Activity 5", types=["tourist_attraction"]),  # 45 min: ~17:00-17:45
-            _make_place("Dinner", types=["restaurant"]),            # Should wait for 18:00+
+            _make_place(name="Activity 1", types=["museum"]),            # 90 min: 09:00-10:30
+            _make_place(name="Activity 2", types=["park"]),              # 60 min: 10:45-11:45
+            _make_place(name="Lunch", types=["restaurant"]),             # 75 min: ~12:30-13:45
+            _make_place(name="Activity 3", types=["museum"]),            # 90 min: ~14:00-15:30
+            _make_place(name="Activity 4", types=["park"]),              # 60 min: ~15:45-16:45
+            _make_place(name="Activity 5", types=["tourist_attraction"]),  # 45 min: ~17:00-17:45
+            _make_place(name="Dinner", types=["restaurant"]),            # Should wait for 18:00+
         ]
         result = builder.build_schedule(places, schedule_date=date(2026, 3, 4))
         dinner = next(a for a in result if a.place.name == "Dinner")
@@ -144,13 +150,13 @@ class TestScheduleBuilderDurations:
     def test_suggested_duration_used(self):
         builder = ScheduleBuilder()
         # 90 min suggested, moderate pace -> rounds to 90
-        place = _make_place("Custom", suggested_duration=90)
+        place = _make_place(name="Custom", suggested_duration_minutes=90)
         result = builder.build_schedule([place], schedule_date=date(2026, 3, 4))
         assert result[0].duration_minutes == 90
 
     def test_explicit_override_used(self):
         builder = ScheduleBuilder()
-        place = _make_place("A", types=["museum"])  # 120 base
+        place = _make_place(place_id="place_A", name="A", types=["museum"])  # 120 base
         result = builder.build_schedule(
             [place],
             durations={"place_A": 30},
@@ -161,7 +167,7 @@ class TestScheduleBuilderDurations:
     def test_category_duration_defaults(self):
         """Museum default is 90 min at moderate pace."""
         builder = ScheduleBuilder()
-        place = _make_place("A", types=["museum"])
+        place = _make_place(name="A", types=["museum"])
         result = builder.build_schedule([place], schedule_date=date(2026, 3, 4))
         assert result[0].duration_minutes == 90
 
@@ -172,8 +178,8 @@ class TestScheduleBuilderValidation:
     def test_no_overlaps_in_valid_schedule(self):
         builder = ScheduleBuilder()
         places = [
-            _make_place("A", types=["museum"]),
-            _make_place("B", types=["park"]),
+            _make_place(place_id="a", name="A", types=["museum"]),
+            _make_place(place_id="b", name="B", types=["park"]),
         ]
         schedule = builder.build_schedule(places, schedule_date=date(2026, 3, 4))
         warnings = builder.validate_schedule(schedule)
@@ -184,6 +190,83 @@ class TestScheduleBuilderValidation:
         builder = ScheduleBuilder()
         warnings = builder.validate_schedule([])
         assert warnings == []
+
+
+class TestScheduleBuilderOpeningHours:
+    """Opening hours constraint tests."""
+
+    def test_activity_truncated_to_fit_closing(self):
+        """Place closes at 17:00, start at 16:00 with 90min duration -> truncate to 60min."""
+        builder = ScheduleBuilder()
+        # Wednesday: Python weekday 2 -> Google day 3
+        hours = [OpeningHours(day=3, open_time="09:00", close_time="17:00")]
+        place = _make_place(
+            name="Museum",
+            types=["museum"],
+            suggested_duration_minutes=90,
+            opening_hours=hours,
+        )
+        result = builder.build_schedule(
+            [place],
+            schedule_date=date(2026, 4, 15),  # Wednesday
+            day_start_time=time(16, 0),
+        )
+        assert len(result) == 1
+        assert result[0].duration_minutes == 60
+        assert result[0].time_start == "16:00"
+        assert result[0].time_end == "17:00"
+
+    def test_activity_skipped_when_no_time_before_close(self):
+        """Place closes at 17:00, day starts at 16:45 -> skip (only 15min, below min_activity_duration=30)."""
+        builder = ScheduleBuilder()
+        hours = [OpeningHours(day=3, open_time="09:00", close_time="17:00")]
+        place = _make_place(
+            name="Museum",
+            types=["museum"],
+            suggested_duration_minutes=90,
+            opening_hours=hours,
+        )
+        result = builder.build_schedule(
+            [place],
+            schedule_date=date(2026, 4, 15),  # Wednesday
+            day_start_time=time(16, 45),
+        )
+        assert len(result) == 0
+
+    def test_activity_not_truncated_when_fits(self):
+        """Place closes at 22:00, start at 09:00, 60min duration -> full duration kept."""
+        builder = ScheduleBuilder()
+        hours = [OpeningHours(day=3, open_time="09:00", close_time="22:00")]
+        place = _make_place(
+            name="Museum",
+            types=["museum"],
+            suggested_duration_minutes=60,
+            opening_hours=hours,
+        )
+        result = builder.build_schedule(
+            [place],
+            schedule_date=date(2026, 4, 15),  # Wednesday
+        )
+        assert len(result) == 1
+        assert result[0].duration_minutes == 60
+        assert result[0].time_start == "09:00"
+        assert result[0].time_end == "10:00"
+
+    def test_no_opening_hours_schedules_normally(self):
+        """Place without opening_hours -> schedule normally with full duration."""
+        builder = ScheduleBuilder()
+        place = _make_place(
+            name="Museum",
+            types=["museum"],
+            suggested_duration_minutes=90,
+        )
+        result = builder.build_schedule(
+            [place],
+            schedule_date=date(2026, 4, 15),
+        )
+        assert len(result) == 1
+        assert result[0].duration_minutes == 90
+        assert result[0].time_start == "09:00"
 
 
 class TestDurationByCategory:

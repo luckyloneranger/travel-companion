@@ -331,10 +331,14 @@ class ScheduleBuilder:
             # Determine duration
             duration = self._get_duration(place, pace, durations)
 
-            # Adjust for opening hours
-            adjusted_time = self._adjust_for_opening_hours(place, current_time)
-            if adjusted_time:
-                current_time = adjusted_time
+            # Apply opening hours constraints (start time + closing time)
+            oh_result = self._apply_opening_hours_constraints(place, current_time, duration)
+            if oh_result is None:
+                logger.warning(
+                    "Skipping %s: closed or insufficient time before closing", place.name
+                )
+                continue
+            current_time, duration = oh_result
 
             current_time_only = current_time.time()
             is_meal = self._is_meal_place(place)
@@ -497,18 +501,25 @@ class ScheduleBuilder:
         # Round to nearest 15 minutes
         return ((adjusted + 7) // 15) * 15
 
-    def _adjust_for_opening_hours(
+    def _apply_opening_hours_constraints(
         self,
         place: PlaceCandidate,
         current_time: datetime,
-    ) -> Optional[datetime]:
+        duration: int,
+    ) -> tuple[datetime, int] | None:
         """
-        Adjust start time if place isn't open yet.
+        Apply opening-hours constraints to an activity.
 
-        Returns None if no adjustment needed, otherwise the adjusted time.
+        Returns None if the place is closed or there's insufficient time
+        before closing (less than min_activity_duration).  Otherwise returns
+        an ``(adjusted_start, adjusted_duration)`` tuple — pushing the start
+        forward when the place hasn't opened yet, and truncating the duration
+        when the activity would otherwise run past closing time.
+
+        If no opening-hours data is available, returns the inputs unchanged.
         """
         if not place.opening_hours:
-            return None
+            return current_time, duration
 
         day_of_week = current_time.weekday()
         # Convert to Google's format (0=Sunday)
@@ -517,11 +528,29 @@ class ScheduleBuilder:
         for hours in place.opening_hours:
             if hours.day == google_day:
                 open_time = datetime.strptime(hours.open_time, "%H:%M").time()
-                if current_time.time() < open_time:
-                    return datetime.combine(current_time.date(), open_time)
-                break
+                close_time = datetime.strptime(hours.close_time, "%H:%M").time()
 
-        return None
+                # Push start forward if place hasn't opened yet
+                start = current_time
+                if start.time() < open_time:
+                    start = datetime.combine(current_time.date(), open_time)
+
+                # Already past closing time
+                if start.time() >= close_time:
+                    return None
+
+                # Truncate duration to fit within closing time
+                close_dt = datetime.combine(current_time.date(), close_time)
+                available_minutes = int((close_dt - start).total_seconds()) // 60
+
+                if available_minutes < self.config.min_activity_duration:
+                    return None
+
+                adjusted_duration = min(duration, available_minutes)
+                return start, adjusted_duration
+
+        # No matching day found — schedule normally
+        return current_time, duration
 
     def _is_meal_place(self, place: PlaceCandidate) -> bool:
         """Check if a place is a restaurant/cafe suitable for meals."""
