@@ -301,6 +301,36 @@ class TestDurationByCategory:
         assert "default" in DURATION_BY_CATEGORY
 
 
+class TestFallbackDurations:
+    """Verify fallback duration table has sensible values."""
+
+    def test_temple_types_have_entries(self):
+        """Shinto shrines and Buddhist temples should have duration entries."""
+        from app.config.planning import DURATION_BY_TYPE
+        assert "shinto_shrine" in DURATION_BY_TYPE
+        assert "buddhist_temple" in DURATION_BY_TYPE
+        assert 30 <= DURATION_BY_TYPE["shinto_shrine"] <= 60
+        assert 30 <= DURATION_BY_TYPE["buddhist_temple"] <= 60
+
+    def test_observation_deck_has_entry(self):
+        """Observation decks should have duration entry."""
+        from app.config.planning import DURATION_BY_TYPE
+        assert "observation_deck" in DURATION_BY_TYPE
+        assert 45 <= DURATION_BY_TYPE["observation_deck"] <= 90
+
+    def test_quick_stops_are_short(self):
+        """Bridges and sculptures should be quick stops."""
+        from app.config.planning import DURATION_BY_TYPE
+        assert DURATION_BY_TYPE.get("bridge", 999) <= 30
+        assert DURATION_BY_TYPE.get("sculpture", 999) <= 30
+
+    def test_all_durations_are_positive(self):
+        """All duration values should be positive integers."""
+        from app.config.planning import DURATION_BY_TYPE
+        for place_type, duration in DURATION_BY_TYPE.items():
+            assert duration > 0, f"{place_type} has non-positive duration"
+
+
 class TestPaceMultipliers:
     """Verify pace multiplier constants."""
 
