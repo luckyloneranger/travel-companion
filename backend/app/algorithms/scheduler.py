@@ -18,6 +18,8 @@ from app.config.planning import DURATION_BY_TYPE
 
 logger = logging.getLogger(__name__)
 
+# Day-name abbreviations for formatting opening hours (Google format: 0=Sunday)
+_OH_DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 # Use the single consolidated duration map from config
 DURATION_BY_CATEGORY = DURATION_BY_TYPE
@@ -406,6 +408,13 @@ class ScheduleBuilder:
                     )
                     continue
 
+            # Format opening hours as human-readable strings for downstream consumers
+            formatted_hours = []
+            if place.opening_hours:
+                for oh in place.opening_hours:
+                    day_name = _OH_DAY_NAMES[oh.day] if 0 <= oh.day <= 6 else f"Day{oh.day}"
+                    formatted_hours.append(f"{day_name}: {oh.open_time} \u2013 {oh.close_time}")
+
             # Build the Place model for Activity
             activity_place = Place(
                 place_id=place.place_id,
@@ -416,7 +425,7 @@ class ScheduleBuilder:
                 rating=place.rating,
                 photo_url=place.photo_reference,
                 photo_urls=place.photo_references,
-                opening_hours=[],
+                opening_hours=formatted_hours,
                 website=place.website,
             )
 

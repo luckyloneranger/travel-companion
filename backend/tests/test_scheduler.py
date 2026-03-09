@@ -268,6 +268,27 @@ class TestScheduleBuilderOpeningHours:
         assert result[0].duration_minutes == 90
         assert result[0].time_start == "09:00"
 
+    def test_opening_hours_preserved_in_activity(self):
+        """Opening hours from PlaceCandidate should flow into Activity.place."""
+        place = _make_place(
+            place_id="museum1", name="Art Museum", types=["museum"],
+            opening_hours=[
+                OpeningHours(day=3, open_time="09:00", close_time="17:00"),
+                OpeningHours(day=4, open_time="09:00", close_time="21:00"),
+            ],
+        )
+        builder = ScheduleBuilder()
+        result = builder.build_schedule(
+            places=[place],
+            durations={"museum1": 90},
+            pace=Pace.MODERATE,
+            schedule_date=date(2026, 4, 15),  # Wednesday
+        )
+        assert len(result) == 1
+        assert len(result[0].place.opening_hours) == 2
+        assert "09:00" in result[0].place.opening_hours[0]
+        assert "17:00" in result[0].place.opening_hours[0]
+
 
 class TestDurationByCategory:
     """Verify duration constants are reasonable."""
