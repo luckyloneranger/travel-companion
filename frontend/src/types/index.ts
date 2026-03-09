@@ -46,6 +46,7 @@ export interface CityHighlight {
   name: string;
   description: string;
   category: string;
+  destination_name?: string;
   suggested_duration_hours: number | null;
   excursion_type: string | null;
   excursion_days: number | null;
@@ -54,6 +55,7 @@ export interface CityHighlight {
 export interface ExperienceTheme {
   theme: string;
   category: string;
+  destination_name?: string;
   excursion_type?: string;
   excursion_days?: number;
   distance_from_city_km?: number;

@@ -2,7 +2,7 @@ import {
   Clock, Star, MapPin, Navigation, ExternalLink, DollarSign,
   CloudRain, Lightbulb, Cloud, CloudLightning, Snowflake,
   Droplets, Wind, Sun, Coffee, MessageSquare, Minus, Plus, Trash2, HelpCircle,
-  GripVertical,
+  GripVertical, MapPinned,
 } from 'lucide-react';
 import {
   DndContext,
@@ -425,33 +425,18 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
     onReorder(dayPlan.day_number, reordered.map(a => a.id));
   };
 
-  // Excursion day — simplified card rendering
-  if (dayPlan.is_excursion) {
-    return (
-      <div className="rounded-lg border-2 border-accent-300 dark:border-accent-700 bg-accent-50 dark:bg-accent-950/30 p-4 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">&#x1F3AF;</span>
-          <h4 className="text-sm font-semibold text-text-primary">
-            {dayPlan.excursion_name || dayPlan.theme}
-          </h4>
-        </div>
-        {dayPlan.activities.length > 0 && dayPlan.activities[0].notes && (
-          <p className="text-sm text-text-secondary leading-relaxed">
-            {dayPlan.activities[0].notes}
-          </p>
-        )}
-        {dayPlan.daily_cost_usd != null && dayPlan.daily_cost_usd > 0 && (
-          <p className="text-sm text-text-muted flex items-center gap-1">
-            <DollarSign className="h-3.5 w-3.5" />
-            Estimated cost: ~${dayPlan.daily_cost_usd.toFixed(0)}
-          </p>
-        )}
-        <p className="text-sm text-text-muted">
-          Full-day experience &mdash; no individual activity scheduling
-        </p>
-      </div>
-    );
-  }
+  // Excursion banner — rendered above normal timeline, no early return
+  const excursionBanner = dayPlan.is_excursion ? (
+    <div className="rounded-lg border border-accent-300 dark:border-accent-700 bg-accent-50 dark:bg-accent-950/30 px-3 py-2 mb-3 flex items-center gap-2">
+      <MapPinned className="h-4 w-4 text-accent-500 shrink-0" />
+      <span className="text-sm font-medium text-accent-700 dark:text-accent-300">
+        {dayPlan.excursion_name || dayPlan.theme}
+      </span>
+      <span className="text-xs text-text-muted">
+        Excursion from {dayPlan.city_name}
+      </span>
+    </div>
+  ) : null;
 
   if (visibleActivities.length === 0) {
     return (
@@ -501,6 +486,8 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
 
   return (
     <div className="space-y-0">
+      {excursionBanner}
+
       {/* Feature 8: Weather card */}
       {dayPlan.weather && (
         <div className="mb-4 rounded-lg border border-border-default bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/20 dark:to-blue-950/20 p-3">

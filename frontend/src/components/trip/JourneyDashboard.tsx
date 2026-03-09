@@ -450,8 +450,12 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                           onClick={() => {
                             document.getElementById(`day-${dp.day_number}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                           }}
-                          className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800/50 transition-colors"
-                          title={`Day ${dp.day_number}: ${dp.theme}`}
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                            dp.is_excursion
+                              ? 'bg-accent-100 dark:bg-accent-900/40 text-accent-700 dark:text-accent-300 ring-1 ring-accent-400 hover:bg-accent-200 dark:hover:bg-accent-800/50'
+                              : 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800/50'
+                          }`}
+                          title={`Day ${dp.day_number}: ${dp.theme}${dp.is_excursion ? ' (Excursion)' : ''}`}
                         >
                           {dp.day_number}
                         </button>
