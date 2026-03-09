@@ -14,30 +14,30 @@ AI-powered multi-city travel planner that combines LLMs for creative planning de
 **Journey planning pipeline:**
 
 ```
-Landmark Discovery (Google finds top attractions by review count)
-  → Scout (LLM picks cities + estimates costs, informed by landmark data)
+Landscape Discovery (Google, 4 queries) + Must-See Icons (LLM, parallel)
+  → Scout (LLM picks cities + experience themes, informed by landmark data)
   → Enrich (Google APIs ground with real data)
-  → Review (LLM scores quality ≥70, validates landmark coverage)
+  → Review (LLM scores quality ≥75, validates must-see coverage)
   → Planner (LLM fixes issues) → loop (max 3 iterations, best attempt returned)
 ```
 
-**Day plan pipeline (per city, runs in background):**
+**Day plan pipeline (per city, all cities run in parallel):**
 
 ```
-Discover places (Google) → AI plans days (with regional meal guidance + time constraints)
+Discover places (Google) → AI plans all days (with regional meal guidance + time constraints)
   → TSP optimizes routes → Schedule builder assigns time slots (culture-aware meal placement, ~80 countries)
-  → Pace-aware transport mode selection → Attach weather forecasts → Graduated weather warnings
+  → Tiered transport mode selection → Attach weather forecasts → Graduated weather warnings
 ```
 
 ## Features
 
-- **Multi-city journey planning** with quality-scored iterative refinement (score ≥70, max 3 iterations, returns best attempt)
+- **Multi-city journey planning** with quality-scored iterative refinement (score ≥75, max 3 iterations, returns best attempt)
 - **Group travel support** — solo, couples, families (with children/infants), or friend groups with group-aware cost estimates
 - **Guided wizard input** — 5-step form (Where → When & Who → Style → Budget → Review) with 6 quick-start templates
 - **Unified trip view** — journey overview and day plans on a single page, no context switching
 - **Inline day plans** — generated in background, rendered per-city inside collapsible city cards
 - **Per-day timeline** — activities with time, duration, cost, rating, photos, address, weather, and tips shown inline
-- **Smart transport selection** — pace-aware: walks short distances (relaxed=25min, packed=15min), drives or transits for longer legs (based on real Google travel times)
+- **Smart transport selection** — tiered route computation (`ROUTE_COMPUTATION_MODE`): `full` (Google distance matrix + route API), `efficient` (haversine mode selection + route API), `minimal` (haversine only, $0 API cost). Pace-aware walk thresholds (relaxed=25min, packed=15min)
 - **Regional transport guidance** — LLM-driven prompt guidance for inter-city travel, adapted to each region's actual transport norms
 - **Weather integration** — daily forecasts per city, graduated warnings (advisory/warning/severe) for outdoor activities, "suggest indoor alternatives" link when rain ≥50%
 - **Budget tracking** — cost breakdown across accommodation, transport, dining, and activities with confidence badges (Google data vs AI estimate), daily cost progress bars, all costs reflect total for the group
@@ -62,7 +62,8 @@ Discover places (Google) → AI plans days (with regional meal guidance + time c
 - **PWA** — installable via Add to Home Screen (manifest.json)
 - **Toast notifications** — user feedback for copy, share, export, errors, and destructive action confirmations
 - **LLM output robustness** — accommodation validation with placeholder fallback, fallback geocoding ("{city}, {country}"), reviewer score coercion (string/float), enriched data preservation after chat edits, orphan place ID detection, missing duration/cost logging, excursion `destination_name` for precise geocoding, cross-day duplicate prevention via `already_used` tracking
-- **Landmark discovery** — pre-Scout Google Places query discovers destination's top attractions by review count (multi-query: landmarks + best places + theme parks). Feeds to Scout (must-consider), Reviewer (validates coverage), Planner (fixes missing). Ensures iconic attractions like Universal Studios, major zoos, and famous landmarks are never missed — zero hardcoded attraction names
+- **Landmark discovery** — pre-Scout Google Places query discovers destination's top attractions by review count (multi-query: landmarks + best places + theme parks + nature). Must-see iconic attractions identified via parallel LLM call and injected into Reviewer/Planner as ground truth. Feeds to Scout (must-consider), Reviewer (validates coverage with -15 deduction per missing icon), Planner (fixes missing). Ensures iconic attractions are never missed — zero hardcoded attraction names
+- **Parallel city processing** — all cities processed concurrently via `asyncio.Queue` + `asyncio.Semaphore` (bounded by `MAX_CONCURRENT_CITIES`). Excursions and landmark searches also parallelized via `asyncio.gather`. ~2-3x speedup for multi-city trips
 
 ## Tech Stack
 
@@ -76,7 +77,7 @@ Discover places (Google) → AI plans days (with regional meal guidance + time c
 | Maps | Google Maps via @vis.gl/react-google-maps |
 | Streaming | Server-Sent Events (SSE) with AbortController + 180s stall timeout + pre-stream token refresh |
 | Export | weasyprint (PDF trip book with cover page) + icalendar (.ics) |
-| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 207 tests |
+| Testing | pytest + pytest-asyncio, testcontainers (PostgreSQL), 225 tests |
 
 ## Quick Start
 
@@ -159,6 +160,8 @@ apt-get install libpango-1.0-0 libglib2.0-0
 | `APP_ENV` | `development`, `production`, or `test` |
 | `DEBUG` | Enable debug mode (default: `true`) |
 | `LOG_LEVEL` | Logging level (default: `INFO`) |
+| `MAX_CONCURRENT_CITIES` | Max cities processed in parallel (default: `5`) |
+| `ROUTE_COMPUTATION_MODE` | Route tier: `full`, `efficient` (default), or `minimal` |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -240,7 +243,7 @@ travel-companion/
 │   │   ├── dependencies.py           # Depends() wiring for all services
 │   │   ├── config/
 │   │   │   ├── settings.py            # Pydantic BaseSettings (env vars)
-│   │   │   ├── planning.py            # Pace configs, fallback durations, adaptive place filters, interest mappings, LODGING_TYPES
+│   │   │   ├── planning.py            # Pace configs, fallback durations, adaptive place filters, interest mappings, LODGING_TYPES, haversine fallback
 │   │   │   └── regional_transport.py  # LLM-driven transport guidance (replaces hardcoded profiles)
 │   │   ├── core/
 │   │   │   ├── auth.py                # JWT create/decode
@@ -284,8 +287,8 @@ travel-companion/
 │   │   │   ├── tsp.py                # Nearest-neighbor TSP with custom distance functions
 │   │   │   ├── scheduler.py          # Time-slot builder (culture-aware meal placement ~80 countries, pace multipliers)
 │   │   │   └── quality/              # 7 context-aware evaluators (meal timing, clustering, efficiency, variety, hours, theme, duration)
-│   │   └── prompts/                   # 14 Markdown templates (journey, day_plan, chat, tips)
-│   └── tests/                         # 207 tests (pytest + testcontainers PostgreSQL)
+│   │   └── prompts/                   # 16 Markdown templates (journey, day_plan, chat, tips)
+│   └── tests/                         # 225 tests (pytest + testcontainers PostgreSQL)
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx                    # Phase-based SPA (input → planning → preview/day-plans)
@@ -341,7 +344,7 @@ For separate frontend (e.g., Vercel) and backend (e.g., Azure App Service):
 ```bash
 cd backend && source venv/bin/activate
 
-# Run all tests (207 tests)
+# Run all tests (225 tests)
 pytest -v
 
 # Run specific test file
