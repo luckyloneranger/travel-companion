@@ -999,3 +999,21 @@ class TestHaversineModeSelection:
         from app.config.planning import ROUTE_COMPUTATION_MODE
         assert isinstance(ROUTE_COMPUTATION_MODE, str)
         assert ROUTE_COMPUTATION_MODE in ("full", "efficient", "minimal")
+
+
+class TestPlaceCandidateSourceDestination:
+    def test_source_destination_default_none(self):
+        from app.models.internal import PlaceCandidate
+        from app.models.common import Location
+        pc = PlaceCandidate(place_id="p1", name="Test", address="Addr", location=Location(lat=0, lng=0))
+        assert pc.source_destination is None
+
+    def test_source_destination_set(self):
+        from app.models.internal import PlaceCandidate
+        from app.models.common import Location
+        pc = PlaceCandidate(
+            place_id="p1", name="Toshogu Shrine", address="Nikko",
+            location=Location(lat=36.7, lng=139.6),
+            source_destination="Nikko",
+        )
+        assert pc.source_destination == "Nikko"
