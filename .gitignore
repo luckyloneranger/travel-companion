@@ -88,3 +88,6 @@ screenshots/
 .worktrees/
 .env.production
 .vercel
+
+# Worktrees
+.worktrees/
