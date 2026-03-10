@@ -41,6 +41,8 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [isSharing, setIsSharing] = useState(false);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
+  const [adjustingActivityId, setAdjustingActivityId] = useState<string | null>(null);
+  const [removingActivityId, setRemovingActivityId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as 'overview' | 'cities' | 'budget' | 'map' | 'live') || 'overview';
   const [activeTabState, setActiveTabState] = useState<'overview' | 'cities' | 'budget' | 'map' | 'live'>(initialTab);
@@ -77,6 +79,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     const activity = dayPlans?.flatMap(dp => dp.activities).find(a => a.id === activityId);
     const name = activity?.place?.name || 'Activity';
     if (!window.confirm(`Remove "${name}" from Day ${dayNumber}?`)) return;
+    setRemovingActivityId(activityId);
     try {
       const result = await api.removeActivity(tripId, dayNumber, activityId);
       useTripStore.getState().updateDayPlans(result.day_plans as DayPlan[]);
@@ -84,18 +87,23 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     } catch (err) {
       if (!(err instanceof Error && err.message === '__auth_required__'))
         showToast('Failed to remove activity', 'error');
+    } finally {
+      setRemovingActivityId(null);
     }
   }, [tripId, dayPlans]);
 
   // Adjust activity duration (+/- 15 min)
   const handleAdjustDuration = useCallback(async (dayNumber: number, activityId: string, change: number) => {
     if (!tripId) return;
+    setAdjustingActivityId(activityId);
     try {
       const result = await api.adjustDuration(tripId, dayNumber, activityId, change);
       useTripStore.getState().updateDayPlans(result.day_plans as DayPlan[]);
     } catch (err) {
       if (!(err instanceof Error && err.message === '__auth_required__'))
         showToast('Failed to adjust duration', 'error');
+    } finally {
+      setAdjustingActivityId(null);
     }
   }, [tripId]);
 
@@ -507,6 +515,8 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                   onAdjustDuration={handleAdjustDuration}
                   onReorder={handleReorder}
                   recentChanges={recentChanges}
+                  adjustingActivityId={adjustingActivityId}
+                  removingActivityId={removingActivityId}
                 />
               );
             })}

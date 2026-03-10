@@ -27,6 +27,8 @@ interface CompactCityCardProps {
     modified: Set<string>;
     removed: string[];
   } | null;
+  adjustingActivityId?: string | null;
+  removingActivityId?: string | null;
 }
 
 const TRANSPORT_ICONS: Record<string, typeof Car> = {
@@ -44,7 +46,7 @@ function parseFare(leg: TravelLeg): number {
   return parseFareUsd(leg.fare_usd, leg.fare);
 }
 
-export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges }: CompactCityCardProps) {
+export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges, adjustingActivityId, removingActivityId }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
   const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
   const [showAlts, setShowAlts] = useState(false);
@@ -327,7 +329,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                         </div>
                       </div>
                     )}
-                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} onRemoveActivity={onRemoveActivity} onAdjustDuration={onAdjustDuration} onReorder={onReorder} recentChanges={recentChanges} />
+                    <DayTimeline dayPlan={dp} tips={tips} onChatAbout={onChatAbout} onRemoveActivity={onRemoveActivity} onAdjustDuration={onAdjustDuration} onReorder={onReorder} recentChanges={recentChanges} adjustingActivityId={adjustingActivityId} removingActivityId={removingActivityId} />
                   </div>
                 ))}
               </div>
