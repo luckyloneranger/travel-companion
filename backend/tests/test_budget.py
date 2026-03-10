@@ -153,3 +153,40 @@ class TestSearchLodgingPriceLevels:
         assert _PRICE_LEVEL_STRINGS[1] == "PRICE_LEVEL_INEXPENSIVE"
         assert _PRICE_LEVEL_STRINGS[4] == "PRICE_LEVEL_VERY_EXPENSIVE"
         assert len(_PRICE_LEVEL_STRINGS) == 5
+
+
+class TestAccommodationBudgetRange:
+    """Tests for destination-aware budget range fields."""
+
+    def test_accommodation_budget_range(self):
+        from app.models.journey import Accommodation
+        acc = Accommodation(
+            name="Hotel Granvia Kyoto",
+            budget_range_usd=[120, 180],
+            booking_hint="Search Booking.com for hotels in Kyoto Station area",
+        )
+        assert acc.budget_range_usd == [120, 180]
+        assert acc.booking_hint is not None
+
+    def test_accommodation_budget_range_optional(self):
+        from app.models.journey import Accommodation
+        acc = Accommodation(name="Some Hotel")
+        assert acc.budget_range_usd is None
+        assert acc.booking_hint is None
+
+    def test_city_stop_alternatives(self):
+        from app.models.journey import CityStop, Accommodation
+        city = CityStop(
+            name="Kyoto", country="Japan", days=3,
+            accommodation=Accommodation(name="Hotel A"),
+            accommodation_alternatives=[
+                Accommodation(name="Hotel B"),
+                Accommodation(name="Hotel C"),
+            ],
+        )
+        assert len(city.accommodation_alternatives) == 2
+
+    def test_city_stop_alternatives_default_empty(self):
+        from app.models.journey import CityStop
+        city = CityStop(name="Tokyo", country="Japan", days=4)
+        assert city.accommodation_alternatives == []

@@ -38,6 +38,8 @@ export interface Accommodation {
   photo_url: string | null;
   price_level: number | null;
   estimated_nightly_usd: number | null;
+  budget_range_usd?: number[] | null;
+  booking_hint?: string | null;
   website?: string;
   editorial_summary?: string;
 }
@@ -77,6 +79,7 @@ export interface CityStop {
   location: Location | null;
   place_id: string | null;
   accommodation: Accommodation | null;
+  accommodation_alternatives?: Accommodation[];
   timezone_offset_minutes?: number;
 }
 
