@@ -19,13 +19,6 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://places.googleapis.com/v1"
 
-_PRICE_LEVEL_STRINGS: dict[int, str] = {
-    0: "PRICE_LEVEL_FREE",
-    1: "PRICE_LEVEL_INEXPENSIVE",
-    2: "PRICE_LEVEL_MODERATE",
-    3: "PRICE_LEVEL_EXPENSIVE",
-    4: "PRICE_LEVEL_VERY_EXPENSIVE",
-}
 from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT, PLACES_MIN_RATING as MIN_RATING, PLACES_MIN_RATINGS_COUNT as MIN_RATINGS_COUNT, PLACES_DISCOVERY_RADIUS_KM, LODGING_TYPES
 
 from app.config.planning import INTEREST_TO_TYPES as INTEREST_TYPE_MAP
@@ -214,7 +207,6 @@ class GooglePlacesService:
         query: str,
         location: Location,
         radius_meters: int = 10_000,
-        price_levels: list[str] | None = None,
     ) -> PlaceCandidate | None:
         """Search for a lodging option near *location*.
 
@@ -242,9 +234,6 @@ class GooglePlacesService:
                 }
             },
         }
-
-        if price_levels:
-            body["priceLevels"] = price_levels
 
         try:
             resp = await self.client.post(
