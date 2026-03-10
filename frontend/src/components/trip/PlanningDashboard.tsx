@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,20 +12,71 @@ interface PlanningDashboardProps {
   mode?: 'journey' | 'dayplans';
 }
 
-const TRAVEL_FACTS = [
-  "The average traveler walks 10-15 km per day while sightseeing",
-  "Booking attractions online in advance can save up to 30% and avoid queues",
-  "The best time to visit popular landmarks is early morning or late afternoon",
-  "Local SIM cards are usually cheaper than international roaming — buy one at the airport",
-  "Many museums offer free entry on the first Sunday of each month",
-  "Always carry a printed copy of your hotel address in the local language",
-  "The most authentic food is often found 2-3 blocks away from tourist attractions",
-  "Taking public transport like a local is one of the best ways to experience a city",
-  "Wearing comfortable shoes is the single best travel preparation tip",
-  "Most cities have free walking tours — just tip the guide at the end",
-  "Travel insurance costs about 5% of your trip but covers 100% of emergencies",
-  "Packing cubes can save up to 30% of luggage space",
-];
+function getTravelFacts(destination: string): string[] {
+  const lower = destination.toLowerCase();
+
+  const contextual: Record<string, string[]> = {
+    japan: [
+      "In Japan, it's polite to slurp your noodles — it shows appreciation!",
+      "Japanese convenience stores have some of the best food in the country.",
+      "Most temples close by 5 PM — plan morning visits for the best experience.",
+      "Get a Suica/Pasmo IC card — works on trains, buses, and vending machines.",
+      "Japan's trains have an average delay of just 18 seconds per year.",
+      "Tipping is not expected in Japan — it can even be considered rude.",
+    ],
+    thailand: [
+      "In Thailand, the head is considered sacred — never touch anyone's head.",
+      "Thai street food costs $1-3 per dish — some of the best food is the cheapest.",
+      "Always remove your shoes before entering a Thai temple.",
+      "Bangkok's official name is 168 characters long — the longest city name!",
+      "The Thai greeting 'Wai' (palms together bow) shows respect to elders.",
+    ],
+    italy: [
+      "In Italy, cappuccino is a morning drink — locals never order it after 11 AM.",
+      "Most Italian museums close on Mondays — plan your visits accordingly!",
+      "Restaurants charge 'coperto' (cover charge) — it's normal, not a scam.",
+      "Tap water in Rome is safe and delicious — from ancient aqueducts!",
+    ],
+    france: [
+      "French restaurants must offer free tap water — ask for 'une carafe d'eau'.",
+      "Paris museums are free on the first Sunday of each month.",
+      "Learn basic French greetings — 'Bonjour' before entering any shop.",
+      "The Paris Metro is the fastest way around — buy a carnet of 10 tickets.",
+    ],
+    spain: [
+      "Lunch in Spain is 2-4 PM, dinner after 9 PM — adjust your schedule!",
+      "Siesta is real — many shops close between 2-5 PM in smaller towns.",
+      "Tapas are often free with drinks in Granada and parts of Andalusia.",
+    ],
+    india: [
+      "India's trains connect 8,000+ stations — the largest rail network in Asia.",
+      "Bargaining is expected in Indian markets — start at half the quoted price.",
+      "Remove shoes before entering temples and many homes.",
+      "Indian street food is incredible but stick to busy stalls for freshness.",
+    ],
+    korea: [
+      "In South Korea, age determines social hierarchy — older = more respect.",
+      "T-money card works on all Seoul public transport and convenience stores.",
+      "Korean BBQ is a social event — never pour your own drink!",
+    ],
+  };
+
+  const general = [
+    "The longest commercial flight is 19 hours — Singapore to New York.",
+    "Iceland has no mosquitoes — one of the few places on Earth.",
+    "Tuesday is statistically the cheapest day to book flights.",
+    "The world's oldest hotel has been operating in Japan since 705 AD.",
+    "Venice charges a day-trip entry fee — book online to save time.",
+    "Pack a universal power adapter — it works in 150+ countries.",
+    "Travel insurance costs 4-8% of your trip — worth every penny.",
+    "Airport lounges cost $30-50 for day passes — or free with some credit cards.",
+  ];
+
+  for (const [key, facts] of Object.entries(contextual)) {
+    if (lower.includes(key)) return [...facts, ...general].slice(0, 8);
+  }
+  return general.slice(0, 8);
+}
 
 const PHASE_CONFIG: Record<string, { icon: typeof Loader2; label: string; description: string; color: string }> = {
   scouting: {
@@ -86,6 +137,15 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
 
   const isDayPlans = mode === 'dayplans';
 
+  // Get destination from wizard sessionStorage for contextual facts
+  const destination = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem('tc_wizard');
+      return raw ? (JSON.parse(raw).destination as string) || '' : '';
+    } catch { return ''; }
+  }, []);
+  const facts = useMemo(() => getTravelFacts(destination), [destination]);
+
   // Elapsed timer
   useEffect(() => {
     const interval = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
@@ -95,10 +155,10 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
   // Rotate travel facts
   useEffect(() => {
     const timer = setInterval(() => {
-      setFactIndex((prev) => (prev + 1) % TRAVEL_FACTS.length);
+      setFactIndex((prev) => (prev + 1) % facts.length);
     }, 8000);
     return () => clearInterval(timer);
-  }, []);
+  }, [facts.length]);
 
   // Append progress messages to activity log + track cities
   useEffect(() => {
@@ -258,7 +318,7 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
         <div className="flex items-start gap-2 rounded-lg bg-accent-50 dark:bg-accent-950/30 border border-accent-200 dark:border-accent-800 px-3 py-2.5 mt-4">
           <Lightbulb className="h-4 w-4 text-accent-500 mt-0.5 shrink-0" />
           <p className="text-sm text-accent-700 dark:text-accent-300 transition-opacity duration-500">
-            {TRAVEL_FACTS[factIndex]}
+            {facts[factIndex]}
           </p>
         </div>
 
