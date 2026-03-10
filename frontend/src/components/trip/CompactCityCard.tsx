@@ -41,12 +41,7 @@ function formatDuration(hours: number): string {
 }
 
 function parseFare(leg: TravelLeg): number {
-  if (leg.fare_usd) return leg.fare_usd;
-  if (leg.fare) {
-    const match = leg.fare.match(/[\d.]+/);
-    if (match) return parseFloat(match[0]);
-  }
-  return 0;
+  return parseFareUsd(leg.fare_usd, leg.fare);
 }
 
 export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges }: CompactCityCardProps) {
