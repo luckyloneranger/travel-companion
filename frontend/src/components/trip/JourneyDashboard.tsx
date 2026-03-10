@@ -20,7 +20,7 @@ import { TripMap, TripMapLegend, DayMap, DayMapLegend } from '@/components/maps'
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTripStore } from '@/stores/tripStore';
 import { useUIStore } from '@/stores/uiStore';
-import { api } from '@/services/api';
+import { api, photoUrl } from '@/services/api';
 import { showToast } from '@/components/ui/toast';
 import type { DayPlan } from '@/types';
 
@@ -55,6 +55,21 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   }, [setSearchParams]);
 
   const activeTab = activeTabState;
+
+  // Use the first city's activity photo or accommodation photo as hero
+  const heroPhoto = (() => {
+    for (const city of journey?.cities ?? []) {
+      const cityDays = dayPlans?.filter(dp => dp.city_name.toLowerCase() === city.name.toLowerCase());
+      for (const dp of cityDays ?? []) {
+        for (const act of dp.activities) {
+          if (act.place.photo_urls?.[0]) return act.place.photo_urls[0];
+        }
+      }
+      if (city.accommodation?.photo_url) return city.accommodation.photo_url;
+    }
+    return null;
+  })();
+
   const [fullDayViewDay, setFullDayViewDay] = useState<number | null>(null);
   const [mapDayFilter, setMapDayFilter] = useState('journey');
 
@@ -266,32 +281,67 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
       )}
 
       {/* Header card — always visible */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <CardTitle className="text-xl font-display flex items-center gap-2 min-w-0">
-                <Sparkles className="h-5 w-5 text-primary-500 shrink-0" />
-                <span className="break-words">{journey.theme}</span>
-              </CardTitle>
-              <CardDescription className="mt-2 text-base leading-relaxed break-words">
-                {journey.summary}
-              </CardDescription>
+      <Card className="overflow-hidden">
+        {heroPhoto && (
+          <div className="relative h-36 sm:h-48">
+            <img
+              src={`${photoUrl(heroPhoto)}${heroPhoto.includes('?') ? '&' : '?'}w=1200`}
+              alt={journey.theme}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+              <div className="flex items-end justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl sm:text-2xl font-display font-bold text-white drop-shadow-sm break-words">
+                    {journey.theme}
+                  </h2>
+                  <p className="mt-1 text-sm text-white/80 line-clamp-2 break-words">
+                    {journey.summary}
+                  </p>
+                </div>
+                {journey.review_score != null && (
+                  <Badge
+                    className={`shrink-0 text-xs border-white/30 ${
+                      journey.review_score >= 80 ? 'bg-green-500/80 text-white'
+                        : journey.review_score >= 70 ? 'bg-green-500/60 text-white'
+                          : 'bg-amber-500/60 text-white'
+                    }`}
+                  >
+                    Score: {journey.review_score}
+                  </Badge>
+                )}
+              </div>
             </div>
-            {journey.review_score != null && (
-              <Badge
-                variant={journey.review_score >= 70 ? 'default' : 'outline'}
-                className={`shrink-0 text-xs ${
-                  journey.review_score >= 80 ? 'bg-green-600 text-white'
-                    : journey.review_score >= 70 ? 'bg-green-600/80 text-white'
-                      : 'border-amber-400 text-amber-700 dark:text-amber-400'
-                }`}
-              >
-                Score: {journey.review_score}
-              </Badge>
-            )}
           </div>
-        </CardHeader>
+        )}
+        {!heroPhoto && (
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-xl font-display flex items-center gap-2 min-w-0">
+                  <Sparkles className="h-5 w-5 text-primary-500 shrink-0" />
+                  <span className="break-words">{journey.theme}</span>
+                </CardTitle>
+                <CardDescription className="mt-2 text-base leading-relaxed break-words">
+                  {journey.summary}
+                </CardDescription>
+              </div>
+              {journey.review_score != null && (
+                <Badge
+                  variant={journey.review_score >= 70 ? 'default' : 'outline'}
+                  className={`shrink-0 text-xs ${
+                    journey.review_score >= 80 ? 'bg-green-600 text-white'
+                      : journey.review_score >= 70 ? 'bg-green-600/80 text-white'
+                        : 'border-amber-400 text-amber-700 dark:text-amber-400'
+                  }`}
+                >
+                  Score: {journey.review_score}
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+        )}
         <CardContent className="space-y-4 pt-0">
           {/* Stats */}
           <div className="flex flex-wrap gap-4 text-sm text-text-secondary">
