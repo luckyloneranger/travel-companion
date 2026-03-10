@@ -300,6 +300,11 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                       </span>
                       <span className="text-sm font-medium text-text-primary">
                         Day {dp.day_number} {totalDays ? <span className="text-text-muted/60 font-normal">of {totalDays}</span> : null} · {dp.theme}
+                        {dp.weather && (
+                          <span className="text-xs text-text-muted ml-1">
+                            {dp.weather.temperature_high_c.toFixed(0)}°
+                          </span>
+                        )}
                       </span>
                       <div className="flex items-center gap-1.5 ml-auto">
                         {dp.daily_cost_usd != null && dp.daily_cost_usd > 0 && (

@@ -72,6 +72,21 @@ function getCategoryColor(category: string): string {
   return 'bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400';
 }
 
+function getWeatherAtmosphere(condition?: string): string {
+  if (!condition) return '';
+  const c = condition.toLowerCase();
+  if (c.includes('rain') || c.includes('shower'))
+    return 'bg-gradient-to-b from-blue-50/50 to-slate-50/30 dark:from-blue-950/20 dark:to-slate-950/10';
+  if (c.includes('cloud') || c.includes('overcast'))
+    return 'bg-gradient-to-b from-gray-50/50 to-slate-50/30 dark:from-gray-950/20 dark:to-slate-950/10';
+  if (c.includes('snow'))
+    return 'bg-gradient-to-b from-sky-50/40 to-white/30 dark:from-sky-950/20 dark:to-slate-950/10';
+  if (c.includes('thunder') || c.includes('storm'))
+    return 'bg-gradient-to-b from-slate-100/50 to-purple-50/20 dark:from-slate-950/30 dark:to-purple-950/10';
+  // Sunny / clear / partly cloudy
+  return 'bg-gradient-to-b from-amber-50/30 to-orange-50/10 dark:from-amber-950/10 dark:to-orange-950/5';
+}
+
 interface DayTimelineProps {
   dayPlan: DayPlan;
   tips: Record<string, string>;
@@ -600,7 +615,7 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
     });
 
   return (
-    <div className="space-y-0">
+    <div className={`space-y-0 rounded-lg px-1 py-1 ${getWeatherAtmosphere(dayPlan.weather?.condition)}`}>
       {excursionBanner}
 
       {/* Weather advisory for today */}
