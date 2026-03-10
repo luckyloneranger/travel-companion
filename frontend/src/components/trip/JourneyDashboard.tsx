@@ -524,7 +524,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
         {/* Budget tab */}
         {activeTab === 'budget' && costBreakdown && dayPlans && dayPlans.length > 0 && (
           <div className="animate-fade-in-up">
-            <BudgetSummary costBreakdown={costBreakdown} totalDays={dayPlans.length} />
+            <BudgetSummary costBreakdown={costBreakdown} totalDays={dayPlans.length} travelers={travelers} />
           </div>
         )}
 
