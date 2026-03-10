@@ -109,8 +109,32 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
     [setWizardStep],
   );
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const clearErrors = useCallback(() => setErrors({}), []);
+
+  const handleDestinationChange = useCallback((v: string) => { setDestination(v); clearErrors(); }, [clearErrors]);
+  const handleStartDateChange = useCallback((v: string) => { setStartDate(v); clearErrors(); }, [clearErrors]);
+  const handleTravelersChange = useCallback((v: Travelers) => { setTravelers(v); clearErrors(); }, [clearErrors]);
+
   const handleSubmit = useCallback(() => {
-    if (!destination.trim()) return;
+    const newErrors: Record<string, string> = {};
+    if (!destination.trim()) {
+      newErrors.destination = 'Destination is required';
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(startDate + 'T00:00:00') < today) {
+      newErrors.startDate = 'Start date cannot be in the past';
+    }
+    if (travelers.adults < 1) {
+      newErrors.travelers = 'At least 1 adult traveler is required';
+    }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
     const request: TripRequest = {
       destination: destination.trim(),
       origin: origin.trim(),
@@ -126,7 +150,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
     };
     setStoreTravelers(travelers);
     onSubmit(request);
-  }, [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, budget, budgetUsd, onSubmit]);
+  }, [destination, origin, startDate, totalDays, interests, pace, mustInclude, avoid, budget, budgetUsd, travelers, onSubmit, setStoreTravelers]);
 
   const handleLoadTrip = useCallback(
     async (trip: TripSummary) => {
@@ -144,19 +168,19 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
     [loadTrip, setPhase],
   );
 
-  const [isDeletingInFlight, setIsDeletingInFlight] = useState(false);
+  const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
 
   const handleDeleteTrip = useCallback(
     async (e: React.MouseEvent, tripId: string) => {
       e.stopPropagation();
       if (!window.confirm('Delete this trip? This cannot be undone.')) return;
-      setIsDeletingInFlight(true);
+      setDeletingTripId(tripId);
       try {
         await deleteTrip(tripId);
       } catch {
         // Error already surfaced via uiStore
       }
-      setIsDeletingInFlight(false);
+      setDeletingTripId(null);
     },
     [deleteTrip],
   );
@@ -174,12 +198,12 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       <WizardStepper currentStep={wizardStep} onStepClick={setWizardStep} />
 
       {/* Current step */}
-      <div className="animate-fade-in-up">
+      <div className="animate-fade-in-up transition-all duration-300 ease-out">
         {wizardStep === 1 && (
           <WizardStepWhere
             destination={destination}
             origin={origin}
-            onDestinationChange={setDestination}
+            onDestinationChange={handleDestinationChange}
             onOriginChange={setOrigin}
             onSelectTemplate={handleSelectTemplate}
             onNext={handleNext}
@@ -191,9 +215,9 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
             totalDays={totalDays}
             destination={destination}
             travelers={travelers}
-            onStartDateChange={setStartDate}
+            onStartDateChange={handleStartDateChange}
             onTotalDaysChange={setTotalDays}
-            onTravelersChange={setTravelers}
+            onTravelersChange={handleTravelersChange}
             onNext={handleNext}
             onBack={handleBack}
           />
@@ -240,6 +264,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
             onEditStep={setWizardStep}
             onSubmit={handleSubmit}
             onBack={handleBack}
+            errors={errors}
           />
         )}
       </div>
@@ -281,7 +306,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
                 <CardContent className="flex items-center justify-between gap-3 py-3 px-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm text-text-primary truncate">
+                      <span className="font-medium text-sm text-text-primary truncate max-w-[200px] sm:max-w-none">
                         {trip.theme}
                       </span>
                       {trip.has_day_plans && (
@@ -309,10 +334,10 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
                       size="sm"
                       className="h-8 w-8 p-0 text-text-muted hover:text-destructive"
                       onClick={(e) => handleDeleteTrip(e, trip.id)}
-                      disabled={isDeletingInFlight}
+                      disabled={deletingTripId === trip.id}
                       title="Delete trip"
                     >
-                      {isDeletingInFlight
+                      {deletingTripId === trip.id
                         ? <Loader2 className="h-4 w-4 animate-spin" />
                         : <Trash2 className="h-4 w-4" />}
                     </Button>
