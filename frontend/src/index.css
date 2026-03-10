@@ -283,6 +283,36 @@
   animation: draw-path 2s ease-out forwards;
 }
 
+/* Planning dashboard — fact card slide transition */
+@keyframes fact-slide {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fact-slide {
+  animation: fact-slide 0.4s ease-out;
+}
+
+/* Planning dashboard — step completion bounce */
+@keyframes step-complete {
+  0% { transform: scale(0.5); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-step-complete {
+  animation: step-complete 0.5s ease-out;
+}
+
+/* Planning dashboard — celebration burst particles */
+@keyframes step-burst {
+  0% { opacity: 1; transform: rotate(var(--tw-rotate, 0deg)) translateY(-8px) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--tw-rotate, 0deg)) translateY(-20px) scale(0); }
+}
+
+/* Slow spin for decorative elements and active step icons */
+.animate-spin-slow {
+  animation: spin 6s linear infinite;
+}
+
 /* Hide scrollbar (for horizontal-scroll containers) */
 .scrollbar-hide {
   -ms-overflow-style: none;
