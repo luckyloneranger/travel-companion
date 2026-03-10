@@ -135,10 +135,10 @@ export function WizardStepStyle({
                 key={opt.id}
                 type="button"
                 onClick={() => toggleInterest(opt.id)}
-                className={`flex flex-col items-center gap-1.5 rounded-lg border p-3 transition-all ${
+                className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-all hover:scale-[1.03] active:scale-[0.98] ${
                   selected
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-1 ring-primary-500'
-                    : 'border-border-default bg-surface text-text-secondary hover:border-primary-300 hover:bg-primary-50/30 dark:hover:bg-primary-900/10'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 ring-1 ring-primary-500 shadow-sm shadow-primary-500/10'
+                    : 'border-border-default bg-surface text-text-secondary hover:border-primary-300 hover:bg-primary-50/30 dark:hover:bg-primary-900/10 hover:shadow-sm'
                 }`}
               >
                 <Icon className="h-5 w-5" />
@@ -161,10 +161,10 @@ export function WizardStepStyle({
                 key={opt.id}
                 type="button"
                 onClick={() => onPaceChange(opt.id)}
-                className={`flex items-center gap-3 rounded-lg border p-4 text-left transition-all ${
+                className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${
                   selected
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-1 ring-primary-500'
-                    : 'border-border-default bg-surface hover:border-primary-300'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-1 ring-primary-500 shadow-sm'
+                    : 'border-border-default bg-surface hover:border-primary-300 hover:shadow-sm'
                 }`}
               >
                 <Icon className={`h-6 w-6 shrink-0 ${selected ? 'text-primary-600 dark:text-primary-400' : 'text-text-muted'}`} />
@@ -203,9 +203,9 @@ export function WizardStepStyle({
         </Button>
         <Button
           onClick={onNext}
-          className="flex-1 h-11 bg-primary-600 hover:bg-primary-700 text-white"
+          className="flex-1 h-12 bg-primary-600 hover:bg-primary-700 text-white text-base font-semibold shadow-sm"
         >
-          Next
+          Continue
         </Button>
       </div>
     </div>

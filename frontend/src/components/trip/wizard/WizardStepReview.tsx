@@ -86,7 +86,7 @@ export function WizardStepReview({
         </p>
       </div>
 
-      <div className="rounded-lg border border-border-default bg-surface p-4">
+      <div className="rounded-xl border border-border-default bg-surface p-4 shadow-sm">
         <ReviewRow label="Destination" stepNumber={1} onEdit={onEditStep}>
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-primary-500 shrink-0" />
@@ -157,7 +157,7 @@ export function WizardStepReview({
         <Button
           onClick={onSubmit}
           disabled={isLoading}
-          className="flex-1 bg-primary-600 hover:bg-primary-700 text-white h-11 text-base font-semibold"
+          className="flex-1 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white h-12 text-base font-bold shadow-md shadow-primary-500/20 transition-all hover:shadow-lg hover:shadow-primary-500/30"
         >
           <Rocket className="h-5 w-5" />
           Plan My Trip

@@ -198,9 +198,12 @@ export function WizardStepWhen({
         </div>
 
         {startDate && (
-          <div className="rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 px-4 py-3 text-center">
-            <p className="text-sm text-primary-700 dark:text-primary-300">
-              {startFormatted} → {endDate} ({totalDays} {totalDays === 1 ? 'day' : 'days'}) · {totalTravelers} {totalTravelers === 1 ? 'traveler' : 'travelers'}
+          <div className="rounded-xl bg-gradient-to-r from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20 border border-primary-200 dark:border-primary-800 px-4 py-3 text-center">
+            <p className="text-sm font-medium text-primary-700 dark:text-primary-300">
+              {startFormatted} → {endDate}
+            </p>
+            <p className="text-xs text-text-muted mt-0.5">
+              {totalDays} {totalDays === 1 ? 'day' : 'days'} · {totalTravelers} {totalTravelers === 1 ? 'traveler' : 'travelers'}
             </p>
           </div>
         )}
@@ -213,9 +216,9 @@ export function WizardStepWhen({
         </Button>
         <Button
           onClick={onNext}
-          className="flex-1 h-11 bg-primary-600 hover:bg-primary-700 text-white"
+          className="flex-1 h-12 bg-primary-600 hover:bg-primary-700 text-white text-base font-semibold shadow-sm"
         >
-          Next
+          Continue
         </Button>
       </div>
     </div>

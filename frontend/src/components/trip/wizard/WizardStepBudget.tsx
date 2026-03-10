@@ -3,10 +3,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { Budget } from '@/types';
 
-const BUDGET_OPTIONS: { id: Budget; label: string; description: string; icon: typeof Backpack }[] = [
-  { id: 'budget', label: 'Budget', description: 'Hostels, street food, free attractions', icon: Backpack },
-  { id: 'moderate', label: 'Moderate', description: 'Hotels, restaurants, mix of free & paid', icon: Briefcase },
-  { id: 'luxury', label: 'Luxury', description: 'Premium hotels, fine dining, exclusive experiences', icon: Diamond },
+const BUDGET_OPTIONS: { id: Budget; label: string; description: string; icon: typeof Backpack; gradient: string }[] = [
+  { id: 'budget', label: 'Budget', description: 'Hostels, street food, free attractions', icon: Backpack, gradient: 'from-emerald-500/8 to-green-500/4 dark:from-emerald-500/12 dark:to-green-500/8' },
+  { id: 'moderate', label: 'Moderate', description: 'Hotels, restaurants, mix of free & paid', icon: Briefcase, gradient: 'from-primary-500/8 to-blue-500/4 dark:from-primary-500/12 dark:to-blue-500/8' },
+  { id: 'luxury', label: 'Luxury', description: 'Premium hotels, fine dining, exclusive experiences', icon: Diamond, gradient: 'from-amber-500/8 to-yellow-500/4 dark:from-amber-500/12 dark:to-yellow-500/8' },
 ];
 
 interface WizardStepBudgetProps {
@@ -52,10 +52,10 @@ export function WizardStepBudget({
               key={opt.id}
               type="button"
               onClick={() => onBudgetChange(opt.id)}
-              className={`flex flex-col items-center gap-2 rounded-lg border p-4 text-center transition-all ${
+              className={`flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:scale-[1.03] active:scale-[0.98] bg-gradient-to-br ${opt.gradient} ${
                 selected
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 ring-1 ring-primary-500'
-                  : 'border-border-default bg-surface hover:border-primary-300'
+                  ? 'border-primary-500 ring-1 ring-primary-500 shadow-md'
+                  : 'border-border-default hover:border-primary-300 hover:shadow-sm'
               }`}
             >
               <Icon className={`h-7 w-7 ${selected ? 'text-primary-600 dark:text-primary-400' : 'text-text-muted'}`} />
@@ -96,9 +96,9 @@ export function WizardStepBudget({
         </Button>
         <Button
           onClick={onNext}
-          className="flex-1 h-11 bg-primary-600 hover:bg-primary-700 text-white"
+          className="flex-1 h-12 bg-primary-600 hover:bg-primary-700 text-white text-base font-semibold shadow-sm"
         >
-          Next
+          Continue
         </Button>
       </div>
     </div>
