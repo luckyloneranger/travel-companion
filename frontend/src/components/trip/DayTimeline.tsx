@@ -22,6 +22,27 @@ import { CSS } from '@dnd-kit/utilities';
 import type { DayPlan, Activity } from '@/types';
 import { photoUrl } from '@/services/api';
 
+function ImageWithShimmer({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  if (error) return null;
+
+  return (
+    <div className={`relative overflow-hidden ${className ?? ''}`}>
+      {!loaded && <div className="absolute inset-0 animate-shimmer rounded-md" />}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
+  );
+}
+
 const CATEGORY_COLORS: Record<string, string> = {
   museum: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
   art_museum: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
@@ -256,23 +277,37 @@ function TimelineActivity({
       {/* Content */}
       <div className="flex-1 pb-4 min-w-0">
         <div className={`rounded-lg border ${isNew ? 'border-green-400 dark:border-green-600 ring-1 ring-green-200 dark:ring-green-800' : 'border-border-default'} bg-surface p-3 space-y-2`}>
-          {/* Activity photo */}
+          {/* Activity photo — hero layout */}
           {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 items-center">
-              {activity.place.photo_urls.slice(0, 2).map((url, i) => (
-                <img
-                  key={i}
-                  src={`${photoUrl(url)}${url.includes('?') ? '&' : '?'}w=400`}
-                  alt={`${activity.place.name} photo ${i + 1}`}
-                  loading="lazy"
-                  onClick={() => onPhotoClick?.(`${photoUrl(url)}${url.includes('?') ? '&' : '?'}w=800`)}
-                  className="h-16 w-24 max-w-[30vw] sm:h-24 sm:w-32 sm:max-w-none rounded-md object-cover shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            <div className="-mx-3 -mt-3 mb-2">
+              <div className="relative group">
+                <ImageWithShimmer
+                  src={`${photoUrl(activity.place.photo_urls[0])}${activity.place.photo_urls[0].includes('?') ? '&' : '?'}w=600`}
+                  alt={activity.place.name}
+                  className="h-32 sm:h-40 w-full rounded-t-lg cursor-pointer"
                 />
-              ))}
-              {activity.place.photo_urls.length > 2 && (
-                <span className="text-xs text-text-muted">+{activity.place.photo_urls.length - 2} more</span>
-              )}
+                <div
+                  className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent rounded-t-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  onClick={() => onPhotoClick?.(`${photoUrl(activity.place.photo_urls![0])}${activity.place.photo_urls![0].includes('?') ? '&' : '?'}w=800`)}
+                />
+                {activity.place.photo_urls.length > 1 && (
+                  <div className="absolute bottom-2 right-2 flex gap-1">
+                    {activity.place.photo_urls.slice(1, 3).map((url, i) => (
+                      <ImageWithShimmer
+                        key={i}
+                        src={`${photoUrl(url)}${url.includes('?') ? '&' : '?'}w=200`}
+                        alt={`${activity.place.name} photo ${i + 2}`}
+                        className="h-10 w-14 rounded border-2 border-white/80 shadow-sm cursor-pointer"
+                      />
+                    ))}
+                    {activity.place.photo_urls.length > 3 && (
+                      <span className="flex items-center justify-center h-10 w-14 rounded border-2 border-white/80 bg-black/50 text-white text-xs font-medium shadow-sm">
+                        +{activity.place.photo_urls.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -558,7 +593,7 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
       }
 
       return (
-        <div key={activity.id}>
+        <div key={activity.id} className={`animate-stagger-in stagger-${Math.min(i + 1, 8)}`}>
           {activityElement}
         </div>
       );
