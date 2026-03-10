@@ -2020,7 +2020,6 @@ class DayPlanOrchestrator:
         theme_map = map_themes_to_days(
             city.experience_themes,
             free_day_count + len(blocked_days),
-            blocked_days,
         )
 
         # Get free day numbers (not blocked by excursions)

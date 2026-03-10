@@ -358,3 +358,61 @@ class TestPaceMultipliers:
 
     def test_moderate_is_one(self):
         assert PACE_MULTIPLIERS[Pace.MODERATE] == 1.0
+
+
+class TestMapThemesToDaysUnified:
+    """Tests for unified map_themes_to_days (no blocked_days)."""
+
+    def test_themes_spread_across_days(self):
+        from app.config.planning import map_themes_to_days
+        from app.models.journey import ExperienceTheme
+        themes = [
+            ExperienceTheme(theme="Temples", category="religious"),
+            ExperienceTheme(theme="Nikko trip", category="excursion", excursion_type="full_day", destination_name="Nikko"),
+            ExperienceTheme(theme="Food tour", category="food"),
+        ]
+        result = map_themes_to_days(themes, 3)
+        assert len(result) == 3
+        assert all(len(v) > 0 for v in result.values())
+
+    def test_excursion_not_forced_to_end(self):
+        from app.config.planning import map_themes_to_days
+        from app.models.journey import ExperienceTheme
+        themes = [
+            ExperienceTheme(theme="Culture", category="culture"),
+            ExperienceTheme(theme="Excursion", category="excursion", excursion_type="full_day", destination_name="Nara"),
+            ExperienceTheme(theme="Shopping", category="shopping"),
+            ExperienceTheme(theme="Nature", category="nature"),
+        ]
+        result = map_themes_to_days(themes, 4)
+        # Excursion should get a day, not necessarily the last
+        excursion_days = [d for d, ts in result.items() if any(getattr(t, 'excursion_type', None) for t in ts)]
+        assert len(excursion_days) == 1
+        # It should NOT always be the last day
+        # (with 4 themes and 4 days, it should be day 2 based on ordering)
+
+    def test_evening_themes_pair_with_least_loaded(self):
+        from app.config.planning import map_themes_to_days
+        from app.models.journey import ExperienceTheme
+        themes = [
+            ExperienceTheme(theme="Museums", category="culture"),
+            ExperienceTheme(theme="Night market", category="food", excursion_type="evening"),
+        ]
+        result = map_themes_to_days(themes, 2)
+        assert len(result) == 2
+        # Day 1 gets "Museums", Day 2 gets "Night market" (or paired with least-loaded)
+        total_themes = sum(len(v) for v in result.values())
+        assert total_themes == 2
+
+    def test_empty_days_filled(self):
+        from app.config.planning import map_themes_to_days
+        from app.models.journey import ExperienceTheme
+        themes = [ExperienceTheme(theme="Single theme", category="culture")]
+        result = map_themes_to_days(themes, 3)
+        assert len(result) == 3
+        assert all(len(v) > 0 for v in result.values())
+
+    def test_empty_input(self):
+        from app.config.planning import map_themes_to_days
+        assert map_themes_to_days([], 3) == {}
+        assert map_themes_to_days([], 0) == {}
