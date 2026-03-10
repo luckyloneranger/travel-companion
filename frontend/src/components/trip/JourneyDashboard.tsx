@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   MapPin, Calendar, Navigation, Sparkles,
   MessageSquare, Copy, Check, Share2,
-  FileDown, CalendarPlus, ChevronDown,
+  FileDown, CalendarPlus, ChevronDown, ChevronUp,
   Loader2, RefreshCw, Users, Map as MapIcon, DollarSign, LayoutList, Maximize2, ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -41,6 +41,8 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const [isSharing, setIsSharing] = useState(false);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [allExpanded, setAllExpanded] = useState(true);
+  const [showCelebration, setShowCelebration] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [adjustingActivityId, setAdjustingActivityId] = useState<string | null>(null);
   const [removingActivityId, setRemovingActivityId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -124,6 +126,21 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     document.addEventListener('click', handler);
     return () => document.removeEventListener('click', handler);
   }, [showExport]);
+
+  // Celebration banner auto-dismiss
+  useEffect(() => {
+    if (showCelebration) {
+      const timer = setTimeout(() => setShowCelebration(false), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [showCelebration]);
+
+  // Scroll-to-top button visibility
+  useEffect(() => {
+    const handleScroll = () => setShowScrollTop(window.scrollY > 600);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Use complete cost breakdown when day plans exist, otherwise estimate from journey data
   const estimatedTotal = (() => {
@@ -224,6 +241,30 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
   return (
     <div className="space-y-6">
+      {/* Celebration banner */}
+      {showCelebration && journey && (
+        <div className="animate-fade-in-up mb-4 rounded-xl bg-gradient-to-r from-primary-600 to-accent-500 p-5 text-white text-center shadow-lg">
+          <p className="text-xl font-display font-bold">Your adventure awaits!</p>
+          <p className="text-sm opacity-90 mt-1">
+            {journey.cities.length} cities · {journey.total_days} days{journey.review_score ? ` · Quality score ${journey.review_score}/100` : ''}
+          </p>
+          <div className="flex items-center justify-center gap-3 mt-3">
+            <button
+              onClick={() => { handleShare(); setShowCelebration(false); }}
+              className="text-xs bg-white/20 hover:bg-white/30 rounded-full px-4 py-1.5 transition-colors"
+            >
+              Share with friends
+            </button>
+            <button
+              onClick={() => { handleExportPdf(); setShowCelebration(false); }}
+              className="text-xs bg-white/20 hover:bg-white/30 rounded-full px-4 py-1.5 transition-colors"
+            >
+              Download PDF
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header card — always visible */}
       <Card>
         <CardHeader>
@@ -502,7 +543,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                               ? 'bg-accent-100 dark:bg-accent-900/40 text-accent-700 dark:text-accent-300 ring-1 ring-accent-400 hover:bg-accent-200 dark:hover:bg-accent-800/50'
                               : 'bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-800/50'
                           }`}
-                          title={`Day ${dp.day_number}: ${dp.theme}${dp.is_excursion ? ' (Excursion)' : ''}`}
+                          title={`Day ${dp.day_number} of ${dayPlans.length}: ${dp.theme}${dp.is_excursion ? ' (Excursion)' : ''}`}
                         >
                           {dp.day_number}
                         </button>
@@ -549,6 +590,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                   defaultExpanded={allExpanded}
                   hideHighlights={!!(dayPlans && dayPlans.length > 0)}
                   dailyBudget={dailyBudget}
+                  totalDays={dayPlans?.length || 0}
                   onChatAbout={handleChatAbout}
                   onRemoveActivity={handleRemoveActivity}
                   onAdjustDuration={handleAdjustDuration}
@@ -674,6 +716,17 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           onClose={() => setFullDayViewDay(null)}
           onChatAbout={handleChatAbout}
         />
+      )}
+
+      {/* Scroll-to-top button */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-6 right-6 z-40 rounded-full bg-primary-600 text-white shadow-lg p-3 hover:bg-primary-700 transition-all animate-fade-in-up"
+          aria-label="Scroll to top"
+        >
+          <ChevronUp className="h-5 w-5" />
+        </button>
       )}
     </div>
   );

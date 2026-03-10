@@ -18,6 +18,7 @@ interface CompactCityCardProps {
   defaultExpanded?: boolean;
   hideHighlights?: boolean;
   dailyBudget?: number;
+  totalDays?: number;
   onChatAbout?: (activityName: string, dayNumber: number) => void;
   onRemoveActivity?: (dayNumber: number, activityId: string) => void;
   onAdjustDuration?: (dayNumber: number, activityId: string, change: number) => void;
@@ -46,7 +47,7 @@ function parseFare(leg: TravelLeg): number {
   return parseFareUsd(leg.fare_usd, leg.fare);
 }
 
-export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges, adjustingActivityId, removingActivityId }: CompactCityCardProps) {
+export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, totalDays, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges, adjustingActivityId, removingActivityId }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
   const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
   const [showAlts, setShowAlts] = useState(false);
@@ -297,7 +298,9 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-xs font-bold text-white shrink-0">
                         {dp.day_number}
                       </span>
-                      <span className="text-sm font-medium text-text-primary">{dp.theme}</span>
+                      <span className="text-sm font-medium text-text-primary">
+                        Day {dp.day_number} {totalDays ? <span className="text-text-muted/60 font-normal">of {totalDays}</span> : null} · {dp.theme}
+                      </span>
                       <div className="flex items-center gap-1.5 ml-auto">
                         {dp.daily_cost_usd != null && dp.daily_cost_usd > 0 && (
                           <span className="text-xs text-text-muted">~${dp.daily_cost_usd.toFixed(0)}</span>
