@@ -125,7 +125,7 @@ export function WizardStepStyle({
 
       {/* Interests */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-text-primary">Interests</h3>
+        <h3 className="text-sm font-medium text-text-muted">Interests</h3>
         <div className="grid grid-cols-3 gap-2">
           {INTEREST_OPTIONS.map((opt) => {
             const Icon = opt.icon;
@@ -151,7 +151,7 @@ export function WizardStepStyle({
 
       {/* Pace */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-text-primary">Pace</h3>
+        <h3 className="text-sm font-medium text-text-muted">Pace</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PACE_OPTIONS.map((opt) => {
             const Icon = opt.icon;

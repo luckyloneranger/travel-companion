@@ -134,7 +134,7 @@ export function WizardStepWhen({
             const month = new Date(startDate + 'T00:00:00').getMonth() + 1;
             const hint = getSeasonalHint(destination, month);
             return hint ? (
-              <p className="text-xs text-primary-600 dark:text-primary-400 flex items-center gap-1 mt-1">
+              <p className="text-xs text-teal-600 dark:text-teal-400 flex items-center gap-1 mt-1">
                 <Sun className="h-3 w-3 shrink-0" />
                 {hint}
               </p>

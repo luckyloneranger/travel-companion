@@ -82,7 +82,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-display font-semibold text-text-primary break-words">
+                <h3 className="text-lg font-display font-semibold text-text-primary break-words">
                   {city.name}, {city.country}
                 </h3>
                 <span className="text-xs text-text-muted shrink-0">
@@ -258,9 +258,9 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-text-muted">
                 <span className="font-medium text-text-primary">{departureLeg.from_city} → {departureLeg.to_city}</span>
                 <span className="capitalize">{departureLeg.mode}</span>
-                <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" />{formatDuration(departureLeg.duration_hours)}</span>
+                <span className="flex items-center gap-0.5"><Clock className="h-3 w-3 text-teal-500" />{formatDuration(departureLeg.duration_hours)}</span>
                 {departureLeg.distance_km != null && (
-                  <span className="flex items-center gap-0.5"><Navigation className="h-3 w-3" />{departureLeg.distance_km.toFixed(0)} km</span>
+                  <span className="flex items-center gap-0.5"><Navigation className="h-3 w-3 text-teal-500" />{departureLeg.distance_km.toFixed(0)} km</span>
                 )}
                 {departureLeg.fare && <span>{departureLeg.fare}</span>}
                 {departureLeg.segments && departureLeg.segments.length > 1 && (

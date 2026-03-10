@@ -329,7 +329,7 @@ function TimelineActivity({
           {/* Name + meta */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-semibold text-text-primary break-words">
+              <h4 className="text-base font-display font-semibold text-text-primary break-words">
                 {activity.place.name}
               </h4>
               <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-text-muted">
@@ -491,7 +491,7 @@ function TimelineActivity({
         {/* Transport to next */}
         {activity.route_to_next && (
           <div className="mt-2 ml-1 flex flex-wrap items-center gap-2 text-sm text-text-muted">
-            <Navigation className="h-3.5 w-3.5 shrink-0" />
+            <Navigation className="h-3.5 w-3.5 shrink-0 text-teal-500" />
             <TravelModeLabel mode={activity.route_to_next.travel_mode} />
             <span>&middot;</span>
             <span>{formatDistance(activity.route_to_next.distance_meters)}</span>

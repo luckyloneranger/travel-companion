@@ -140,8 +140,7 @@ function PlanningAnimation({ phase }: { phase: string }) {
             strokeWidth="2"
             strokeDasharray="200"
             strokeDashoffset="200"
-            className="text-primary-300 dark:text-primary-700"
-            style={{ animation: 'draw-path 2s ease-out forwards' }}
+            className="text-primary-300 dark:text-primary-700 animate-draw-path"
           />
         )}
         {[50, 150, 250].slice(0, cityCount).map((cx, i) => (

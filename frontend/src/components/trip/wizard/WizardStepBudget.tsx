@@ -81,6 +81,7 @@ export function WizardStepBudget({
           value={budgetUsd}
           onChange={(e) => onBudgetUsdChange(e.target.value)}
           min={0}
+          className="h-11"
         />
         {perDay > 0 && (
           <p className="text-xs text-primary-600 dark:text-primary-400">

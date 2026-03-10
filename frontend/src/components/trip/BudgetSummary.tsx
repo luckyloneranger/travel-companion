@@ -74,7 +74,7 @@ export function BudgetSummary({ costBreakdown, totalDays, travelers }: BudgetSum
                 <Utensils className="h-3 w-3" /> Dining
               </p>
               <p className="text-lg font-semibold text-text-secondary">${costBreakdown.dining_usd.toFixed(0)}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-200">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-200">
                 AI estimate
               </span>
             </div>
@@ -87,7 +87,7 @@ export function BudgetSummary({ costBreakdown, totalDays, travelers }: BudgetSum
                 <Ticket className="h-3 w-3" /> Activities
               </p>
               <p className="text-lg font-semibold text-text-secondary">${costBreakdown.activities_usd.toFixed(0)}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-200">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-200">
                 AI estimate
               </span>
             </div>

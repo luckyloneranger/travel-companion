@@ -38,8 +38,8 @@ export function ToastContainer() {
           key={toast.id}
           className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm shadow-lg animate-fade-in-up ${
             toast.type === 'success'
-              ? 'bg-green-600 text-white'
-              : 'bg-red-600 text-white'
+              ? 'bg-green-700 dark:bg-green-600 text-white'
+              : 'bg-red-700 dark:bg-red-600 text-white'
           }`}
         >
           {toast.type === 'success'

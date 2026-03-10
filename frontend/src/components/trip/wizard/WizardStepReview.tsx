@@ -167,7 +167,7 @@ export function WizardStepReview({
       {Object.keys(errors).length > 0 && (
         <div className="space-y-1">
           {Object.values(errors).map((err) => (
-            <p key={err} className="text-sm text-red-500 mt-1">{err}</p>
+            <p key={err} className="text-sm text-red-600 dark:text-red-400 mt-1">{err}</p>
           ))}
         </div>
       )}

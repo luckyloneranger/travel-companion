@@ -33,7 +33,7 @@
   --color-text-secondary: var(--theme-text-secondary);
   --color-text-muted: var(--theme-text-muted);
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
   --font-display: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
 
 }
@@ -110,11 +110,6 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -129,7 +124,7 @@
   --theme-surface: #0f1219;
   --theme-surface-dim: #0a0d14;
   --theme-surface-muted: #1a1f2e;
-  --theme-border-default: #2a3245;
+  --theme-border-default: #313d52;
   --theme-text-primary: #e8ecf4;
   --theme-text-secondary: #b8c4d8;
   --theme-text-muted: #6b7a94;
@@ -151,11 +146,6 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -194,16 +184,6 @@
 
 .animate-fade-in-up {
   animation: fade-in-up 0.35s ease-out;
-}
-
-@keyframes celebration-glow {
-  0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 0 20px 10px rgba(99, 102, 241, 0.1); }
-  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
-}
-
-.animate-celebration-glow {
-  animation: celebration-glow 2s ease-out;
 }
 
 /* Staggered entry — use with animation-delay utilities */
@@ -297,6 +277,10 @@
 }
 .animate-city-pop {
   animation: city-pop 0.4s ease-out both;
+}
+
+.animate-draw-path {
+  animation: draw-path 2s ease-out forwards;
 }
 
 /* Hide scrollbar (for horizontal-scroll containers) */

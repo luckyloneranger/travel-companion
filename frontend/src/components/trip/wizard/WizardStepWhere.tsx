@@ -70,7 +70,7 @@ export function WizardStepWhere({
             placeholder="e.g. Japan, Paris, Southeast Asia"
             value={destination}
             onChange={(e) => onDestinationChange(e.target.value)}
-            className="text-base h-12 shadow-sm"
+            className="text-base h-11 shadow-sm"
             autoFocus
           />
         </div>

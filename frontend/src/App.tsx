@@ -16,6 +16,7 @@ import { useTripStore } from '@/stores/tripStore';
 import { useAuthStore } from '@/stores/authStore';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ToastContainer } from '@/components/ui/toast';
 
 /** Sub-component that loads a trip by URL param /trips/:id */
@@ -52,8 +53,8 @@ function TripLoader() {
         <p className="text-lg font-display font-semibold text-text-primary">Trip not found</p>
         <p className="text-sm text-text-muted">This trip doesn't exist or you don't have access to it.</p>
         <div className="flex items-center justify-center gap-3">
-          <button
-            type="button"
+          <Button
+            size="sm"
             onClick={() => {
               setLoadError(false);
               useTripStore.getState().loadTrip(id!).then(() => {
@@ -62,21 +63,20 @@ function TripLoader() {
                 setLoadError(true);
               });
             }}
-            className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-md hover:bg-primary-700"
           >
             Retry
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="link"
+            size="sm"
             onClick={() => {
               useUIStore.getState().resetUI();
               useTripStore.getState().reset();
               navigate('/');
             }}
-            className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
           >
             Go back to home
-          </button>
+          </Button>
         </div>
       </div>
     );
