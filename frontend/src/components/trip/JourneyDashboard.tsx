@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   MapPin, Calendar, Navigation, Sparkles,
@@ -112,6 +112,19 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     ? costBreakdown.budget_usd / journey.total_days
     : undefined;
 
+  // Issue #35: Close export menu on click outside
+  useEffect(() => {
+    if (!showExport) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-export-menu]')) {
+        setShowExport(false);
+      }
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [showExport]);
+
   // Use complete cost breakdown when day plans exist, otherwise estimate from journey data
   const estimatedTotal = (() => {
     if (costBreakdown && costBreakdown.total_usd > 0) {
@@ -205,7 +218,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
   const tabs = [
     { id: 'overview' as const, label: 'Overview', icon: Sparkles },
     { id: 'cities' as const, label: `Cities (${journey.cities.length})`, icon: LayoutList },
-    { id: 'budget' as const, label: 'Budget', icon: DollarSign, hidden: !costBreakdown || !dayPlans || dayPlans.length === 0 },
+    { id: 'budget' as const, label: 'Budget', icon: DollarSign, hidden: !costBreakdown || !dayPlans || dayPlans.length === 0 || (costBreakdown && costBreakdown.total_usd === 0) },
     { id: 'map' as const, label: 'Map', icon: MapIcon },
   ];
 
@@ -303,7 +316,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
               {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
               {isSharing ? 'Sharing...' : shareUrl ? 'Shared!' : 'Share'}
             </Button>
-            <div className="relative">
+            <div className="relative" data-export-menu>
               <Button variant="outline" size="sm" onClick={() => setShowExport(!showExport)}>
                 <FileDown className="h-4 w-4" />
                 Export
@@ -332,7 +345,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
           {/* Share URL */}
           {shareUrl && (
             <div className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted px-3 py-2">
-              <input type="text" readOnly value={shareUrl} aria-label="Shared trip URL" className="flex-1 bg-transparent text-sm text-text-secondary outline-none min-w-0" onFocus={(e) => e.target.select()} />
+              <input type="text" readOnly value={shareUrl} aria-label="Share link (read-only)" placeholder="Share link (read-only)" className="flex-1 bg-transparent text-sm text-text-secondary outline-none min-w-0 cursor-default select-all" onFocus={(e) => e.target.select()} />
               <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(shareUrl).catch(() => window.prompt('Copy:', shareUrl)); }}>
                 <Copy className="h-3.5 w-3.5" /> Copy
               </Button>
@@ -351,6 +364,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
               key={tab.id}
               role="tab"
               aria-selected={isActive}
+              title={tab.label}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 isActive
@@ -380,7 +394,13 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
             {/* Map preview */}
             <div>
-              <div className="relative group cursor-pointer" onClick={() => setActiveTab('map')}>
+              <div
+                className="relative group cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => setActiveTab('map')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveTab('map'); } }}
+              >
                 <ErrorBoundary fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted flex items-center justify-center text-sm text-text-muted">Map unavailable</div>}>
                   <Suspense fallback={<div className="h-60 sm:h-80 rounded-lg bg-surface-muted animate-pulse" />}>
                     <div className="h-60 sm:h-80 rounded-lg overflow-hidden border border-border-default">
@@ -427,6 +447,18 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                             )}
                           </div>
                         )}
+                        {city.experience_themes && city.experience_themes.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {city.experience_themes.map((et) => (
+                              <span key={et.theme} className="inline-flex items-center text-xs text-text-muted">
+                                {et.theme}
+                                {!!et.excursion_type && (
+                                  <span className="ml-1 text-[10px] bg-accent-100 dark:bg-accent-500/20 text-accent-700 dark:text-accent-300 rounded px-1">excursion</span>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         <span className="text-xs text-primary-500 flex items-center gap-0.5 mt-1">
                           View itinerary <ChevronRight className="h-3 w-3" />
                         </span>
@@ -436,6 +468,13 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 </Card>
               ))}
             </div>
+            {dayPlansGenerating && (!dayPlans || dayPlans.length === 0) && (
+              <div className="space-y-3 mt-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-32 rounded-lg bg-surface-muted animate-pulse" />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
