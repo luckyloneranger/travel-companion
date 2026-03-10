@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://places.googleapis.com/v1"
 
-from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT, PLACES_MIN_RATING as MIN_RATING, PLACES_MIN_RATINGS_COUNT as MIN_RATINGS_COUNT, PLACES_DISCOVERY_RADIUS_KM, LODGING_TYPES
+from app.config.planning import GOOGLE_API_TIMEOUT as REQUEST_TIMEOUT, PLACES_MIN_RATING as MIN_RATING, PLACES_MIN_RATINGS_COUNT as MIN_RATINGS_COUNT, PLACES_DISCOVERY_RADIUS_KM, LODGING_TYPES, get_adaptive_place_filters
 
 from app.config.planning import INTEREST_TO_TYPES as INTEREST_TYPE_MAP
 
@@ -724,14 +724,12 @@ class GooglePlacesService:
     ) -> list[PlaceCandidate]:
         """Deduplicate by ``place_id`` and keep only quality places.
 
-        Quality thresholds:
-        - rating >= ``MIN_RATING``
-        - user_ratings_total >= ``MIN_RATINGS_COUNT``
-        - business_status is OPERATIONAL (or unknown)
+        Uses adaptive quality thresholds based on result density:
+        sparse results (<15) lower the bar to include hidden gems,
+        dense results (>100) tighten filters to surface the best.
 
         Sorted by (rating descending, user_ratings_total descending).
         """
-        # Non-operational statuses to exclude
         _CLOSED_STATUSES = {"CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"}
 
         seen: set[str] = set()
@@ -742,13 +740,18 @@ class GooglePlacesService:
             seen.add(c.place_id)
             unique.append(c)
 
+        # Adapt thresholds based on how many unique candidates we have
+        filters = get_adaptive_place_filters(len(unique))
+        min_rating = filters["min_rating"]
+        min_ratings_count = filters["min_ratings_count"]
+
         filtered = [
             c
             for c in unique
-            if (c.rating is not None and c.rating >= MIN_RATING)
+            if (c.rating is not None and c.rating >= min_rating)
             and (
                 c.user_ratings_total is not None
-                and c.user_ratings_total >= MIN_RATINGS_COUNT
+                and c.user_ratings_total >= min_ratings_count
             )
             and (c.business_status is None or c.business_status not in _CLOSED_STATUSES)
             and not any(t in LODGING_TYPES for t in c.types)

@@ -185,7 +185,7 @@ class TestGoogleWeatherService:
 class TestBusinessStatusFiltering:
     """Test that closed places are filtered out."""
 
-    def _make_place(self, name: str, rating: float = 4.5, status: str | None = None) -> PlaceCandidate:
+    def _make_place(self, name: str, rating: float = 4.5, reviews: int = 100, status: str | None = None) -> PlaceCandidate:
         return PlaceCandidate(
             place_id=f"place_{name}",
             name=name,
@@ -193,7 +193,7 @@ class TestBusinessStatusFiltering:
             location=Location(lat=48.0, lng=2.0),
             types=["tourist_attraction"],
             rating=rating,
-            user_ratings_total=100,
+            user_ratings_total=reviews,
             business_status=status,
         )
 
@@ -225,6 +225,54 @@ class TestBusinessStatusFiltering:
         result = GooglePlacesService._filter_and_rank_by_quality(candidates)
         assert len(result) == 1
         assert result[0].name == "Open"
+
+
+class TestAdaptivePlaceFilters:
+    """Test that quality filters adapt to result density."""
+
+    def _make_place(self, name: str, rating: float = 4.0, reviews: int = 50) -> PlaceCandidate:
+        return PlaceCandidate(
+            place_id=f"place_{name}",
+            name=name,
+            address=f"{name} address",
+            location=Location(lat=48.0, lng=2.0),
+            types=["tourist_attraction"],
+            rating=rating,
+            user_ratings_total=reviews,
+        )
+
+    def test_sparse_results_lower_threshold(self):
+        """With few candidates, places with lower ratings should be kept."""
+        from app.services.google.places import GooglePlacesService
+        candidates = [
+            self._make_place("GoodPlace", rating=4.5, reviews=200),
+            self._make_place("OkPlace", rating=3.2, reviews=15),
+        ]
+        result = GooglePlacesService._filter_and_rank_by_quality(candidates)
+        # Only 2 unique candidates → sparse → min_rating=3.0, min_reviews=10
+        assert len(result) == 2
+
+    def test_sparse_results_reject_very_low(self):
+        """Even with sparse results, very low rated places are rejected."""
+        from app.services.google.places import GooglePlacesService
+        candidates = [
+            self._make_place("GoodPlace", rating=4.5, reviews=200),
+            self._make_place("BadPlace", rating=2.5, reviews=5),
+        ]
+        result = GooglePlacesService._filter_and_rank_by_quality(candidates)
+        assert len(result) == 1
+        assert result[0].name == "GoodPlace"
+
+    def test_standard_thresholds_for_moderate_results(self):
+        """With moderate candidate count, standard thresholds apply."""
+        from app.services.google.places import GooglePlacesService
+        # Create 20 good places + 1 borderline
+        candidates = [self._make_place(f"Place{i}", rating=4.0, reviews=50) for i in range(20)]
+        candidates.append(self._make_place("Borderline", rating=3.3, reviews=25))
+        result = GooglePlacesService._filter_and_rank_by_quality(candidates)
+        # 21 unique → standard → min_rating=3.5, min_reviews=30
+        names = {r.name for r in result}
+        assert "Borderline" not in names  # 3.3 < 3.5 threshold
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
