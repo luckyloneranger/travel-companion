@@ -157,6 +157,31 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Scroll-reveal for city cards in Cities tab
+  useEffect(() => {
+    if (activeTab !== 'cities') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('revealed');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+    // Small delay to let DOM render
+    const timer = setTimeout(() => {
+      const elements = document.querySelectorAll('.scroll-reveal');
+      elements.forEach((el) => observer.observe(el));
+    }, 50);
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [activeTab, dayPlans]);
+
   // Use complete cost breakdown when day plans exist, otherwise estimate from journey data
   const estimatedTotal = (() => {
     if (costBreakdown && costBreakdown.total_usd > 0) {
@@ -526,7 +551,7 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
             {/* City highlights */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {journey.cities.map((city, i) => (
-                <Card key={i} className="cursor-pointer hover:border-primary-300 transition-colors" onClick={() => setActiveTab('cities')}>
+                <Card key={i} className={`cursor-pointer hover:border-primary-300 transition-colors animate-stagger-in stagger-${Math.min(i + 1, 8)}`} onClick={() => setActiveTab('cities')}>
                   <CardContent className="py-4 px-5">
                     <div className="flex items-start gap-3">
                       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/40 text-xs font-bold text-primary-700 dark:text-primary-300 shrink-0 mt-0.5">
@@ -645,25 +670,26 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
                 (dp) => dp.city_name.toLowerCase() === city.name.toLowerCase(),
               );
               return (
-                <CompactCityCard
-                  key={`city-${i}-${allExpanded}`}
-                  city={city}
-                  index={i}
-                  departureLeg={departureLeg}
-                  dayPlans={cityDayPlans}
-                  tips={tips}
-                  defaultExpanded={allExpanded}
-                  hideHighlights={!!(dayPlans && dayPlans.length > 0)}
-                  dailyBudget={dailyBudget}
-                  totalDays={dayPlans?.length || 0}
-                  onChatAbout={handleChatAbout}
-                  onRemoveActivity={handleRemoveActivity}
-                  onAdjustDuration={handleAdjustDuration}
-                  onReorder={handleReorder}
-                  recentChanges={recentChanges}
-                  adjustingActivityId={adjustingActivityId}
-                  removingActivityId={removingActivityId}
-                />
+                <div key={`city-${i}-${allExpanded}`} className="scroll-reveal">
+                  <CompactCityCard
+                    city={city}
+                    index={i}
+                    departureLeg={departureLeg}
+                    dayPlans={cityDayPlans}
+                    tips={tips}
+                    defaultExpanded={allExpanded}
+                    hideHighlights={!!(dayPlans && dayPlans.length > 0)}
+                    dailyBudget={dailyBudget}
+                    totalDays={dayPlans?.length || 0}
+                    onChatAbout={handleChatAbout}
+                    onRemoveActivity={handleRemoveActivity}
+                    onAdjustDuration={handleAdjustDuration}
+                    onReorder={handleReorder}
+                    recentChanges={recentChanges}
+                    adjustingActivityId={adjustingActivityId}
+                    removingActivityId={removingActivityId}
+                  />
+                </div>
               );
             })}
             {!dayPlans && !dayPlansGenerating && (
