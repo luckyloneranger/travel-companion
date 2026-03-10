@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderOpen, MapPin, Loader2, Trash2 } from 'lucide-react';
+import { FolderOpen, MapPin, Loader2, Trash2, Compass, Sun, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -348,9 +348,17 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
           </div>
         </div>
       ) : user ? (
-        <div className="mt-4 text-center py-6 text-text-muted">
-          <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No trips yet. Plan your first adventure above!</p>
+        <div className="text-center py-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-50 dark:bg-primary-500/10 mb-3">
+            <Compass className="h-8 w-8 text-primary-400" />
+          </div>
+          <p className="text-base font-semibold text-text-primary mb-1">Your travel story starts here</p>
+          <p className="text-sm text-text-muted mb-4">Plan your first adventure using the form above</p>
+          <div className="flex items-center justify-center gap-4 text-xs text-text-muted">
+            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Multi-city routes</span>
+            <span className="flex items-center gap-1"><Sun className="h-3 w-3" /> Weather-aware</span>
+            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Smart scheduling</span>
+          </div>
         </div>
       ) : null}
     </div>
