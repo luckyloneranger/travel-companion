@@ -27,6 +27,32 @@ export function FullDayView({ dayPlans, tips, initialDay, onClose, onChatAbout }
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < dayPlans.length - 1;
 
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isSwipe = Math.abs(distance) > minSwipeDistance;
+    if (isSwipe) {
+      if (distance > 0 && hasNext) {
+        setCurrentIndex(currentIndex + 1);
+      } else if (distance < 0 && hasPrev) {
+        setCurrentIndex(currentIndex - 1);
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-surface overflow-y-auto">
       {/* Header */}
@@ -70,7 +96,12 @@ export function FullDayView({ dayPlans, tips, initialDay, onClose, onChatAbout }
       </div>
 
       {/* Content */}
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      <div
+        className="max-w-3xl mx-auto px-4 py-6 space-y-4"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         {/* Date + cost summary */}
         <div className="flex items-center justify-between">
           <span className="text-sm text-text-muted">{dayPlan.date}</span>
@@ -81,6 +112,12 @@ export function FullDayView({ dayPlans, tips, initialDay, onClose, onChatAbout }
 
         {/* Timeline */}
         <DayTimeline dayPlan={dayPlan} tips={tips} onChatAbout={onChatAbout} />
+
+        {currentIndex === 0 && (
+          <p className="text-xs text-text-muted text-center mt-2 sm:hidden animate-swipe-hint">
+            ← Swipe to navigate between days →
+          </p>
+        )}
       </div>
 
       {/* Bottom navigation (mobile-friendly) */}

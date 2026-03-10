@@ -85,10 +85,12 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
   }, [loadTrips, user]);
 
   const handleNext = useCallback(() => {
+    setSlideDirection('right');
     setWizardStep(Math.min(wizardStep + 1, 5));
   }, [wizardStep, setWizardStep]);
 
   const handleBack = useCallback(() => {
+    setSlideDirection('left');
     setWizardStep(Math.max(wizardStep - 1, 1));
   }, [wizardStep, setWizardStep]);
 
@@ -110,6 +112,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
   );
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [slideDirection, setSlideDirection] = useState<'right' | 'left'>('right');
 
   const clearErrors = useCallback(() => setErrors({}), []);
 
@@ -198,7 +201,7 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
       <WizardStepper currentStep={wizardStep} onStepClick={setWizardStep} />
 
       {/* Current step */}
-      <div className="animate-fade-in-up transition-all duration-300 ease-out">
+      <div key={wizardStep} className={slideDirection === 'right' ? 'animate-slide-right' : 'animate-slide-left'}>
         {wizardStep === 1 && (
           <WizardStepWhere
             destination={destination}

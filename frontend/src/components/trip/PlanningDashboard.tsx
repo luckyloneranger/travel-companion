@@ -125,6 +125,61 @@ function formatElapsed(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
+function PlanningAnimation({ phase }: { phase: string }) {
+  const cityCount = phase === 'scouting' ? 1 : phase === 'enriching' ? 2 : 3;
+  const showPath = phase !== 'scouting';
+  const showPlane = phase === 'reviewing' || phase === 'improving';
+
+  return (
+    <div className="relative flex items-center justify-center py-4">
+      <svg viewBox="0 0 300 60" className="w-full max-w-xs h-16" fill="none">
+        {showPath && (
+          <path
+            d="M 50 30 Q 100 10 150 30 Q 200 50 250 30"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeDasharray="200"
+            strokeDashoffset="200"
+            className="text-primary-300 dark:text-primary-700"
+            style={{ animation: 'draw-path 2s ease-out forwards' }}
+          />
+        )}
+        {[50, 150, 250].slice(0, cityCount).map((cx, i) => (
+          <g key={i}>
+            <circle
+              cx={cx}
+              cy={30}
+              r={8}
+              className="fill-primary-500 dark:fill-primary-400 animate-city-pop"
+              style={{ animationDelay: `${i * 0.3}s` }}
+            />
+            <circle
+              cx={cx}
+              cy={30}
+              r={12}
+              className="fill-none stroke-primary-300 dark:stroke-primary-700"
+              strokeWidth="1"
+              opacity={0.5}
+              style={{ animationDelay: `${i * 0.3}s` }}
+            />
+          </g>
+        ))}
+        {showPlane && (
+          <text
+            fontSize="14"
+            style={{
+              offsetPath: 'path("M 50 30 Q 100 10 150 30 Q 200 50 250 30")',
+              animation: 'plane-fly 3s linear infinite',
+            }}
+          >
+            ✈
+          </text>
+        )}
+      </svg>
+    </div>
+  );
+}
+
 export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashboardProps) {
   const { progress } = useUIStore();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -223,6 +278,9 @@ export function PlanningDashboard({ onCancel, mode = 'journey' }: PlanningDashbo
             {etaText}
           </span>
         </div>
+
+        {/* Route animation (journey mode) */}
+        {!isDayPlans && <PlanningAnimation phase={phase} />}
 
         {/* Pipeline stepper (journey mode) */}
         {!isDayPlans && (

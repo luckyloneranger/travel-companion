@@ -94,6 +94,41 @@ export function BudgetSummary({ costBreakdown, totalDays, travelers }: BudgetSum
           )}
         </div>
 
+        {/* Visual spending breakdown */}
+        {(() => {
+          const segments = [
+            { label: 'Accommodation', amount: costBreakdown.accommodation_usd, color: 'bg-primary-500' },
+            { label: 'Transport', amount: costBreakdown.transport_usd, color: 'bg-accent-500' },
+            { label: 'Dining', amount: costBreakdown.dining_usd, color: 'bg-green-500' },
+            { label: 'Activities', amount: costBreakdown.activities_usd, color: 'bg-purple-500' },
+          ].filter(s => s.amount > 0);
+          const total = costBreakdown.total_usd;
+
+          return segments.length > 1 ? (
+            <div className="space-y-2">
+              <p className="text-xs text-text-muted font-medium">Spending Breakdown</p>
+              <div className="flex h-4 rounded-full overflow-hidden bg-surface-muted">
+                {segments.map((seg) => (
+                  <div
+                    key={seg.label}
+                    className={`${seg.color} transition-all duration-500`}
+                    style={{ width: `${(seg.amount / total) * 100}%` }}
+                    title={`${seg.label}: $${seg.amount.toFixed(0)} (${((seg.amount / total) * 100).toFixed(0)}%)`}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {segments.map((seg) => (
+                  <span key={seg.label} className="flex items-center gap-1.5 text-xs text-text-muted">
+                    <span className={`h-2.5 w-2.5 rounded-full ${seg.color}`} />
+                    {seg.label} ({((seg.amount / total) * 100).toFixed(0)}%)
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null;
+        })()}
+
         {/* Budget comparison */}
         {costBreakdown.budget_usd != null && (
           <div className={`flex items-center justify-between rounded-md px-3 py-2 text-sm ${
