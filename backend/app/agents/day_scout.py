@@ -131,6 +131,8 @@ class DayScoutAgent:
                     f"{_OH_DAY_NAMES[oh.day]}: {oh.open_time}-{oh.close_time}"
                     for oh in c.opening_hours[:3]
                 ]
+            if c.source_destination:
+                entry["destination"] = c.source_destination
             attractions.append(entry)
 
         # Dining: take top 15 by rating
@@ -157,15 +159,23 @@ class DayScoutAgent:
                     f"{_OH_DAY_NAMES[oh.day]}: {oh.open_time}-{oh.close_time}"
                     for oh in c.opening_hours[:3]
                 ]
+            if c.source_destination:
+                entry["destination"] = c.source_destination
             dining.append(entry)
 
         themes_text = ""
         for day_num, themes in sorted(batch_themes.items()):
-            theme_names = ", ".join(
-                f"{t.theme} ({t.category})" if hasattr(t, 'category') else str(t)
-                for t in themes
-            )
-            themes_text += f"Day {day_num}: {theme_names}\n"
+            theme_parts = []
+            for t in themes:
+                if hasattr(t, 'category'):
+                    label = f"{t.theme} ({t.category})"
+                    if hasattr(t, 'excursion_type') and t.excursion_type:
+                        dest = getattr(t, 'destination_name', '') or ''
+                        label += f" [EXCURSION to {dest}]" if dest else " [EXCURSION]"
+                else:
+                    label = str(t)
+                theme_parts.append(label)
+            themes_text += f"Day {day_num}: {', '.join(theme_parts)}\n"
 
         landmarks_section = ""
         if landmarks:
