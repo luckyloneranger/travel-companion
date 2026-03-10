@@ -57,9 +57,12 @@ For each destination, provide `experience_themes` — categories of experiences,
 **DO NOT output a `highlights` array. Use ONLY `experience_themes`.**
 
 ### Rule 7: Accommodation (MANDATORY)
-- Every destination MUST have ONE accommodation with a real property name, `why`, and `estimated_nightly_usd`
-- Factor in seasonal pricing (peak season 50-100% more expensive)
-- Match to budget tier and group size
+- Every destination MUST have ONE primary accommodation and TWO alternatives — all with real property names
+- Include `budget_range_usd` as [min, max] reflecting realistic nightly rates for THIS specific city and budget tier
+  - Budget ranges MUST be destination-aware: $30-60/night in Bangkok is moderate, $150-250/night in Tokyo is moderate
+- Include `booking_hint` with specific guidance: mention neighborhood, local booking platforms, and the budget range in local currency
+- Include `why` explaining the location advantage
+- The primary accommodation is used for day plan simulation; alternatives give the traveler options
 
 ### Rule 8: Seasonal & Safety
 - Consider travel dates ({travel_dates}) — avoid monsoon, extreme heat, closures
