@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import {
   Clock, Star, MapPin, Navigation, ExternalLink, DollarSign,
   CloudRain, Lightbulb, Cloud, CloudLightning, Snowflake,
-  Droplets, Wind, Sun, Coffee, MessageSquare, Minus, Plus, Trash2, HelpCircle,
-  GripVertical, MapPinned, Loader2,
+  Droplets, Wind, Sun, Coffee, MessageSquare, Minus, Plus, Trash2,
+  GripVertical, MapPinned, Loader2, X,
 } from 'lucide-react';
 import {
   DndContext,
@@ -18,9 +19,37 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Badge } from '@/components/ui/badge';
 import type { DayPlan, Activity } from '@/types';
 import { photoUrl } from '@/services/api';
+
+const CATEGORY_COLORS: Record<string, string> = {
+  museum: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+  art_museum: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+  restaurant: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+  ramen_restaurant: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+  japanese_restaurant: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+  cafe: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  coffee_shop: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  park: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  garden: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  temple: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
+  shinto_shrine: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
+  buddhist_temple: 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300',
+  castle: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
+  observation_deck: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
+  market: 'bg-lime-100 text-lime-700 dark:bg-lime-500/20 dark:text-lime-300',
+  tourist_attraction: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300',
+  scenic_spot: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+  bar: 'bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300',
+};
+
+function getCategoryColor(category: string): string {
+  const lower = category.toLowerCase();
+  for (const [key, color] of Object.entries(CATEGORY_COLORS)) {
+    if (lower.includes(key)) return color;
+  }
+  return 'bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400';
+}
 
 interface DayTimelineProps {
   dayPlan: DayPlan;
@@ -184,6 +213,7 @@ function TimelineActivity({
   onChatAbout,
   onRemoveActivity,
   onAdjustDuration,
+  onPhotoClick,
   dayNumber,
   dayTheme,
   recentChanges,
@@ -197,6 +227,7 @@ function TimelineActivity({
   onChatAbout?: (activityName: string, dayNumber: number) => void;
   onRemoveActivity?: (dayNumber: number, activityId: string) => void;
   onAdjustDuration?: (dayNumber: number, activityId: string, change: number) => void;
+  onPhotoClick?: (url: string) => void;
   dayNumber: number;
   dayTheme?: string;
   recentChanges?: {
@@ -234,7 +265,8 @@ function TimelineActivity({
                   src={`${photoUrl(url)}${url.includes('?') ? '&' : '?'}w=400`}
                   alt={`${activity.place.name} photo ${i + 1}`}
                   loading="lazy"
-                  className="h-16 w-24 max-w-[30vw] sm:h-24 sm:w-32 sm:max-w-none rounded-md object-cover shrink-0"
+                  onClick={() => onPhotoClick?.(`${photoUrl(url)}${url.includes('?') ? '&' : '?'}w=800`)}
+                  className="h-16 w-24 max-w-[30vw] sm:h-24 sm:w-32 sm:max-w-none rounded-md object-cover shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ))}
@@ -255,15 +287,17 @@ function TimelineActivity({
                   <Clock className="h-3.5 w-3.5" />
                   {activity.time_start} – {activity.time_end} · {activity.duration_minutes} min
                 </span>
-                <Badge variant="outline" className="text-xs capitalize">{activity.place.category}</Badge>
-                <button
-                  type="button"
-                  className="text-text-muted/50 hover:text-primary-500 transition-colors"
-                  title={getWhyThisPlace(activity, dayTheme)}
-                  aria-label="Why this place?"
-                >
-                  <HelpCircle className="h-3.5 w-3.5" />
-                </button>
+                <span className={`text-[10px] rounded-full px-2 py-0.5 capitalize ${getCategoryColor(activity.place.category)}`}>
+                  {activity.place.category.replace(/_/g, ' ')}
+                </span>
+                {(() => {
+                  const why = getWhyThisPlace(activity, dayTheme);
+                  return why ? (
+                    <span className="text-[10px] leading-tight bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 rounded-full px-2 py-0.5 max-w-[180px] truncate" title={why}>
+                      {why}
+                    </span>
+                  ) : null;
+                })()}
                 {activity.estimated_cost_usd != null && activity.estimated_cost_usd > 0 && (
                   <span className="flex items-center gap-0.5 font-medium">
                     <DollarSign className="h-3.5 w-3.5" />~${activity.estimated_cost_usd.toFixed(0)}
@@ -433,6 +467,8 @@ function TimelineActivity({
 // ── Main Component ─────────────────────────────────────────
 
 export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges, adjustingActivityId, removingActivityId }: DayTimelineProps) {
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+
   // ── Feature 9: Drag-and-drop sensors and handler ──
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -502,6 +538,7 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
             onChatAbout={onChatAbout}
             onRemoveActivity={onRemoveActivity}
             onAdjustDuration={onAdjustDuration}
+            onPhotoClick={setLightboxPhoto}
             dayNumber={dayPlan.day_number}
             dayTheme={dayPlan.theme}
             recentChanges={recentChanges}
@@ -530,6 +567,23 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
   return (
     <div className="space-y-0">
       {excursionBanner}
+
+      {/* Weather advisory for today */}
+      {(() => {
+        const validActivities = dayPlan.activities.filter(a => a.duration_minutes > 0);
+        const warnings = validActivities.filter(a => a.weather_warning);
+        return warnings.length > 0 ? (
+          <div className="mb-3 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-amber-50/50 dark:bg-amber-500/10 p-3">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+              <CloudRain className="h-4 w-4 shrink-0" />
+              <p className="text-sm font-medium">Weather advisory for today</p>
+            </div>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              {warnings[0].weather_warning}. Consider indoor alternatives or pack rain gear.
+            </p>
+          </div>
+        ) : null;
+      })()}
 
       {/* Feature 8: Weather card */}
       {dayPlan.weather && (
@@ -588,6 +642,27 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
         </DndContext>
       ) : (
         renderActivityList()
+      )}
+
+      {/* Photo lightbox */}
+      {lightboxPhoto && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightboxPhoto(null); }}
+            className="absolute top-4 right-4 text-white/80 hover:text-white z-10"
+            aria-label="Close photo"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={lightboxPhoto}
+            alt="Activity photo"
+            className="max-w-full max-h-[85vh] rounded-lg object-contain animate-fade-in-up"
+          />
+        </div>
       )}
     </div>
   );
