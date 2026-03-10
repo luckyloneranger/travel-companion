@@ -9,7 +9,6 @@ Takes an LLM-generated JourneyPlan and enriches it with:
 import asyncio
 import logging
 
-from app.config.planning import adjust_price_for_budget
 from app.models.common import Location, TransportMode
 from app.models.journey import Accommodation, CityStop, JourneyPlan, TravelLeg
 from app.services.google import (
@@ -196,6 +195,9 @@ class EnricherAgent:
         for city in plan.cities:
             if city.accommodation and city.accommodation.name:
                 tasks.append(self._enrich_accommodation(city, budget_tier=budget_tier))
+            for alt in city.accommodation_alternatives:
+                if alt.name:
+                    tasks.append(self._enrich_single_accommodation(alt, city))
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -256,21 +258,8 @@ class EnricherAgent:
 
                 # Preserve LLM's cost estimate from the Scout agent
                 llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
-                # Adjust price using Google's price_level as ground truth
-                adjusted_nightly = llm_nightly
-                if llm_nightly is not None:
-                    adjusted_nightly = adjust_price_for_budget(
-                        llm_nightly,
-                        price_level=result.price_level,
-                        budget=budget_tier,
-                    )
-                    if adjusted_nightly != llm_nightly:
-                        logger.info(
-                            "[Enricher] Adjusted %s nightly rate: $%.0f -> $%.0f "
-                            "(price_level=%s, budget=%s)",
-                            city.name, llm_nightly, adjusted_nightly,
-                            result.price_level, budget_tier,
-                        )
+                llm_budget_range = city.accommodation.budget_range_usd if city.accommodation else None
+                llm_booking_hint = city.accommodation.booking_hint if city.accommodation else None
                 llm_why = city.accommodation.why if city.accommodation else ""
                 city.accommodation = Accommodation(
                     name=result.name,
@@ -280,7 +269,9 @@ class EnricherAgent:
                     place_id=result.place_id,
                     rating=result.rating,
                     price_level=result.price_level,
-                    estimated_nightly_usd=adjusted_nightly,
+                    estimated_nightly_usd=llm_nightly,
+                    budget_range_usd=llm_budget_range,
+                    booking_hint=llm_booking_hint,
                     website=result.website,
                     editorial_summary=result.editorial_summary,
                     photo_url=(
@@ -290,54 +281,10 @@ class EnricherAgent:
                     ),
                 )
                 logger.info(
-                    "[Enricher] Enriched accommodation for %s: %s ($%.0f/night, pl=%s)",
-                    city.name, result.name,
-                    adjusted_nightly or 0, result.price_level,
+                    "[Enricher] Enriched accommodation for %s: %s ($%.0f/night)",
+                    city.name, result.name, llm_nightly or 0,
                 )
 
-                # Check if hotel matches budget tier — search for alternative if not
-                from app.config.planning import price_level_matches_budget, get_target_price_levels, get_budget_fallback_nightly
-                if result.price_level is not None and not price_level_matches_budget(result.price_level, budget_tier):
-                    logger.info(
-                        "[Enricher] Hotel %s price_level=%s doesn't match budget=%s, searching alternatives",
-                        result.name, result.price_level, budget_tier,
-                    )
-                    from app.services.google.places import _PRICE_LEVEL_STRINGS
-                    target_levels = get_target_price_levels(budget_tier)
-                    google_levels = [_PRICE_LEVEL_STRINGS[pl] for pl in target_levels if pl in _PRICE_LEVEL_STRINGS]
-                    alt = await self.places.search_lodging(
-                        query=f"hotel {city.name}",
-                        location=city_location,
-                        radius_meters=15_000,
-                        price_levels=google_levels,
-                    )
-                    if alt and alt.rating and alt.rating >= 3.5:
-                        alt_nightly = adjust_price_for_budget(
-                            adjusted_nightly or get_budget_fallback_nightly(budget_tier),
-                            price_level=alt.price_level,
-                            budget=budget_tier,
-                        )
-                        logger.info(
-                            "[Enricher] Found budget-matched alternative for %s: %s (pl=%s, rating=%s, $%.0f/night)",
-                            city.name, alt.name, alt.price_level, alt.rating, alt_nightly,
-                        )
-                        city.accommodation = Accommodation(
-                            name=alt.name,
-                            why=f"Selected to match {budget_tier} budget",
-                            address=alt.address,
-                            location=alt.location,
-                            place_id=alt.place_id,
-                            rating=alt.rating,
-                            price_level=alt.price_level,
-                            estimated_nightly_usd=alt_nightly,
-                            website=alt.website,
-                            editorial_summary=alt.editorial_summary,
-                            photo_url=(
-                                self.places.get_photo_url(alt.photo_reference)
-                                if alt.photo_reference
-                                else None
-                            ),
-                        )
             else:
                 logger.warning(
                     "[Enricher] No lodging found for %s in %s",
@@ -352,6 +299,30 @@ class EnricherAgent:
                 e,
             )
             # LLM's estimate is already on city.accommodation — nothing to do
+
+    async def _enrich_single_accommodation(self, acc: Accommodation, city: CityStop) -> None:
+        """Enrich a single accommodation alternative with Google Places metadata."""
+        city_location = city.location
+        if not city_location:
+            return
+
+        try:
+            query = f"{acc.name} {city.name}"
+            result = await self.places.search_lodging(query=query, location=city_location)
+            if result and result.rating and result.rating >= 3.0:
+                acc.address = result.address
+                acc.location = result.location
+                acc.place_id = result.place_id
+                acc.rating = result.rating
+                acc.website = result.website
+                acc.editorial_summary = result.editorial_summary
+                acc.photo_url = (
+                    self.places.get_photo_url(result.photo_reference)
+                    if result.photo_reference else None
+                )
+                logger.info("[Enricher] Enriched alternative for %s: %s", city.name, result.name)
+        except Exception as e:
+            logger.warning("[Enricher] Alternative enrichment failed for %s: %s", acc.name, e)
 
     # ── Travel leg enrichment ────────────────────────────────────────────
 
