@@ -757,52 +757,52 @@ class DayPlanOrchestrator:
         ))
 
         # ----------------------------------------------------------
-        # 0. Handle excursions
+        # 0. Identify excursions and geocode destinations
         # ----------------------------------------------------------
         excursions = self._extract_excursions(
             city.highlights,
             experience_themes=city.experience_themes if city.experience_themes else None,
         )
-        blocked_days: dict[int, CityHighlight] = {}
-        partial_days: dict[int, CityHighlight] = {}
-        excursion_plans: list[DayPlan] = []
+        excursion_locations: dict[str, tuple[Location, CityHighlight]] = {}
 
         if excursions:
-            blocked_days, partial_days = self._compute_excursion_schedule(
-                excursions, city.days,
-            )
             await event_queue.put(ProgressEvent(
                 phase="city_progress",
-                message=f"Planning excursions from {city_name}...",
+                message=f"Discovering excursion destinations from {city_name}...",
                 progress=pct_start,
                 data={"city": city_name},
             ))
-            excursion_plans = await self._plan_excursion_days(
-                excursions_by_day=blocked_days,
-                city=city,
-                request=request,
-                day_offset=day_offset,
+
+            # Geocode all excursion destinations in parallel
+            async def _geocode_exc(exc):
+                geocode_name = getattr(exc, 'destination_name', None) or exc.name
+                try:
+                    result = await self.places.geocode(
+                        f"{geocode_name}, {city.country or ''}"
+                    )
+                    if result:
+                        return geocode_name, result, exc
+                except Exception as e:
+                    logger.warning(
+                        "[DayPlan] Geocode failed for excursion %s: %s",
+                        geocode_name, e,
+                    )
+                return None
+
+            geo_results = await asyncio.gather(
+                *(_geocode_exc(exc) for exc in excursions),
+                return_exceptions=True,
             )
+            for r in geo_results:
+                if r and not isinstance(r, Exception) and r is not None:
+                    dest_name, geo_data, exc_theme = r
+                    loc = Location(lat=geo_data["lat"], lng=geo_data["lng"])
+                    excursion_locations[dest_name] = (loc, exc_theme)
+
             logger.info(
-                "[DayPlanOrchestrator] %s: %d excursion days planned (%d partial)",
-                city_name, len(blocked_days), len(partial_days),
+                "[DayPlanOrchestrator] %s: geocoded %d/%d excursion destinations",
+                city_name, len(excursion_locations), len(excursions),
             )
-
-        free_day_count = city.days - len(blocked_days)
-
-        # If ALL days are excursions, skip discovery + planning
-        if free_day_count <= 0:
-            city_plans = sorted(excursion_plans, key=lambda dp: dp.day_number)
-            await event_queue.put(ProgressEvent(
-                phase="city_complete",
-                message=f"{city_name} planned (excursions only)",
-                progress=pct_end,
-                data={
-                    "city": city_name,
-                    "day_plans": [dp.model_dump() for dp in excursion_plans],
-                },
-            ))
-            return city_plans
 
         # ----------------------------------------------------------
         # 1. Discover places
@@ -914,6 +914,70 @@ class DayPlanOrchestrator:
                             candidates.append(tr)
                             existing_ids.add(tr.place_id)
 
+        # Discover places at excursion destinations (in parallel)
+        if excursion_locations:
+            async def _discover_exc(dest_name, dest_location):
+                try:
+                    exc_candidates = await self.places.discover_places(
+                        location=dest_location,
+                        interests=request.interests,
+                    )
+                    # Also discover landmarks at excursion destination
+                    try:
+                        exc_landmarks = await self.places.discover_landmarks(dest_name)
+                        if exc_landmarks:
+                            existing_exc_ids = {c.place_id for c in exc_candidates}
+                            valid_lms = [lm for lm in exc_landmarks[:7] if lm.get("name")]
+
+                            async def _search_exc_lm(lm_name: str):
+                                try:
+                                    return await self.places.text_search_places(
+                                        query=f"{lm_name} {dest_name}",
+                                        location=dest_location,
+                                        max_results=1,
+                                    )
+                                except Exception:
+                                    return []
+
+                            exc_lm_results = await asyncio.gather(
+                                *(_search_exc_lm(lm["name"]) for lm in valid_lms)
+                            )
+                            for lm_results in exc_lm_results:
+                                for lc in lm_results:
+                                    if lc.place_id not in existing_exc_ids:
+                                        exc_candidates.append(lc)
+                                        existing_exc_ids.add(lc.place_id)
+                    except Exception:
+                        pass
+                    # Tag all candidates with source destination
+                    for c in exc_candidates:
+                        c.source_destination = dest_name
+                    return exc_candidates
+                except Exception as e:
+                    logger.warning(
+                        "[DayPlan] Excursion discovery failed for %s: %s",
+                        dest_name, e,
+                    )
+                    return []
+
+            exc_results = await asyncio.gather(
+                *(_discover_exc(name, loc)
+                  for name, (loc, _) in excursion_locations.items()),
+                return_exceptions=True,
+            )
+            existing_ids = {c.place_id for c in candidates}
+            for result in exc_results:
+                if isinstance(result, list):
+                    for c in result:
+                        if c.place_id not in existing_ids:
+                            candidates.append(c)
+                            existing_ids.add(c.place_id)
+
+            logger.info(
+                "[DayPlanOrchestrator] %s: merged excursion candidates, total %d",
+                city_name, len(candidates),
+            )
+
         # Resolve photo references to full URLs
         for c in candidates:
             if c.photo_references:
@@ -969,25 +1033,7 @@ class DayPlanOrchestrator:
                     })
 
         # Add time constraints from partial excursions (half-day/evening)
-        for d_idx, exc in partial_days.items():
-            if exc.excursion_type == "half_day_morning":
-                time_constraints.append({
-                    "day_num": d_idx + 1,
-                    "reason": f"{exc.name} (morning excursion)",
-                    "available_hours": 5,
-                })
-            elif exc.excursion_type == "half_day_afternoon":
-                time_constraints.append({
-                    "day_num": d_idx + 1,
-                    "reason": f"{exc.name} (afternoon excursion)",
-                    "available_hours": 4,
-                })
-            elif exc.excursion_type == "evening":
-                time_constraints.append({
-                    "day_num": d_idx + 1,
-                    "reason": f"{exc.name} (evening excursion)",
-                    "available_hours": 8,
-                })
+        # (partial excursion types are managed by the unified pipeline)
 
         ai_plan = None
 
@@ -1008,8 +1054,7 @@ class DayPlanOrchestrator:
                 ai_plan = await self._plan_city_batched(
                     city=city,
                     candidates=candidates,
-                    free_day_count=free_day_count,
-                    blocked_days=blocked_days,
+                    num_days=city.days,
                     request=request,
                     landmarks=city_landmarks,
                     city_name=city_name,
@@ -1030,7 +1075,7 @@ class DayPlanOrchestrator:
                 ai_plan = await self.day_planner.plan_days(
                     candidates=candidates,
                     city_name=city_name,
-                    num_days=free_day_count,
+                    num_days=city.days,
                     interests=request.interests,
                     pace=request.pace.value,
                     budget=request.budget.value if hasattr(request, 'budget') else "moderate",
@@ -1053,7 +1098,7 @@ class DayPlanOrchestrator:
                     ai_plan = await self.day_planner.plan_days(
                         candidates=candidates,
                         city_name=city_name,
-                        num_days=free_day_count,
+                        num_days=city.days,
                         interests=request.interests,
                         pace=request.pace.value,
                         budget=request.budget.value if hasattr(request, 'budget') else "moderate",
@@ -1179,11 +1224,51 @@ class DayPlanOrchestrator:
                 )
                 continue
 
+            # Detect if this is an excursion day based on candidate destinations
+            candidate_destinations = set(
+                c.source_destination for c in day_candidates
+                if c.source_destination
+            )
+            is_excursion_day = len(candidate_destinations) > 0
+            excursion_dest_name = (
+                next(iter(candidate_destinations), None)
+                if is_excursion_day else None
+            )
+
+            # For excursion days, use excursion location as TSP center
+            # and adjust schedule for transit time
+            tsp_start_location = start_location
+            if (
+                is_excursion_day
+                and excursion_dest_name
+                and excursion_dest_name in excursion_locations
+            ):
+                exc_location, exc_theme = excursion_locations[excursion_dest_name]
+                tsp_start_location = exc_location
+
+                # Compute transit time from city to excursion
+                dist_km = getattr(exc_theme, 'distance_from_city_km', None) or 50
+                transit_hours = max(0.5, dist_km / 50)
+                transit_minutes = int(transit_hours * 60)
+
+                # Adjust day start/end for transit
+                from datetime import time as dt_time
+                base_start_minutes = 9 * 60 + transit_minutes
+                base_end_minutes = 21 * 60 - transit_minutes
+                day_start_time = dt_time(
+                    hour=min(base_start_minutes // 60, 23),
+                    minute=base_start_minutes % 60,
+                )
+                day_end_time = dt_time(
+                    hour=min(base_end_minutes // 60, 23),
+                    minute=base_end_minutes % 60,
+                )
+
             # b. Optimize — TSP route optimization
             optimized = self.optimizer.optimize_day(
                 activities=day_candidates,
                 distance_fn=haversine_distance,
-                start_location=start_location,
+                start_location=tsp_start_location,
                 preserve_order=True,
             )
 
@@ -1195,7 +1280,7 @@ class DayPlanOrchestrator:
                 places=optimized,
                 pace=request.pace,
                 durations=ai_plan.durations,
-                start_location=start_location,
+                start_location=tsp_start_location,
                 schedule_date=schedule_date,
                 day_start_time=day_start_time,
                 day_end_time=day_end_time,
@@ -1203,8 +1288,12 @@ class DayPlanOrchestrator:
                 country=city.country,
             )
 
-            # d. Bookend — add hotel departure/return
-            if start_location is not None and city.accommodation:
+            # d. Bookend — add hotel departure/return (skip for excursion days)
+            if (
+                not is_excursion_day
+                and start_location is not None
+                and city.accommodation
+            ):
                 activities = self._bookend_with_hotel(
                     activities=activities,
                     accommodation_name=city.accommodation.name,
@@ -1258,6 +1347,8 @@ class DayPlanOrchestrator:
                     city_name=city_name,
                     weather=day_weather,
                     daily_cost_usd=daily_cost if daily_cost > 0 else None,
+                    is_excursion=is_excursion_day,
+                    excursion_name=excursion_dest_name if is_excursion_day else None,
                 )
             )
 
@@ -1267,11 +1358,6 @@ class DayPlanOrchestrator:
             progress=pct_start + 3 * (pct_end - pct_start) // 4,
             data={"city": city_name},
         ))
-
-        # Merge excursion plans with city plans
-        if excursion_plans:
-            city_plans.extend(excursion_plans)
-            city_plans.sort(key=lambda dp: dp.day_number)
 
         await event_queue.put(ProgressEvent(
             phase="city_complete",
@@ -1985,29 +2071,31 @@ class DayPlanOrchestrator:
         self,
         city,
         candidates: list,
-        free_day_count: int,
-        blocked_days: dict,
+        num_days: int,
         request,
         landmarks: list[dict] | None = None,
         city_name: str = "",
         time_constraints: list[dict] | None = None,
     ) -> "AIPlan":
-        """Plan a city's free days using Day Scout -> Day Reviewer -> Day Fixer loop.
+        """Plan a city's days using Day Scout -> Day Reviewer -> Day Fixer loop.
 
-        Processes all free days in a single pass. Cities are already parallelized
-        at the orchestrator level, so no intra-city batching is needed.
+        Processes all days (including excursion days) in a single pass.
+        Cities are already parallelized at the orchestrator level, so no
+        intra-city batching is needed.
 
         Args:
             city: The CityStop being planned.
-            candidates: Pre-vetted PlaceCandidates from Google Places API.
-            free_day_count: Number of non-excursion days to plan.
-            blocked_days: Mapping of day index to excursion CityHighlight.
+            candidates: Pre-vetted PlaceCandidates from Google Places API
+                        (includes excursion-destination candidates tagged
+                        with source_destination).
+            num_days: Total number of days to plan for this city.
             request: The original TripRequest.
             landmarks: Optional top landmarks by visitor reviews.
             city_name: Name of the city being planned.
+            time_constraints: Optional time constraints for arrival/departure days.
 
         Returns:
-            AIPlan with activities for all free days.
+            AIPlan with activities for all days.
         """
         from app.config.planning import (
             map_themes_to_days, MAX_DAY_PLAN_ITERATIONS,
@@ -2016,17 +2104,14 @@ class DayPlanOrchestrator:
         from app.agents.day_planner import _build_meal_time_guidance
         from app.models.internal import AIPlan
 
-        # Pre-map themes to day numbers
+        # Pre-map themes to day numbers (all days, no blocked days)
         theme_map = map_themes_to_days(
             city.experience_themes,
-            free_day_count + len(blocked_days),
+            num_days,
         )
 
-        # Get free day numbers (not blocked by excursions)
-        free_day_nums = sorted(
-            d for d in range(1, free_day_count + len(blocked_days) + 1)
-            if d not in blocked_days
-        )
+        # All day numbers participate in planning
+        all_day_nums = list(range(1, num_days + 1))
 
         meal_guidance = _build_meal_time_guidance(city.country or "")
 
@@ -2038,14 +2123,14 @@ class DayPlanOrchestrator:
                 lines.append(f"- {lm.get('name')} ({lm.get('user_ratings_total', 0):,} reviews)")
             landmarks_section = "\n".join(lines)
 
-        all_themes = {d: theme_map.get(d, []) for d in free_day_nums}
+        all_themes = {d: theme_map.get(d, []) for d in all_day_nums}
 
         logger.info(
             "[DayPlanOrchestrator] Planning days %s in %s",
-            free_day_nums, city_name,
+            all_day_nums, city_name,
         )
 
-        # Day Scout: plan all free days at once
+        # Day Scout: plan all days at once
         try:
             city_plan = await self.day_scout.plan_batch(
                 candidates=candidates,
@@ -2082,7 +2167,7 @@ class DayPlanOrchestrator:
 
             plan_detail = ""
             for i, group in enumerate(city_plan.day_groups):
-                day_num = free_day_nums[i] if i < len(free_day_nums) else i + 1
+                day_num = all_day_nums[i] if i < len(all_day_nums) else i + 1
                 place_names = []
                 for pid in group.place_ids:
                     name = next(
