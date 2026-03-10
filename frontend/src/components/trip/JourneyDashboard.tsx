@@ -258,12 +258,27 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
     <div className="space-y-6">
       {/* Celebration banner */}
       {showCelebration && journey && (
-        <div className="animate-fade-in-up mb-4 rounded-xl bg-gradient-to-r from-primary-600 to-accent-500 p-5 text-white text-center shadow-lg">
-          <p className="text-xl font-display font-bold">Your adventure awaits!</p>
-          <p className="text-sm opacity-90 mt-1">
+        <div className="animate-fade-in-up mb-4 rounded-xl bg-gradient-to-r from-primary-600 to-accent-500 p-5 text-white text-center shadow-lg relative overflow-hidden">
+          {/* Confetti particles */}
+          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-2 h-2 rounded-full"
+                style={{
+                  left: `${5 + (i * 4.7) % 90}%`,
+                  backgroundColor: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8'][i % 6],
+                  animation: `confetti-fall ${2 + (i % 3) * 0.7}s ease-out ${(i % 5) * 0.1}s forwards`,
+                  opacity: 0.8,
+                }}
+              />
+            ))}
+          </div>
+          <p className="text-xl font-display font-bold relative">Your adventure awaits!</p>
+          <p className="text-sm opacity-90 mt-1 relative">
             {journey.cities.length} cities · {journey.total_days} days{journey.review_score ? ` · Quality score ${journey.review_score}/100` : ''}
           </p>
-          <div className="flex items-center justify-center gap-3 mt-3">
+          <div className="flex items-center justify-center gap-3 mt-3 relative">
             <button
               onClick={() => { handleShare(); setShowCelebration(false); }}
               className="text-xs bg-white/20 hover:bg-white/30 rounded-full px-4 py-1.5 transition-colors"
