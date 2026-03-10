@@ -5,6 +5,7 @@ Travel dates: {travel_dates}
 - Interests: {interests}
 - Pace: {pace}
 - Group: {travelers_description}
+- Budget: {budget}
 - Places to include (if any): {must_include}
 - Places to avoid (if any): {avoid}
 
@@ -56,8 +57,22 @@ Travel dates: {travel_dates}
       "accommodation": {{
         "name": "Hotel Granvia Kyoto",
         "why": "Connected to Kyoto Station, perfect base for day trips",
-        "estimated_nightly_usd": 180
-      }}
+        "estimated_nightly_usd": 150,
+        "budget_range_usd": [120, 200],
+        "booking_hint": "Search Booking.com or Agoda for hotels near Kyoto Station, ¥18,000-30,000/night"
+      }},
+      "accommodation_alternatives": [
+        {{
+          "name": "Daiwa Roynet Hotel Kyoto-Shijo Karasuma",
+          "why": "Central Shijo location near Nishiki Market, great value",
+          "estimated_nightly_usd": 130
+        }},
+        {{
+          "name": "The Thousand Kyoto",
+          "why": "Premium hotel with onsen, opposite Kyoto Station",
+          "estimated_nightly_usd": 200
+        }}
+      ]
     }}
   ],
   "travel_legs": [
@@ -110,8 +125,22 @@ Travel dates: {travel_dates}
       "accommodation": {{
         "name": "Real Hotel Name",
         "why": "Location advantage or value reason",
-        "estimated_nightly_usd": 150
-      }}
+        "estimated_nightly_usd": 150,
+        "budget_range_usd": [100, 200],
+        "booking_hint": "Search Booking.com or Agoda for hotels in [area], [local_currency_range]/night"
+      }},
+      "accommodation_alternatives": [
+        {{
+          "name": "Alternative Hotel 1",
+          "why": "Why this is a good alternative",
+          "estimated_nightly_usd": 120
+        }},
+        {{
+          "name": "Alternative Hotel 2",
+          "why": "Why this is a good alternative",
+          "estimated_nightly_usd": 180
+        }}
+      ]
     }}
   ],
   "travel_legs": [
@@ -137,7 +166,7 @@ Travel dates: {travel_dates}
 
 **STRICT RULES:**
 - Total days across all destinations MUST equal {total_days}
-- Each base destination: minimum 2 days, 5-8 experience_themes, 1 accommodation with name + why + estimated_nightly_usd
+- Each base destination: minimum 2 days, 5-8 experience_themes, 1 accommodation with name + why + estimated_nightly_usd + budget_range_usd + booking_hint, plus 2 accommodation_alternatives
 - Destinations commonly visited as day trips from a base MUST be excursion themes, NOT separate cities
 - Allocate days proportionally to attraction density — NOT equal splits
 - Use `experience_themes` ONLY — do NOT output a `highlights` array

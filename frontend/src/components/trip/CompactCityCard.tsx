@@ -1,13 +1,12 @@
 import { useState, Suspense } from 'react';
-import { Star, Sparkles, ChevronDown, Clock, Navigation, Car, Train, Bus, Plane, Ship, Map, X, Loader2, ArrowRightLeft } from 'lucide-react';
+import { Star, Sparkles, ChevronDown, Clock, Navigation, Car, Train, Bus, Plane, Ship, Map, X, ArrowRightLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { DayTimeline } from '@/components/trip/DayTimeline';
 import { DayMap, DayMapLegend } from '@/components/maps';
 import type { CityStop, TravelLeg, DayPlan } from '@/types';
-import { api, photoUrl } from '@/services/api';
-import { showToast } from '@/components/ui/toast';
+import { photoUrl } from '@/services/api';
 
 interface CompactCityCardProps {
   city: CityStop;
@@ -52,8 +51,6 @@ function parseFare(leg: TravelLeg): number {
 export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}, defaultExpanded = false, hideHighlights = false, dailyBudget, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges }: CompactCityCardProps) {
   const [showDayPlans, setShowDayPlans] = useState(defaultExpanded);
   const [mapDayPlan, setMapDayPlan] = useState<DayPlan | null>(null);
-  const [alternatives, setAlternatives] = useState<{ name: string; rating: number | null; price_level: number | null; place_id: string; photo_url: string | null }[]>([]);
-  const [loadingAlts, setLoadingAlts] = useState(false);
   const [showAlts, setShowAlts] = useState(false);
 
   // Complete per-city cost: accommodation + transport + day plan activities
@@ -72,28 +69,6 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
     }
     return cost > 0 ? cost : null;
   })();
-
-  const handleShowAlternatives = async () => {
-    if (alternatives.length > 0) {
-      setShowAlts(!showAlts);
-      return;
-    }
-    if (!city.accommodation?.place_id || !city.location) return;
-    setLoadingAlts(true);
-    try {
-      const alts = await api.getAlternativeHotels(
-        city.accommodation.place_id,
-        city.location.lat,
-        city.location.lng,
-      );
-      setAlternatives(alts);
-      setShowAlts(true);
-    } catch {
-      showToast('Could not load alternative hotels', 'error');
-    } finally {
-      setLoadingAlts(false);
-    }
-  };
 
   const hasDayPlans = dayPlans && dayPlans.length > 0;
 
@@ -183,44 +158,42 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                     {city.accommodation.rating.toFixed(1)}
                   </span>
                 )}
-                {city.accommodation.estimated_nightly_usd && (
+                {city.accommodation.budget_range_usd && city.accommodation.budget_range_usd.length === 2 ? (
+                  <span>${city.accommodation.budget_range_usd[0]}-${city.accommodation.budget_range_usd[1]}/night</span>
+                ) : city.accommodation.estimated_nightly_usd ? (
                   <span>${city.accommodation.estimated_nightly_usd}/night</span>
-                )}
+                ) : null}
               </div>
               {city.accommodation.website && (
                 <a href={city.accommodation.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-0.5 block">
                   Visit website
                 </a>
               )}
+              {city.accommodation.booking_hint && (
+                <p className="text-xs text-text-muted mt-1 italic leading-relaxed">{city.accommodation.booking_hint}</p>
+              )}
             </div>
           </div>
-          {city.accommodation.place_id && city.location && (
-            <div className="mt-1.5 space-y-1.5">
+          {city.accommodation_alternatives && city.accommodation_alternatives.length > 0 && (
+            <div className="mt-1.5">
               <button
                 type="button"
-                onClick={handleShowAlternatives}
-                disabled={loadingAlts}
+                onClick={() => setShowAlts(!showAlts)}
                 className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
               >
-                {loadingAlts ? (
-                  <><Loader2 className="h-3 w-3 animate-spin" />Finding alternatives...</>
-                ) : (
-                  <><ArrowRightLeft className="h-3 w-3" />{showAlts ? 'Hide' : 'Show'} alternative hotels</>
-                )}
+                <ArrowRightLeft className="h-3 w-3" />
+                {showAlts ? 'Hide' : 'Show'} alternative hotels
               </button>
-              {showAlts && alternatives.length > 0 && (
-                <div className="space-y-1">
-                  {alternatives.map((alt) => (
-                    <a
-                      key={alt.place_id}
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(alt.name)}&query_place_id=${alt.place_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted/50 p-2 text-xs hover:border-primary-200 hover:bg-surface-muted transition-colors"
+              {showAlts && (
+                <div className="space-y-1 mt-1.5">
+                  {city.accommodation_alternatives.map((alt, idx) => (
+                    <div
+                      key={alt.place_id || idx}
+                      className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted/50 p-2 text-xs"
                     >
                       {alt.photo_url && (
                         <img
-                          src={`${photoUrl(alt.photo_url)}?w=200`}
+                          src={photoUrl(alt.photo_url)}
                           alt={alt.name}
                           loading="lazy"
                           className="h-8 w-8 rounded object-cover shrink-0"
@@ -234,12 +207,16 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                               <Star className="h-2.5 w-2.5 fill-accent-400 text-accent-400" />{alt.rating.toFixed(1)}
                             </span>
                           )}
-                          {alt.price_level != null && (
-                            <span>{'$'.repeat(Math.max(1, alt.price_level))}</span>
-                          )}
+                          {alt.estimated_nightly_usd && <span>${alt.estimated_nightly_usd}/night</span>}
                         </div>
+                        {alt.why && <p className="text-text-muted mt-0.5 truncate" title={alt.why}>{alt.why}</p>}
                       </div>
-                    </a>
+                      {alt.website && (
+                        <a href={alt.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline shrink-0 text-xs">
+                          Website
+                        </a>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

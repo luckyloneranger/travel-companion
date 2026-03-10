@@ -398,3 +398,18 @@ def map_themes_to_days(
             day_map[d].append(regular_themes[theme_idx])
 
     return day_map
+
+
+# ── Budget fallback ──────────────────────────────────────────────────
+
+_BUDGET_FALLBACK_NIGHTLY: dict[str, int] = {
+    "budget": 50,
+    "moderate": 120,
+    "expensive": 250,
+    "luxury": 400,
+}
+
+
+def get_budget_fallback_nightly(budget: str) -> int:
+    """Return a sensible fallback nightly USD when LLM omits accommodation."""
+    return _BUDGET_FALLBACK_NIGHTLY.get(budget, 120)

@@ -15,6 +15,8 @@ class Accommodation(BaseModel):
     editorial_summary: str | None = None
     price_level: int | None = None
     estimated_nightly_usd: float | None = None
+    budget_range_usd: list[float] | None = None
+    booking_hint: str | None = None
 
 
 class ExperienceTheme(BaseModel):
@@ -63,6 +65,7 @@ class CityStop(BaseModel):
     location: Location | None = None
     place_id: str | None = None
     accommodation: Accommodation | None = None
+    accommodation_alternatives: list[Accommodation] = []
 
     # Rich context from Scout (used by Reviewer and Planner)
     seasonal_notes: str | None = None

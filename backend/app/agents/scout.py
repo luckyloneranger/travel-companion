@@ -43,6 +43,8 @@ class ScoutAgent:
             JourneyPlan with cities and travel legs (not yet enriched with
             real API data).
         """
+        self._budget_tier = request.budget.value if request.budget else "moderate"
+
         transport_guidance = get_transport_guidance(
             origin=request.origin or "",
             region=request.destination,
@@ -65,6 +67,7 @@ class ScoutAgent:
             ),
             pace=request.pace.value,
             travelers_description=request.travelers.summary,
+            budget=request.budget.value if request.budget else "moderate",
             must_include=(
                 ", ".join(request.must_include) if request.must_include else "none"
             ),
@@ -131,10 +134,11 @@ class ScoutAgent:
                     city.name,
                 )
                 from app.models.journey import Accommodation
+                from app.config.planning import get_budget_fallback_nightly
                 city.accommodation = Accommodation(
                     name=f"Central hotel in {city.name}",
                     why="Fallback — LLM did not suggest a specific hotel. Please update manually.",
-                    estimated_nightly_usd=100,
+                    estimated_nightly_usd=get_budget_fallback_nightly(self._budget_tier),
                 )
 
         # Collapse city-state / single-city multi-destination plans into one

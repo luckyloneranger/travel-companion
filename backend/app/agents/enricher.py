@@ -195,6 +195,9 @@ class EnricherAgent:
         for city in plan.cities:
             if city.accommodation and city.accommodation.name:
                 tasks.append(self._enrich_accommodation(city, budget_tier=budget_tier))
+            for alt in city.accommodation_alternatives:
+                if alt.name:
+                    tasks.append(self._enrich_single_accommodation(alt, city))
 
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -255,6 +258,8 @@ class EnricherAgent:
 
                 # Preserve LLM's cost estimate from the Scout agent
                 llm_nightly = city.accommodation.estimated_nightly_usd if city.accommodation else None
+                llm_budget_range = city.accommodation.budget_range_usd if city.accommodation else None
+                llm_booking_hint = city.accommodation.booking_hint if city.accommodation else None
                 llm_why = city.accommodation.why if city.accommodation else ""
                 city.accommodation = Accommodation(
                     name=result.name,
@@ -265,6 +270,8 @@ class EnricherAgent:
                     rating=result.rating,
                     price_level=result.price_level,
                     estimated_nightly_usd=llm_nightly,
+                    budget_range_usd=llm_budget_range,
+                    booking_hint=llm_booking_hint,
                     website=result.website,
                     editorial_summary=result.editorial_summary,
                     photo_url=(
@@ -274,10 +281,10 @@ class EnricherAgent:
                     ),
                 )
                 logger.info(
-                    "[Enricher] Enriched accommodation for %s: %s",
-                    city.name,
-                    result.name,
+                    "[Enricher] Enriched accommodation for %s: %s ($%.0f/night)",
+                    city.name, result.name, llm_nightly or 0,
                 )
+
             else:
                 logger.warning(
                     "[Enricher] No lodging found for %s in %s",
@@ -292,6 +299,30 @@ class EnricherAgent:
                 e,
             )
             # LLM's estimate is already on city.accommodation — nothing to do
+
+    async def _enrich_single_accommodation(self, acc: Accommodation, city: CityStop) -> None:
+        """Enrich a single accommodation alternative with Google Places metadata."""
+        city_location = city.location
+        if not city_location:
+            return
+
+        try:
+            query = f"{acc.name} {city.name}"
+            result = await self.places.search_lodging(query=query, location=city_location)
+            if result and result.rating and result.rating >= 3.0:
+                acc.address = result.address
+                acc.location = result.location
+                acc.place_id = result.place_id
+                acc.rating = result.rating
+                acc.website = result.website
+                acc.editorial_summary = result.editorial_summary
+                acc.photo_url = (
+                    self.places.get_photo_url(result.photo_reference)
+                    if result.photo_reference else None
+                )
+                logger.info("[Enricher] Enriched alternative for %s: %s", city.name, result.name)
+        except Exception as e:
+            logger.warning("[Enricher] Alternative enrichment failed for %s: %s", acc.name, e)
 
     # ── Travel leg enrichment ────────────────────────────────────────────
 
