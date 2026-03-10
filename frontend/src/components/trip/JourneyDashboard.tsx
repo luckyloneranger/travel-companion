@@ -56,18 +56,32 @@ export function JourneyDashboard({ onGenerateDayPlans, onCancelDayPlans, onOpenC
 
   const activeTab = activeTabState;
 
-  // Use the first city's activity photo or accommodation photo as hero
+  // Pick the best hero photo — prefer iconic landmarks over restaurants/hotels
   const heroPhoto = (() => {
+    const iconicCategories = ['tourist_attraction', 'landmark', 'monument', 'castle', 'temple', 'museum', 'observation_deck', 'scenic_spot', 'park', 'garden', 'church', 'historic'];
+    const diningCategories = ['restaurant', 'cafe', 'coffee', 'bar', 'bakery', 'food'];
+
+    let bestIconic: string | null = null;
+    let bestNonDining: string | null = null;
+    let anyPhoto: string | null = null;
+
     for (const city of journey?.cities ?? []) {
       const cityDays = dayPlans?.filter(dp => dp.city_name.toLowerCase() === city.name.toLowerCase());
       for (const dp of cityDays ?? []) {
         for (const act of dp.activities) {
-          if (act.place.photo_urls?.[0]) return act.place.photo_urls[0];
+          if (!act.place.photo_urls?.[0]) continue;
+          const cat = (act.place.category || '').toLowerCase();
+          if (!anyPhoto) anyPhoto = act.place.photo_urls[0];
+          if (!bestIconic && iconicCategories.some(k => cat.includes(k))) {
+            bestIconic = act.place.photo_urls[0];
+          }
+          if (!bestNonDining && !diningCategories.some(k => cat.includes(k))) {
+            bestNonDining = act.place.photo_urls[0];
+          }
         }
       }
-      if (city.accommodation?.photo_url) return city.accommodation.photo_url;
     }
-    return null;
+    return bestIconic || bestNonDining || anyPhoto || null;
   })();
 
   const [fullDayViewDay, setFullDayViewDay] = useState<number | null>(null);
