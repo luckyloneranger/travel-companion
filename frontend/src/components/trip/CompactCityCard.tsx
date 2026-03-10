@@ -7,6 +7,7 @@ import { DayTimeline } from '@/components/trip/DayTimeline';
 import { DayMap, DayMapLegend } from '@/components/maps';
 import type { CityStop, TravelLeg, DayPlan } from '@/types';
 import { photoUrl } from '@/services/api';
+import { parseFareUsd } from '@/lib/utils';
 
 interface CompactCityCardProps {
   city: CityStop;
@@ -119,7 +120,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
             <span key={et.theme} className="text-sm text-text-secondary flex items-center gap-1" title={et.why || undefined}>
               <Badge variant="outline" className="text-xs capitalize">{et.category}</Badge>
               {et.theme}
-              {et.excursion_type && <span className="text-xs text-accent-500 ml-0.5">({et.excursion_type})</span>}
+              {!!et.excursion_type && <span className="text-xs text-accent-500 ml-0.5">({et.excursion_type})</span>}
             </span>
           ))}
         </div>
@@ -150,7 +151,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
               />
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text-primary break-words" title={city.accommodation.why || undefined}>{city.accommodation.name}</p>
+              <p className="text-sm font-medium text-text-primary break-words" title={city.accommodation.why || undefined}>{city.accommodation.name || 'Accommodation'}</p>
               <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
                 {city.accommodation.rating && (
                   <span className="flex items-center gap-0.5">
@@ -162,10 +163,12 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                   <span>${city.accommodation.budget_range_usd[0]}-${city.accommodation.budget_range_usd[1]}/night</span>
                 ) : city.accommodation.estimated_nightly_usd ? (
                   <span>${city.accommodation.estimated_nightly_usd}/night</span>
-                ) : null}
+                ) : (
+                  <span className="text-text-muted">Price unavailable</span>
+                )}
               </div>
               {city.accommodation.website && (
-                <a href={city.accommodation.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-0.5 block">
+                <a href={city.accommodation.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 dark:text-primary-400 hover:underline mt-0.5 block" aria-label={`Visit ${city.accommodation.name || 'Accommodation'} website`}>
                   Visit website
                 </a>
               )}
@@ -180,6 +183,7 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                 type="button"
                 onClick={() => setShowAlts(!showAlts)}
                 className="text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                aria-label="Show alternative hotels"
               >
                 <ArrowRightLeft className="h-3 w-3" />
                 {showAlts ? 'Hide' : 'Show'} alternative hotels
@@ -189,30 +193,30 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                   {city.accommodation_alternatives.map((alt, idx) => (
                     <div
                       key={alt.place_id || idx}
-                      className="flex items-center gap-2 rounded-md border border-border-default bg-surface-muted/50 p-2 text-xs"
+                      className="flex items-center gap-3 rounded-md border border-accent-200 dark:border-accent-500/30 bg-accent-50/30 dark:bg-accent-500/10 p-2.5 text-xs"
                     >
                       {alt.photo_url && (
                         <img
                           src={photoUrl(alt.photo_url)}
                           alt={alt.name}
                           loading="lazy"
-                          className="h-8 w-8 rounded object-cover shrink-0"
+                          className="h-10 w-10 rounded-md object-cover shrink-0"
                         />
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-text-primary truncate">{alt.name}</p>
-                        <div className="flex items-center gap-1.5 text-text-muted">
+                        {alt.why && <p className="text-text-muted mt-0.5 text-xs leading-relaxed truncate">{alt.why}</p>}
+                        <div className="flex items-center gap-1.5 text-text-muted mt-0.5">
                           {alt.rating && (
                             <span className="flex items-center gap-0.5">
-                              <Star className="h-2.5 w-2.5 fill-accent-400 text-accent-400" />{alt.rating.toFixed(1)}
+                              <Star className="h-3 w-3 fill-accent-400 text-accent-400" />{alt.rating.toFixed(1)}
                             </span>
                           )}
                           {alt.estimated_nightly_usd && <span>${alt.estimated_nightly_usd}/night</span>}
                         </div>
-                        {alt.why && <p className="text-text-muted mt-0.5 truncate" title={alt.why}>{alt.why}</p>}
                       </div>
                       {alt.website && (
-                        <a href={alt.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline shrink-0 text-xs">
+                        <a href={alt.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 dark:text-primary-400 hover:underline shrink-0 text-xs" aria-label={`Visit ${alt.name} website`}>
                           Website
                         </a>
                       )}
@@ -261,6 +265,11 @@ export function CompactCityCard({ city, index, departureLeg, dayPlans, tips = {}
                   <span className="flex items-center gap-0.5"><Navigation className="h-3 w-3" />{departureLeg.distance_km.toFixed(0)} km</span>
                 )}
                 {departureLeg.fare && <span>{departureLeg.fare}</span>}
+                {departureLeg.segments && departureLeg.segments.length > 1 && (
+                  <span className="text-xs text-text-muted">
+                    ({departureLeg.segments.length} segments: {departureLeg.segments.map(s => s.mode).join(' → ')})
+                  </span>
+                )}
               </div>
             </div>
           </div>
