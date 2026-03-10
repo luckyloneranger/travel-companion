@@ -113,7 +113,7 @@ export function WizardStepStyle({
   };
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
+    <div className="space-y-8 max-w-lg mx-auto">
       <div className="text-center">
         <h2 className="text-2xl font-display font-bold text-text-primary">
           What's your style?
@@ -126,7 +126,7 @@ export function WizardStepStyle({
       {/* Interests */}
       <div className="space-y-3">
         <h3 className="text-sm font-medium text-text-primary">Interests</h3>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {INTEREST_OPTIONS.map((opt) => {
             const Icon = opt.icon;
             const selected = interests.includes(opt.id);
