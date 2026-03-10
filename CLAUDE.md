@@ -29,7 +29,7 @@ npm run build     # TypeScript check + production build
 npm run lint      # ESLint
 ```
 
-### Tests (Backend only, 235 tests)
+### Tests (Backend only, 241 tests)
 ```bash
 cd backend
 source venv/bin/activate
