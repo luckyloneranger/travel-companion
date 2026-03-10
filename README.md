@@ -40,7 +40,7 @@ Discover places (Google) → AI plans all days (with regional meal guidance + ti
 - **Smart transport selection** — tiered route computation (`ROUTE_COMPUTATION_MODE`): `full` (Google distance matrix + route API), `efficient` (haversine mode selection + route API), `minimal` (haversine only, $0 API cost). Pace-aware walk thresholds (relaxed=25min, packed=15min)
 - **Regional transport guidance** — LLM-driven prompt guidance for inter-city travel, adapted to each region's actual transport norms
 - **Weather integration** — daily forecasts per city, graduated warnings (advisory/warning/severe) for outdoor activities, "suggest indoor alternatives" link when rain ≥50%
-- **Budget tracking** — cost breakdown across accommodation, transport, dining, and activities with confidence badges (Google data vs AI estimate), daily cost progress bars, all costs reflect total for the group
+- **Budget tracking** — cost breakdown across accommodation, transport, dining, and activities with confidence badges (Google data vs AI estimate), daily cost progress bars, visual stacked spending breakdown bar, all costs reflect total for the group
 - **Interactive maps** — journey-level city map + per-day route maps with color-coded transport modes, unified map tab with day selector, "Click to explore" overlay, "What's nearby" Google Maps link
 - **Chat editing** — modify journeys and day plans via natural language with context-aware suggestion chips, contextual chat (tap any activity to pre-fill), visual diff highlighting ("New" badge) after edits
 - **Quick edit actions** — ±15min duration adjustment, activity removal with confirmation, drag-and-drop reorder via @dnd-kit
@@ -48,17 +48,18 @@ Discover places (Google) → AI plans all days (with regional meal guidance + ti
 - **Trip sharing** — shareable links for read-only access with inline day plans, "Go to My Trips" for authenticated viewers
 - **Export** — PDF trip book (cover page, daily spreads with weather, indigo brand styling) and .ics calendar export with toast notifications
 - **Activity tips** — LLM-generated insider tips for each place, shown inline
-- **Dark mode** — full component coverage with system preference detection, theme-aware map InfoWindows
+- **Dark mode** — intentional deep-navy theme (not mechanical inversion), full component coverage with system preference detection, theme-aware map InfoWindows
 - **Session persistence** — refreshing the page restores your current trip, tab state persisted in URL (?tab=cities)
 - **Quality scoring** — 7 context-aware weighted metrics: meal timing (20%), geographic clustering with auto city-scale detection (15%), route efficiency (15%), activity variety (15%), theme alignment (15%), opening hours (10%), duration realism (10%)
 - **Place filtering** — adaptive filters that adjust to result density (wider for sparse results, tighter for dense), filters out closed/low-rated places, excludes lodging types from activity candidates
 - **Accommodation comparison** — view 3 alternative hotels per city with ratings, prices, and Google Maps links
-- **Full-screen day view** — swipeable single-day view with prev/next navigation
+- **Full-screen day view** — swipeable single-day view with prev/next navigation and touch swipe gestures (50px threshold)
 - **Navigation sidebar** — floating action button with city/day tree for quick jump-to-day
 - **Live trip mode** — "Today" view highlighting current activity with Google Maps navigation link
 - **Walking route preview** — estimated step count and calories for walking segments
 - **"Why this place?" tooltips** — hover to see why each activity was selected (rating, theme match, category)
 - **Accessibility** — prefers-reduced-motion, aria-labels, focus rings, focus traps, 44px touch targets, semantic roles
+- **Visual design** — photo-first activity cards (hero banner with gradient overlay), destination hero imagery on dashboard, weather-driven day atmosphere gradients, staggered entry animations, scroll-reveal on city cards, wizard directional slide transitions, confetti celebration on plan completion, shimmer image loading placeholders
 - **PWA** — installable via Add to Home Screen (manifest.json)
 - **Toast notifications** — user feedback for copy, share, export, errors, and destructive action confirmations
 - **LLM output robustness** — accommodation validation with placeholder fallback, fallback geocoding ("{city}, {country}"), reviewer score coercion (string/float), enriched data preservation after chat edits, orphan place ID detection, missing duration/cost logging, excursion `destination_name` for precise geocoding, cross-day duplicate prevention via `already_used` tracking

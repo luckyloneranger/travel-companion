@@ -54,6 +54,10 @@ class TripRequest(BaseModel):
 - Path alias: `@/*` maps to `src/*`
 - @dnd-kit for drag-and-drop activity reordering
 - Design: Inter (body) + Plus Jakarta Sans (display), Indigo primary, Orange accent
+- UX animations: staggered entry, scroll-reveal (IntersectionObserver), wizard slide transitions, shimmer image loaders, confetti celebration, weather-driven day gradients
+- Dark mode: intentional deep navy tones, not mechanical inversion
+- Photo-first activity cards with hero banner layout; destination hero imagery on dashboard
+- Touch: swipe navigation between days in FullDayView
 - PWA: manifest.json for installability, theme-color meta tag
 
 ## Build and Test
