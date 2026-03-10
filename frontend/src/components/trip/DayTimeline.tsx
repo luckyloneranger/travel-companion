@@ -2,7 +2,7 @@ import {
   Clock, Star, MapPin, Navigation, ExternalLink, DollarSign,
   CloudRain, Lightbulb, Cloud, CloudLightning, Snowflake,
   Droplets, Wind, Sun, Coffee, MessageSquare, Minus, Plus, Trash2, HelpCircle,
-  GripVertical, MapPinned,
+  GripVertical, MapPinned, Loader2,
 } from 'lucide-react';
 import {
   DndContext,
@@ -34,6 +34,8 @@ interface DayTimelineProps {
     modified: Set<string>;
     removed: string[];
   } | null;
+  adjustingActivityId?: string | null;
+  removingActivityId?: string | null;
 }
 
 // ── Helper functions ───────────────────────────────────────
@@ -185,6 +187,9 @@ function TimelineActivity({
   dayNumber,
   dayTheme,
   recentChanges,
+  adjustingActivityId,
+  removingActivityId,
+  nextActivityTimeStart,
 }: {
   activity: Activity;
   tip?: string;
@@ -199,6 +204,9 @@ function TimelineActivity({
     modified: Set<string>;
     removed: string[];
   } | null;
+  adjustingActivityId?: string | null;
+  removingActivityId?: string | null;
+  nextActivityTimeStart?: string;
 }) {
   if (activity.duration_minutes === 0) return null;
 
@@ -219,17 +227,20 @@ function TimelineActivity({
         <div className={`rounded-lg border ${isNew ? 'border-green-400 dark:border-green-600 ring-1 ring-green-200 dark:ring-green-800' : 'border-border-default'} bg-surface p-3 space-y-2`}>
           {/* Activity photo */}
           {activity.place.photo_urls && activity.place.photo_urls.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1">
-              {activity.place.photo_urls.slice(0, 3).map((url, i) => (
+            <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 items-center">
+              {activity.place.photo_urls.slice(0, 2).map((url, i) => (
                 <img
                   key={i}
                   src={`${photoUrl(url)}${url.includes('?') ? '&' : '?'}w=400`}
                   alt={`${activity.place.name} photo ${i + 1}`}
                   loading="lazy"
-                  className="h-20 w-28 sm:h-24 sm:w-32 rounded-md object-cover shrink-0"
+                  className="h-16 w-24 max-w-[30vw] sm:h-24 sm:w-32 sm:max-w-none rounded-md object-cover shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               ))}
+              {activity.place.photo_urls.length > 2 && (
+                <span className="text-xs text-text-muted">+{activity.place.photo_urls.length - 2} more</span>
+              )}
             </div>
           )}
 
@@ -268,39 +279,55 @@ function TimelineActivity({
             <div className="flex items-center gap-1.5 shrink-0">
               {/* Quick edit actions */}
               <div className="flex items-center gap-0.5">
-                {onAdjustDuration && (
-                  <>
+                {onAdjustDuration && (() => {
+                  const isAdjusting = adjustingActivityId === activity.id;
+                  const canExtend = !nextActivityTimeStart || (() => {
+                    const [eh, em] = activity.time_end.split(':').map(Number);
+                    const endMin = eh * 60 + em + 15;
+                    const [nh, nm] = nextActivityTimeStart.split(':').map(Number);
+                    const nextMin = nh * 60 + nm;
+                    return endMin <= nextMin;
+                  })();
+                  return (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onAdjustDuration(dayNumber, activity.id, -15); }}
+                        className="text-text-muted hover:text-primary-600 transition-colors p-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Shorten by 15 min"
+                        aria-label="Shorten duration"
+                        disabled={activity.duration_minutes <= 15 || isAdjusting}
+                      >
+                        {isAdjusting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Minus className="h-3 w-3" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onAdjustDuration(dayNumber, activity.id, 15); }}
+                        className="text-text-muted hover:text-primary-600 transition-colors p-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={!canExtend ? 'Would overlap next activity' : 'Extend by 15 min'}
+                        aria-label="Extend duration"
+                        disabled={activity.duration_minutes >= 480 || !canExtend || isAdjusting}
+                      >
+                        {isAdjusting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                      </button>
+                    </>
+                  );
+                })()}
+                {onRemoveActivity && (() => {
+                  const isRemoving = removingActivityId === activity.id;
+                  return (
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); onAdjustDuration(dayNumber, activity.id, -15); }}
-                      className="text-text-muted hover:text-primary-600 transition-colors p-1.5"
-                      title="Shorten by 15 min"
-                      aria-label="Shorten duration"
+                      onClick={(e) => { e.stopPropagation(); onRemoveActivity(dayNumber, activity.id); }}
+                      className="text-text-muted hover:text-red-500 transition-colors p-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Remove activity"
+                      aria-label="Remove activity"
+                      disabled={isRemoving}
                     >
-                      <Minus className="h-3 w-3" />
+                      {isRemoving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                     </button>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onAdjustDuration(dayNumber, activity.id, 15); }}
-                      className="text-text-muted hover:text-primary-600 transition-colors p-1.5"
-                      title="Extend by 15 min"
-                      aria-label="Extend duration"
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
-                  </>
-                )}
-                {onRemoveActivity && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onRemoveActivity(dayNumber, activity.id); }}
-                    className="text-text-muted hover:text-red-500 transition-colors p-1.5"
-                    title="Remove activity"
-                    aria-label="Remove activity"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                )}
+                  );
+                })()}
               </div>
               {isNew && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-medium">
@@ -405,7 +432,7 @@ function TimelineActivity({
 
 // ── Main Component ─────────────────────────────────────────
 
-export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges }: DayTimelineProps) {
+export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAdjustDuration, onReorder, recentChanges, adjustingActivityId, removingActivityId }: DayTimelineProps) {
   // ── Feature 9: Drag-and-drop sensors and handler ──
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -440,7 +467,18 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
 
   if (visibleActivities.length === 0) {
     return (
-      <p className="text-sm text-text-muted text-center py-8">No activities planned for this day.</p>
+      <>
+        {excursionBanner}
+        {dayPlan.is_excursion ? (
+          <p className="text-sm text-text-muted text-center py-8">
+            No activities found for this excursion. Try regenerating day plans.
+          </p>
+        ) : (
+          <p className="text-sm text-text-muted text-center py-8">
+            No activities planned. Generate day plans to fill this day.
+          </p>
+        )}
+      </>
     );
   }
 
@@ -450,6 +488,8 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
       const gap = i > 0
         ? getMinutesBetween(visibleActivities[i - 1].time_end, activity.time_start)
         : 0;
+
+      const nextActivity = visibleActivities[i + 1];
 
       const activityElement = (
         <>
@@ -465,6 +505,9 @@ export function DayTimeline({ dayPlan, tips, onChatAbout, onRemoveActivity, onAd
             dayNumber={dayPlan.day_number}
             dayTheme={dayPlan.theme}
             recentChanges={recentChanges}
+            adjustingActivityId={adjustingActivityId}
+            removingActivityId={removingActivityId}
+            nextActivityTimeStart={nextActivity?.time_start}
           />
         </>
       );

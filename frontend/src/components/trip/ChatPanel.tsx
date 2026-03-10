@@ -71,15 +71,19 @@ export function ChatPanel() {
     try {
       const response = await api.editTrip(tripId, messageToSend, chatContext === 'day_plans' ? 'day_plans' : '');
 
+      const noChanges = !response.updated_journey && !response.updated_day_plans && (!response.changes_made || response.changes_made.length === 0);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: response.reply + (
-          !response.updated_journey && !response.updated_day_plans && (!response.changes_made || response.changes_made.length === 0)
+          noChanges
             ? '\n\n(No changes were applied. Try being more specific.)'
             : ''
         ),
         changes: response.changes_made,
       }]);
+      if (noChanges) {
+        setShowSuggestions(true);
+      }
 
       // Update store with changes
       if (response.updated_journey) {
@@ -98,9 +102,21 @@ export function ChatPanel() {
           .flatMap(dp => dp.activities)
           .filter(a => !newIds.has(a.place.place_id))
           .map(a => a.place.name);
+        // Detect modified activities (same place_id but different time/duration)
         const modified = new Set<string>();
+        const currentDayPlans = dayPlans ?? [];
+        for (const newDp of response.updated_day_plans) {
+          const oldDp = currentDayPlans.find(dp => dp.day_number === newDp.day_number);
+          if (!oldDp) continue;
+          for (const newAct of newDp.activities) {
+            const oldAct = oldDp.activities.find(a => a.place.place_id === newAct.place.place_id);
+            if (oldAct && (oldAct.time_start !== newAct.time_start || oldAct.duration_minutes !== newAct.duration_minutes)) {
+              modified.add(newAct.place.name);
+            }
+          }
+        }
 
-        if (added.size > 0 || removed.length > 0) {
+        if (added.size > 0 || removed.length > 0 || modified.size > 0) {
           setRecentChanges({ added, modified, removed });
           setTimeout(() => setRecentChanges(null), 30000);
         }
@@ -126,7 +142,7 @@ export function ChatPanel() {
 
   return (
     <Sheet open={isChatOpen} onOpenChange={(open) => !open && closeChat()}>
-      <SheetContent className="w-[min(400px,calc(100vw-2rem))] sm:w-[540px] flex flex-col">
+      <SheetContent className="w-[min(400px,calc(100vw-1rem))] sm:w-[540px] flex flex-col">
         <SheetHeader>
           <SheetTitle>
             {chatContext === 'journey' ? 'Edit Journey' : 'Edit Day Plans'}

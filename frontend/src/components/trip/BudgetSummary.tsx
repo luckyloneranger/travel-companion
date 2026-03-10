@@ -1,13 +1,14 @@
 import { DollarSign, TrendingUp, TrendingDown, Utensils, Ticket, Hotel, Car } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { CostBreakdown } from '@/types';
+import type { CostBreakdown, Travelers } from '@/types';
 
 interface BudgetSummaryProps {
   costBreakdown: CostBreakdown;
   totalDays: number;
+  travelers?: Travelers;
 }
 
-export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) {
+export function BudgetSummary({ costBreakdown, totalDays, travelers }: BudgetSummaryProps) {
   if (!costBreakdown || costBreakdown.total_usd <= 0) return null;
 
   const dailyAvg = totalDays > 0 ? costBreakdown.total_usd / totalDays : costBreakdown.total_usd;
@@ -22,10 +23,15 @@ export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) 
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Total */}
           <div className="space-y-0.5">
-            <p className="text-xs text-text-muted">Estimated Total</p>
+            <p className="text-xs text-text-muted">
+              Estimated Total
+              {travelers && (travelers.adults + travelers.children + travelers.infants) > 1 && (
+                <span className="ml-1">(for {travelers.adults + travelers.children + travelers.infants} travelers)</span>
+              )}
+            </p>
             <p className="text-lg font-semibold text-text-primary">${costBreakdown.total_usd.toFixed(0)}</p>
           </div>
 
@@ -42,7 +48,7 @@ export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) 
                 <Hotel className="h-3 w-3" /> Accommodation
               </p>
               <p className="text-lg font-semibold text-text-secondary">${costBreakdown.accommodation_usd.toFixed(0)}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-200">
                 Google data
               </span>
             </div>
@@ -55,7 +61,7 @@ export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) 
                 <Car className="h-3 w-3" /> Transport
               </p>
               <p className="text-lg font-semibold text-text-secondary">${costBreakdown.transport_usd.toFixed(0)}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-200">
                 Google data
               </span>
             </div>
@@ -68,7 +74,7 @@ export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) 
                 <Utensils className="h-3 w-3" /> Dining
               </p>
               <p className="text-lg font-semibold text-text-secondary">${costBreakdown.dining_usd.toFixed(0)}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-200">
                 AI estimate
               </span>
             </div>
@@ -81,7 +87,7 @@ export function BudgetSummary({ costBreakdown, totalDays }: BudgetSummaryProps) 
                 <Ticket className="h-3 w-3" /> Activities
               </p>
               <p className="text-lg font-semibold text-text-secondary">${costBreakdown.activities_usd.toFixed(0)}</p>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-200">
                 AI estimate
               </span>
             </div>

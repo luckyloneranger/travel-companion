@@ -21,6 +21,7 @@ interface WizardStepReviewProps {
   onEditStep: (step: number) => void;
   onSubmit: () => void;
   onBack: () => void;
+  errors?: Record<string, string>;
 }
 
 function ReviewRow({ label, children, stepNumber, onEdit }: {
@@ -62,6 +63,7 @@ export function WizardStepReview({
   onEditStep,
   onSubmit,
   onBack,
+  errors = {},
 }: WizardStepReviewProps) {
   const formatDate = (dateStr: string) => {
     try {
@@ -161,6 +163,14 @@ export function WizardStepReview({
           Plan My Trip
         </Button>
       </div>
+
+      {Object.keys(errors).length > 0 && (
+        <div className="space-y-1">
+          {Object.values(errors).map((err) => (
+            <p key={err} className="text-sm text-red-500 mt-1">{err}</p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
