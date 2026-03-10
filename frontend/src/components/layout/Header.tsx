@@ -58,7 +58,7 @@ export function Header() {
   return (
     <header className="border-b border-border-default bg-surface px-4 sm:px-6 py-3 sm:py-4">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 overflow-hidden">
           <button
             type="button"
             onClick={handleGoHome}
@@ -67,7 +67,9 @@ export function Header() {
           >
             <Compass className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600 shrink-0" />
             <h1 className="text-lg sm:text-xl font-display font-bold text-text-primary truncate">
-              Regular Everyday Traveller
+              <span className="hidden sm:inline">Regular Everyday </span>
+              <span className="sm:hidden">RET </span>
+              Traveller
               {showTripContext && (
                 <span className="text-text-muted font-normal text-sm sm:text-base">
                   {' · '}{journey.theme}

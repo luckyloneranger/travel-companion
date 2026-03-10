@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { JourneyPlan, DayPlan, TripSummary, CostBreakdown, Travelers } from '@/types';
 import { api, type TipsResponse } from '@/services/api';
+import { showToast } from '@/components/ui/toast';
 
 function isAuthError(e: unknown): boolean {
   return e instanceof Error && e.message === '__auth_required__';
@@ -135,6 +136,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       set({ tripsLoading: false });
       if (isAuthError(e)) return;
       console.error('Failed to load trips:', e);
+      showToast('Failed to load trips. Please try again.', 'error');
       const { useUIStore } = await import('./uiStore');
       useUIStore.getState().setError('Failed to load saved trips. Please try again.');
     }

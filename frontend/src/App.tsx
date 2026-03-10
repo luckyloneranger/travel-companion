@@ -51,17 +51,33 @@ function TripLoader() {
       <div className="text-center py-16 space-y-4">
         <p className="text-lg font-display font-semibold text-text-primary">Trip not found</p>
         <p className="text-sm text-text-muted">This trip doesn't exist or you don't have access to it.</p>
-        <button
-          type="button"
-          onClick={() => {
-            useUIStore.getState().resetUI();
-            useTripStore.getState().reset();
-            navigate('/');
-          }}
-          className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
-        >
-          Go back to home
-        </button>
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setLoadError(false);
+              useTripStore.getState().loadTrip(id!).then(() => {
+                useUIStore.getState().setPhase('preview');
+              }).catch(() => {
+                setLoadError(true);
+              });
+            }}
+            className="px-4 py-2 text-sm font-medium bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              useUIStore.getState().resetUI();
+              useTripStore.getState().reset();
+              navigate('/');
+            }}
+            className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+          >
+            Go back to home
+          </button>
+        </div>
       </div>
     );
   }
