@@ -494,109 +494,6 @@ class TestExcursionBlocking:
         assert len(result) == 1
         assert result[0].excursion_days == 2
 
-    def test_build_excursion_day_plan(self):
-        from app.models.journey import CityHighlight
-        excursion = CityHighlight(
-            name="Ha Long Bay Cruise", category="adventure",
-            description="Overnight cruise through limestone karsts",
-            excursion_type="multi_day", excursion_days=2,
-        )
-        plan = DayPlanOrchestrator._build_excursion_day_plan(
-            excursion=excursion,
-            date_str="2026-06-20",
-            day_number=3,
-            city_name="Hanoi",
-            day_label="Day 1 of 2",
-        )
-        assert plan.is_excursion is True
-        assert "Ha Long Bay Cruise" in plan.excursion_name
-        assert "Day 1 of 2" in plan.excursion_name
-        assert plan.city_name == "Hanoi"
-        assert plan.day_number == 3
-        assert plan.date == "2026-06-20"
-        assert plan.theme == "Ha Long Bay Cruise"
-        assert len(plan.activities) == 1
-        assert plan.activities[0].place.name == "Ha Long Bay Cruise"
-        assert "Overnight cruise through limestone karsts" in plan.activities[0].notes
-        assert "explore at your own pace" in plan.activities[0].notes
-
-    def test_compute_schedule_multi_day_at_end(self):
-        from app.models.journey import CityHighlight
-        excursions = [
-            CityHighlight(name="Ha Long Bay", excursion_type="multi_day", excursion_days=2),
-        ]
-        blocked, partial = DayPlanOrchestrator._compute_excursion_schedule(excursions, 4)
-        assert sorted(blocked.keys()) == [2, 3]  # last 2 days
-        assert len(partial) == 0
-
-    def test_compute_schedule_full_day(self):
-        from app.models.journey import CityHighlight
-        excursions = [
-            CityHighlight(name="Disney", excursion_type="full_day"),
-        ]
-        blocked, partial = DayPlanOrchestrator._compute_excursion_schedule(excursions, 3)
-        assert 2 in blocked  # last day
-        assert len(partial) == 0
-
-    def test_compute_schedule_mixed(self):
-        from app.models.journey import CityHighlight
-        excursions = [
-            CityHighlight(name="Ha Long Bay", excursion_type="multi_day", excursion_days=2),
-            CityHighlight(name="Cooking Class", excursion_type="half_day_morning"),
-        ]
-        blocked, partial = DayPlanOrchestrator._compute_excursion_schedule(excursions, 5)
-        assert len(blocked) == 2  # multi-day takes last 2
-        assert len(partial) == 1  # half-day on earliest free day
-
-    def test_compute_schedule_no_excursions(self):
-        blocked, partial = DayPlanOrchestrator._compute_excursion_schedule([], 3)
-        assert blocked == {}
-        assert partial == {}
-
-    @pytest.mark.asyncio
-    async def test_plan_excursion_days_geocode_failure_fallback(self):
-        """When geocoding fails, _plan_excursion_days falls back to placeholder DayPlan."""
-        from app.models.journey import CityHighlight
-
-        excursion = CityHighlight(
-            name="Universal Studios",
-            category="entertainment",
-            description="Theme park adventure",
-            excursion_type="full_day",
-        )
-        city = CityStop(name="Singapore", country="Singapore", days=3)
-
-        request = MagicMock()
-        request.start_date = date(2026, 4, 10)
-        request.interests = ["entertainment"]
-        request.pace = Pace.MODERATE
-
-        # Build a mock orchestrator with geocode that raises ValueError
-        orch = MagicMock(spec=DayPlanOrchestrator)
-        orch.places = MagicMock()
-        orch.places.geocode = AsyncMock(side_effect=ValueError("No results"))
-
-        # Bind the real methods so the fallback path works
-        orch._build_excursion_day_plan = DayPlanOrchestrator._build_excursion_day_plan
-        orch._plan_single_excursion = lambda *a, **kw: DayPlanOrchestrator._plan_single_excursion(orch, *a, **kw)
-
-        # excursions_by_day: day_index 2 -> full_day excursion
-        excursions_by_day = {2: excursion}
-
-        result = await DayPlanOrchestrator._plan_excursion_days(
-            orch, excursions_by_day, city, request, day_offset=0,
-        )
-
-        assert len(result) == 1
-        plan = result[0]
-        assert plan.is_excursion is True
-        assert "Universal Studios" in plan.excursion_name
-        assert plan.city_name == "Singapore"
-        assert plan.day_number == 3  # day_offset(0) + day_idx(2) + 1
-        assert plan.date == "2026-04-12"  # start_date + 2 days
-        assert len(plan.activities) == 1
-        assert plan.activities[0].place.name == "Universal Studios"
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # destination_name propagation & LODGING_TYPES
@@ -999,3 +896,21 @@ class TestHaversineModeSelection:
         from app.config.planning import ROUTE_COMPUTATION_MODE
         assert isinstance(ROUTE_COMPUTATION_MODE, str)
         assert ROUTE_COMPUTATION_MODE in ("full", "efficient", "minimal")
+
+
+class TestPlaceCandidateSourceDestination:
+    def test_source_destination_default_none(self):
+        from app.models.internal import PlaceCandidate
+        from app.models.common import Location
+        pc = PlaceCandidate(place_id="p1", name="Test", address="Addr", location=Location(lat=0, lng=0))
+        assert pc.source_destination is None
+
+    def test_source_destination_set(self):
+        from app.models.internal import PlaceCandidate
+        from app.models.common import Location
+        pc = PlaceCandidate(
+            place_id="p1", name="Toshogu Shrine", address="Nikko",
+            location=Location(lat=36.7, lng=139.6),
+            source_destination="Nikko",
+        )
+        assert pc.source_destination == "Nikko"

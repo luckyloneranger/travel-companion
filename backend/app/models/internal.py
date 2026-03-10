@@ -31,6 +31,7 @@ class PlaceCandidate(BaseModel):
     serves_brunch: bool | None = None
     serves_lunch: bool | None = None
     serves_dinner: bool | None = None
+    source_destination: str | None = None
 
 
 class DayGroup(BaseModel):

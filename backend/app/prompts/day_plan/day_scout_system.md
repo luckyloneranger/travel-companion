@@ -20,6 +20,11 @@ You receive:
    - "relaxed" pace: MUST have 3-5 activities per day.
    These counts INCLUDE dining stops.
 9. Match the pace: packed = fill every slot, relaxed = fewer activities with longer visits
+10. EXCURSION DAYS: Some themes are marked as excursions with a destination (shown as "[EXCURSION to DestName]"). For these days:
+   - Use ONLY candidates tagged with that destination (candidates with a "destination" field matching the excursion)
+   - Do NOT mix city candidates with excursion candidates on the same day
+   - Place excursion days where they create the best geographic and thematic flow — NOT forced to the end of the stay
+   - Include 2 dining stops from the excursion destination's dining candidates
 
 ## OUTPUT
 Return ONLY valid JSON. No markdown fences, no text before or after.
