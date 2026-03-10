@@ -64,7 +64,7 @@ cd backend && source venv/bin/activate
 pip install -r requirements.txt
 alembic upgrade head             # Run database migrations
 uvicorn app.main:app --reload --port 8000
-pytest -v                        # Run all 241 tests (requires Docker)
+pytest -v                        # Run all 244 tests (requires Docker)
 pytest -k "test_health"          # Run specific tests
 
 # Frontend
