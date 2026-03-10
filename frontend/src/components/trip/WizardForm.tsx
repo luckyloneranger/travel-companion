@@ -190,10 +190,26 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
 
   return (
     <div className="space-y-8">
-      {/* Tagline */}
-      <div className="text-center">
-        <p className="text-sm text-text-muted">
-          AI plans your perfect multi-city trip in minutes
+      {/* Hero section */}
+      <div className="text-center relative">
+        {/* Decorative globe */}
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-[0.04] dark:opacity-[0.06] pointer-events-none" aria-hidden="true">
+          <svg width="280" height="280" viewBox="0 0 200 200" fill="none">
+            <circle cx="100" cy="100" r="90" stroke="currentColor" strokeWidth="0.5" />
+            <ellipse cx="100" cy="100" rx="60" ry="90" stroke="currentColor" strokeWidth="0.5" />
+            <ellipse cx="100" cy="100" rx="30" ry="90" stroke="currentColor" strokeWidth="0.5" />
+            <line x1="10" y1="60" x2="190" y2="60" stroke="currentColor" strokeWidth="0.5" />
+            <line x1="10" y1="100" x2="190" y2="100" stroke="currentColor" strokeWidth="0.5" />
+            <line x1="10" y1="140" x2="190" y2="140" stroke="currentColor" strokeWidth="0.5" />
+          </svg>
+        </div>
+        <h2 className="text-3xl sm:text-4xl font-display font-extrabold tracking-tight relative">
+          <span className="bg-gradient-to-r from-primary-700 via-primary-500 to-accent-500 dark:from-primary-400 dark:via-primary-300 dark:to-accent-400 bg-clip-text text-transparent">
+            Plan your next adventure
+          </span>
+        </h2>
+        <p className="text-base text-text-secondary mt-2 max-w-md mx-auto relative">
+          AI-powered multi-city itineraries with real-time weather, smart scheduling, and local insights
         </p>
       </div>
 
@@ -292,10 +308,10 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
             Recent Trips
           </h2>
           <div className="space-y-2">
-            {savedTrips.map((trip) => (
+            {savedTrips.map((trip, idx) => (
               <Card
                 key={trip.id}
-                className="cursor-pointer transition-colors hover:border-primary-300 hover:bg-surface-muted/50 focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:rounded-lg"
+                className={`cursor-pointer transition-all hover:border-primary-300 hover:bg-surface-muted/50 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:rounded-lg animate-stagger-in stagger-${Math.min(idx + 1, 8)}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => handleLoadTrip(trip)}
@@ -351,16 +367,32 @@ export function WizardForm({ onSubmit, isLoading = false }: WizardFormProps) {
           </div>
         </div>
       ) : user ? (
-        <div className="text-center py-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-50 dark:bg-primary-500/10 mb-3">
-            <Compass className="h-8 w-8 text-primary-400" />
+        <div className="text-center py-10 animate-fade-in-up">
+          <div className="relative inline-flex items-center justify-center w-20 h-20 mb-4">
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary-100 to-accent-100 dark:from-primary-500/15 dark:to-accent-500/15 animate-pulse" style={{ animationDuration: '3s' }} />
+            <Compass className="h-10 w-10 text-primary-500 relative" />
           </div>
-          <p className="text-base font-semibold text-text-primary mb-1">Your travel story starts here</p>
-          <p className="text-sm text-text-muted mb-4">Plan your first adventure using the form above</p>
-          <div className="flex items-center justify-center gap-4 text-xs text-text-muted">
-            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> Multi-city routes</span>
-            <span className="flex items-center gap-1"><Sun className="h-3 w-3" /> Weather-aware</span>
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Smart scheduling</span>
+          <p className="text-lg font-display font-bold text-text-primary mb-1">Your travel story starts here</p>
+          <p className="text-sm text-text-muted mb-6 max-w-xs mx-auto">Tell us where you want to go and we'll craft a detailed day-by-day itinerary</p>
+          <div className="flex items-center justify-center gap-6 text-xs text-text-muted">
+            <span className="flex flex-col items-center gap-1.5">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-50 dark:bg-primary-500/10">
+                <MapPin className="h-4 w-4 text-primary-500" />
+              </span>
+              Multi-city routes
+            </span>
+            <span className="flex flex-col items-center gap-1.5">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-accent-50 dark:bg-accent-500/10">
+                <Sun className="h-4 w-4 text-accent-500" />
+              </span>
+              Weather-aware
+            </span>
+            <span className="flex flex-col items-center gap-1.5">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 dark:bg-green-500/10">
+                <Clock className="h-4 w-4 text-green-500" />
+              </span>
+              Smart scheduling
+            </span>
           </div>
         </div>
       ) : null}

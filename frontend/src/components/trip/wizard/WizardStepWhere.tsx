@@ -55,7 +55,7 @@ export function WizardStepWhere({
           Where do you want to go?
         </h2>
         <p className="text-sm text-text-muted mt-1">
-          Enter a city, country, or region
+          A city, country, or entire region — we'll handle the rest
         </p>
       </div>
 
@@ -70,7 +70,7 @@ export function WizardStepWhere({
             placeholder="e.g. Japan, Paris, Southeast Asia"
             value={destination}
             onChange={(e) => onDestinationChange(e.target.value)}
-            className="text-base h-12"
+            className="text-base h-12 shadow-sm"
             autoFocus
           />
         </div>
@@ -110,9 +110,9 @@ export function WizardStepWhere({
       <Button
         onClick={onNext}
         disabled={!destination.trim()}
-        className="w-full h-11 bg-primary-600 hover:bg-primary-700 text-white"
+        className="w-full h-12 bg-primary-600 hover:bg-primary-700 text-white text-base font-semibold shadow-sm"
       >
-        Next
+        Continue
       </Button>
       {!destination && (
         <p className="text-xs text-text-muted mt-1">Enter a destination to continue</p>
