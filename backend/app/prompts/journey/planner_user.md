@@ -32,7 +32,7 @@ Fix this journey plan based on the review feedback:
 3. Verify total days still equal {total_days}
 4. Write a reasoning entry for each issue explaining your fix
 5. Output the complete revised plan
-6. When fixing TIME FEASIBILITY: reduce days in overcrowded cities, or convert far destinations to excursions
+6. When fixing TIME FEASIBILITY: reduce days in overcrowded cities, or convert far destinations to excursions. If excursion overload is flagged, remove the least iconic excursion and mention it in `why_visit` instead.
 7. When fixing BUDGET issues: suggest cheaper accommodation or remove expensive excursions
 8. Preserve seasonal_notes, visa_notes, altitude_meters, safety_notes from the original plan
 9. When fixing INTEREST ALIGNMENT: check if major experience categories from the landscape data are missing from experience_themes and add appropriate themes

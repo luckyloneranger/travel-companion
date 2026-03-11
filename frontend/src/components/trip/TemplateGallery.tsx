@@ -46,7 +46,7 @@ const TEMPLATES: TripTemplate[] = [
       destination: 'Southeast Asia',
       total_days: 14,
       interests: ['adventure', 'food', 'nature'],
-      pace: 'packed',
+      pace: 'moderate',
       budget: 'budget',
       travelers: { adults: 3, children: 0, infants: 0 },
     },

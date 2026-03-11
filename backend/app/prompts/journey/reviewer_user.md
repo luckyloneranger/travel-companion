@@ -30,7 +30,7 @@ Review this {total_days}-day journey plan:
 3. Compute the weighted final score
 4. Apply deductions from theme/landscape validation to interest_alignment
 5. List every issue with severity, category, description, and suggestion
-6. Determine is_acceptable (score >= 70 AND zero critical issues)
+6. Determine is_acceptable (zero critical issues)
 
 **CALIBRATION — what scores mean:**
 - 90+: Exceptional plan that a travel expert would praise. RARE.

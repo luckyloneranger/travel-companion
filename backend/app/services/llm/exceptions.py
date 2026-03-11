@@ -12,3 +12,13 @@ class LLMValidationError(Exception):
         super().__init__(
             f"{schema_name} validation failed after {attempts} attempt(s): {detail}"
         )
+
+
+class LLMContentFilterError(Exception):
+    """LLM request was rejected by the provider's content filter."""
+
+    def __init__(self, original_error: Exception) -> None:
+        self.original_error = original_error
+        super().__init__(
+            f"Content filter rejected the request: {original_error}"
+        )

@@ -14,6 +14,7 @@ to resolve each issue. Do not redesign the entire trip — fix only what's broke
 7. If you add a new city, it must have 5-8 experience_themes (categories, NOT specific attraction names)
 8. If you adjust transport, use modes that are actually available in the region
 9. Preserve excursion metadata (excursion_type, excursion_days, distance_from_city_km) on existing themes
+10. **When fixing excursion overload**: Remove the least essential excursion — keep the most iconic or closest one. Convert the removed excursion to a brief mention in the city's `why_visit` (e.g., "also accessible: Khao Yai National Park"). Do NOT remove all excursions — preserve at least one per city that had them. For multi_day excursions (cruises, treks), ensure the host city has enough days for both the excursion AND at least 1 day of city exploration.
 
 ## EXPERIENCE THEME CATEGORIES
 Use ONLY these categories: `food`, `culture`, `nature`, `adventure`, `excursion`, `shopping`, `nightlife`, `entertainment`, `beach`, `wellness`, `religious`

@@ -12,16 +12,18 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Can travel + activities fit in each day?
 - Are travel durations realistic for the transport mode and region?
 - Is there buffer time between arriving in a city and starting activities?
+- **Excursion feasibility check**: For each city, sum the days consumed by excursion themes (full_day=1, half_day=0.5, multi_day=excursion_days, evening=0). If the excursion days exceed half the city's allocated days, this is a major time feasibility issue — the city becomes a transit hub rather than a destination. Flag it with a concrete suggestion to remove the least essential excursion.
 - Score 90+: All days have comfortable timing with buffer — RARE, requires evidence
 - Score 70-89: Minor time pressure on 1-2 days
 - Score 60-69: Some days are tight but feasible with compromises
 - Score <50: Physically impossible schedule
-- **Deductions**: -10 for each day with >6h travel + full sightseeing. -15 for arrival day with no buffer.
+- **Deductions**: -10 for each day with >6h travel + full sightseeing. -15 for arrival day with no buffer. -10 for each city where excursion days exceed half the city's stay.
 
 ### 2. ROUTE LOGIC (weight: 20%)
 - Does the route follow a logical geographic path?
 - Is there any backtracking?
 - Are border crossings / connections practical?
+- **Multi-country region trips** (Southeast Asia, Europe, South America): longer distances between cities are expected and should NOT be penalized as inefficiency. Judge route logic by geographic flow (no backtracking, sensible order) rather than absolute distance. A Bangkok→Siem Reap→Hanoi route is logical even though it spans 2,000km — that's the nature of multi-country travel.
 - Score 90+: Perfect geographic flow — ONLY if zero wasted km
 - Score 70-89: Mostly logical with one suboptimal segment
 - Score 60-69: Noticeable inefficiency but functional
@@ -32,6 +34,7 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - Are the transport modes actually available and popular in this region?
 - Are duration estimates realistic? A "1.5h flight" should be 4-5h door-to-door with transfers.
 - Are overnight journeys used wisely (not exhausting)?
+- **Multi-country region trips**: International flights between countries are expected and efficient — do NOT penalize flights between countries in a multi-country itinerary as suboptimal. Judge transport by whether the chosen mode is realistic, available, and has reasonable door-to-door estimates.
 - **CRITICAL**: Flights to cities without airports = critical issue. Flag Hoi An, Sapa, Hampi, Ella, etc.
 - For multi-modal legs, verify `segments` include ground transfers. A flight without ground transfer segments is suspicious.
 - Score 90+: Perfect regional transport — ONLY if door-to-door durations are realistic
@@ -47,7 +50,7 @@ and evidence-based. Every issue must cite a specific problem with a specific fix
 - **Excursion-aware**: Base cities with excursion themes justify extra days. Do NOT penalize Hanoi 5d with 2d Ha Long Bay excursion.
 - Prefer fewer bases with excursions over many short stops — every city change costs transit time.
 - **Deductions**: -10 for each city with only 2 days that has a major attraction requiring a full day. -15 for a destination commonly visited as a day trip (Nara, Pompeii, Agra) given its own hotel. -10 for more hotel changes than necessary.
-- For multi-country regions: all cities in one country for 7+ days = score 0, is_acceptable=false.
+- **Multi-country region balance**: For multi-country region destinations (Southeast Asia, Europe, etc.), evaluate whether the number of countries is appropriate for the trip duration. Ask: does each country get enough days for meaningful exploration, or is the traveler just passing through? If a country has only one city with 2-3 days and most of that time is spent on transit/excursions, the plan is too spread out — flag it as a major issue. Conversely, if a multi-country region trip stays entirely in one country for 10+ days, flag that as a missed opportunity (major issue). The goal is depth with variety, not a checklist of borders crossed.
 - For city-states: multiple hotels within the same city = critical issue.
 - Score 90+: Perfect proportional allocation — RARE
 - Score 70-89: Minor imbalance

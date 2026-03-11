@@ -7,7 +7,7 @@ import openai
 from pydantic import BaseModel, ValidationError
 
 from .base import LLMService
-from .exceptions import LLMValidationError
+from .exceptions import LLMValidationError, LLMContentFilterError
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,19 @@ _API_RETRY_BASE_DELAY = 2.0
 def _sanitize_content(text: str) -> str:
     """Remove null characters that corrupt non-ASCII text from LLM output."""
     return text.replace("\x00", "")
+
+
+def _is_content_filter_error(error: openai.OpenAIError) -> bool:
+    """Check if an OpenAI error is a content filter rejection."""
+    if isinstance(error, openai.BadRequestError):
+        error_body = getattr(error, "body", None)
+        if isinstance(error_body, dict):
+            error_detail = error_body.get("error", {})
+            code = error_detail.get("code", "")
+            inner = error_detail.get("innererror", {})
+            inner_code = inner.get("code", "") if isinstance(inner, dict) else ""
+            return code == "content_filter" or inner_code == "ResponsibleAIPolicyViolation"
+    return False
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -85,6 +98,9 @@ class AzureOpenAILLMService(LLMService):
                 logger.error("Azure OpenAI generate failed after %d attempts: %s", _API_MAX_RETRIES + 1, e)
                 raise
             except openai.OpenAIError as e:
+                if _is_content_filter_error(e):
+                    logger.warning("Azure content filter rejected request: %s", e)
+                    raise LLMContentFilterError(e) from e
                 logger.error("Azure OpenAI generate failed: %s", e)
                 raise
         raise RuntimeError("Unreachable")
@@ -138,6 +154,9 @@ class AzureOpenAILLMService(LLMService):
                 )
                 continue
             except openai.OpenAIError as e:
+                if _is_content_filter_error(e):
+                    logger.warning("Azure content filter rejected structured request: %s", e)
+                    raise LLMContentFilterError(e) from e
                 logger.error("Azure OpenAI generate_structured failed: %s", e)
                 raise
 

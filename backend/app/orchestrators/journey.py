@@ -20,6 +20,7 @@ from app.services.google.directions import GoogleDirectionsService
 from app.services.google.places import GooglePlacesService
 from app.services.google.routes import GoogleRoutesService
 from app.services.llm.base import LLMService
+from app.services.llm.exceptions import LLMContentFilterError
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +198,14 @@ class JourneyOrchestrator:
                     review.score,
                     iteration,
                 )
-                plan = await self.planner.fix_plan(plan, review, request, landmarks_context=self._landmarks_context, must_see_context=self._must_see_context)
+                try:
+                    plan = await self.planner.fix_plan(plan, review, request, landmarks_context=self._landmarks_context, must_see_context=self._must_see_context)
+                except LLMContentFilterError:
+                    logger.warning(
+                        "[Orchestrator] Content filter blocked Planner (iteration %d) — using best plan so far (score %d)",
+                        iteration, best_score,
+                    )
+                    break
                 iteration += 1
 
             # Use the best plan seen across all iterations

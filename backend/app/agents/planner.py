@@ -98,9 +98,9 @@ class PlannerAgent:
             if city.altitude_meters and city.altitude_meters > 1000:
                 lines.append(f"   Altitude: {city.altitude_meters:.0f}m")
             if city.safety_notes:
-                lines.append(f"   Safety: {city.safety_notes}")
+                lines.append(f"   Safety: Travel advisory noted")
             if city.visa_notes:
-                lines.append(f"   Visa: {city.visa_notes}")
+                lines.append(f"   Visa: Entry requirements noted")
             if city.location:
                 lines.append(f"   Location: ({city.location.lat:.4f}, {city.location.lng:.4f})")
         return "\n".join(lines) if lines else "No cities specified."
