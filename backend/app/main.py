@@ -1,7 +1,12 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 from pathlib import Path
+
+# Some LLM providers (Gemini) occasionally output very large integers in JSON.
+# Raise Python's default int-string conversion limit to avoid ValueError at parse time.
+sys.set_int_max_str_digits(100000)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
