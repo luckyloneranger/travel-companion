@@ -914,3 +914,167 @@ class TestPlaceCandidateSourceDestination:
             source_destination="Nikko",
         )
         assert pc.source_destination == "Nikko"
+
+
+class TestGeographicContext:
+    """Geographic context building for Scout anti-backtracking."""
+
+    def _make_orchestrator(self):
+        from app.orchestrators.journey import JourneyOrchestrator
+        llm = MagicMock()
+        places = MagicMock()
+        routes = MagicMock()
+        directions = MagicMock()
+        return JourneyOrchestrator(llm, places, routes, directions)
+
+    @pytest.mark.asyncio
+    async def test_build_geographic_context_basic(self):
+        """Geographic context should show distances and flow."""
+        from app.models.journey import MustSeeAttraction, MustSeeAttractions
+
+        orch = self._make_orchestrator()
+
+        must_see = MustSeeAttractions(attractions=[
+            MustSeeAttraction(name="Grand Palace", city_or_region="Bangkok", why_iconic="Royal palace"),
+            MustSeeAttraction(name="Angkor Wat", city_or_region="Siem Reap", why_iconic="Temple complex"),
+            MustSeeAttraction(name="Ha Long Bay", city_or_region="Hanoi", why_iconic="Limestone karsts"),
+        ])
+
+        async def mock_geocode(city):
+            coords = {
+                "Chiang Mai": {"lat": 18.79, "lng": 98.98, "name": "Chiang Mai"},
+                "Bangkok": {"lat": 13.76, "lng": 100.50, "name": "Bangkok"},
+                "Siem Reap": {"lat": 13.36, "lng": 103.86, "name": "Siem Reap"},
+                "Hanoi": {"lat": 21.03, "lng": 105.85, "name": "Hanoi"},
+            }
+            if city in coords:
+                return coords[city]
+            raise ValueError(f"No geocode for {city}")
+
+        orch.places.geocode = AsyncMock(side_effect=mock_geocode)
+
+        context = await orch._build_geographic_context(must_see, "Chiang Mai")
+        assert "GEOGRAPHIC CONTEXT" in context
+        assert "Chiang Mai" in context
+        assert "Bangkok" in context
+        assert "km" in context
+        assert "backtracking" in context.lower()
+
+    @pytest.mark.asyncio
+    async def test_geographic_context_empty_for_single_city(self):
+        """Single-city destinations should return empty context."""
+        from app.models.journey import MustSeeAttraction, MustSeeAttractions
+
+        orch = self._make_orchestrator()
+
+        must_see = MustSeeAttractions(attractions=[
+            MustSeeAttraction(name="Marina Bay Sands", city_or_region="Singapore", why_iconic="Iconic hotel"),
+            MustSeeAttraction(name="Gardens by the Bay", city_or_region="Singapore", why_iconic="Nature park"),
+            MustSeeAttraction(name="Merlion", city_or_region="Singapore", why_iconic="Symbol"),
+        ])
+
+        # Only 1 unique city + origin (same city) = 1 unique. Needs >= 3.
+        context = await orch._build_geographic_context(must_see, "Singapore")
+        assert context == ""
+
+    @pytest.mark.asyncio
+    async def test_geographic_context_handles_geocode_failures(self):
+        """Should gracefully degrade when geocode fails for all cities."""
+        from app.models.journey import MustSeeAttraction, MustSeeAttractions
+
+        orch = self._make_orchestrator()
+
+        must_see = MustSeeAttractions(attractions=[
+            MustSeeAttraction(name="Place A", city_or_region="CityA", why_iconic="Reason"),
+            MustSeeAttraction(name="Place B", city_or_region="CityB", why_iconic="Reason"),
+            MustSeeAttraction(name="Place C", city_or_region="CityC", why_iconic="Reason"),
+        ])
+
+        orch.places.geocode = AsyncMock(side_effect=ValueError("No results"))
+
+        context = await orch._build_geographic_context(must_see, "Origin")
+        assert context == ""
+
+    @pytest.mark.asyncio
+    async def test_geographic_context_deduplicates_cities(self):
+        """Multiple attractions in same city should only geocode once."""
+        from app.models.journey import MustSeeAttraction, MustSeeAttractions
+
+        orch = self._make_orchestrator()
+
+        must_see = MustSeeAttractions(attractions=[
+            MustSeeAttraction(name="Grand Palace", city_or_region="Bangkok", why_iconic="Royal palace"),
+            MustSeeAttraction(name="Wat Pho", city_or_region="Bangkok", why_iconic="Reclining Buddha"),
+            MustSeeAttraction(name="Angkor Wat", city_or_region="Siem Reap", why_iconic="Temple complex"),
+            MustSeeAttraction(name="Ha Long Bay", city_or_region="Hanoi", why_iconic="Limestone karsts"),
+        ])
+
+        call_count = 0
+
+        async def mock_geocode(city):
+            nonlocal call_count
+            call_count += 1
+            coords = {
+                "Tokyo": {"lat": 35.68, "lng": 139.69, "name": "Tokyo"},
+                "Bangkok": {"lat": 13.76, "lng": 100.50, "name": "Bangkok"},
+                "Siem Reap": {"lat": 13.36, "lng": 103.86, "name": "Siem Reap"},
+                "Hanoi": {"lat": 21.03, "lng": 105.85, "name": "Hanoi"},
+            }
+            return coords[city]
+
+        orch.places.geocode = AsyncMock(side_effect=mock_geocode)
+
+        context = await orch._build_geographic_context(must_see, "Tokyo")
+        # Tokyo + Bangkok (deduped) + Siem Reap + Hanoi = 4 geocode calls, NOT 5
+        assert call_count == 4
+        assert "GEOGRAPHIC CONTEXT" in context
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Web Search Grounding base class defaults
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestSearchGrounding:
+    """Tests for web search grounding base class defaults."""
+
+    @pytest.mark.asyncio
+    async def test_generate_with_search_default_fallback(self):
+        """Default implementation falls back to generate() with empty citations."""
+        from tests.conftest import MockLLMService
+        llm = MockLLMService()
+        text, citations = await llm.generate_with_search(
+            system_prompt="test", user_prompt="test"
+        )
+        assert isinstance(text, str)
+        assert citations == []
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_with_search_default_fallback(self):
+        """Default implementation falls back to generate_structured() with empty citations."""
+        from pydantic import BaseModel
+        from tests.conftest import MockLLMService
+
+        class SimpleSchema(BaseModel):
+            message: str = "default"
+
+        llm = MockLLMService()
+        result, citations = await llm.generate_structured_with_search(
+            system_prompt="test", user_prompt="test", schema=SimpleSchema
+        )
+        assert isinstance(result, SimpleSchema)
+        assert citations == []
+
+    def test_search_citation_model(self):
+        """SearchCitation model validates correctly."""
+        from app.services.llm.base import SearchCitation
+        citation = SearchCitation(url="https://example.com", title="Example", cited_text="some text")
+        assert citation.url == "https://example.com"
+        assert citation.title == "Example"
+        assert citation.cited_text == "some text"
+
+    def test_search_citation_minimal(self):
+        """SearchCitation works with just url and title."""
+        from app.services.llm.base import SearchCitation
+        citation = SearchCitation(url="https://example.com", title="Example")
+        assert citation.cited_text == ""
