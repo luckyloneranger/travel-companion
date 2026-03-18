@@ -59,6 +59,13 @@ class DayFixerAgent:
 
         logger.info("[DayFixer] Fixing %d issues for %s", len(issues), destination)
 
-        return await self.llm.generate_structured(
-            system_prompt, user_prompt, schema=AIPlan
-        )
+        from app.config.planning import should_use_search_grounding
+        if should_use_search_grounding("full"):
+            result, _citations = await self.llm.generate_structured_with_search(
+                system_prompt, user_prompt, schema=AIPlan
+            )
+        else:
+            result = await self.llm.generate_structured(
+                system_prompt, user_prompt, schema=AIPlan
+            )
+        return result

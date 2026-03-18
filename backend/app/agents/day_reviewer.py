@@ -31,9 +31,15 @@ class DayReviewerAgent:
 
         logger.info("[DayReviewer] Reviewing batch for %s", destination)
 
-        result = await self.llm.generate_structured(
-            system_prompt, user_prompt, schema=DayReviewResult
-        )
+        from app.config.planning import should_use_search_grounding
+        if should_use_search_grounding("full"):
+            result, _citations = await self.llm.generate_structured_with_search(
+                system_prompt, user_prompt, schema=DayReviewResult
+            )
+        else:
+            result = await self.llm.generate_structured(
+                system_prompt, user_prompt, schema=DayReviewResult
+            )
 
         logger.info(
             "[DayReviewer] Batch score: %d (acceptable=%s, %d issues)",
