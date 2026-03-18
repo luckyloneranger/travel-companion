@@ -113,6 +113,30 @@ class MockLLMService(LLMService):
     async def close(self) -> None:
         pass
 
+    async def generate_with_search(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 8000,
+        temperature: float = 0.7,
+    ) -> tuple[str, list]:
+        text = await self.generate(system_prompt, user_prompt, max_tokens, temperature)
+        return (text, [])
+
+    async def generate_structured_with_search(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        schema: type[BaseModel],
+        max_tokens: int = 8000,
+        temperature: float = 0.7,
+        max_retries: int = 2,
+    ) -> tuple[BaseModel, list]:
+        result = await self.generate_structured(
+            system_prompt, user_prompt, schema, max_tokens, temperature, max_retries
+        )
+        return (result, [])
+
 
 # ── Test Settings ──────────────────────────────────────────────────────
 
