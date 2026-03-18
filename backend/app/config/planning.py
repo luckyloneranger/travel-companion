@@ -24,6 +24,24 @@ MAX_CONCURRENT_CITIES: int = 5
 # Route computation: "full" (distance matrix + route API), "efficient" (haversine + route API), "minimal" (haversine only)
 ROUTE_COMPUTATION_MODE: str = "minimal"
 
+# Web search grounding: "full" (all agents), "selective" (Scout/DayScout/Tips/Chat), "none" (disabled)
+SEARCH_GROUNDING_MODE: str = "none"
+
+
+def should_use_search_grounding(agent_tier: str = "full") -> bool:
+    """Check if search grounding is enabled for the given agent tier.
+
+    Args:
+        agent_tier: "selective" for high-value agents (Scout, DayScout, Tips, Chat)
+                    or "full" for all agents (Reviewer, Planner, etc.)
+    """
+    if SEARCH_GROUNDING_MODE == "none":
+        return False
+    if SEARCH_GROUNDING_MODE == "selective":
+        return agent_tier == "selective"
+    return True  # "full" mode
+
+
 # ---------------------------------------------------------------------------
 # Service timeouts (seconds)
 # ---------------------------------------------------------------------------

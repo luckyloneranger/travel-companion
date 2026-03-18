@@ -1078,3 +1078,39 @@ class TestSearchGrounding:
         from app.services.llm.base import SearchCitation
         citation = SearchCitation(url="https://example.com", title="Example")
         assert citation.cited_text == ""
+
+    def test_should_use_search_grounding_full(self):
+        """Full mode enables all tiers."""
+        from app.config.planning import should_use_search_grounding
+        import app.config.planning as planning
+        original = planning.SEARCH_GROUNDING_MODE
+        try:
+            planning.SEARCH_GROUNDING_MODE = "full"
+            assert should_use_search_grounding("selective") is True
+            assert should_use_search_grounding("full") is True
+        finally:
+            planning.SEARCH_GROUNDING_MODE = original
+
+    def test_should_use_search_grounding_selective(self):
+        """Selective mode only enables selective tier."""
+        from app.config.planning import should_use_search_grounding
+        import app.config.planning as planning
+        original = planning.SEARCH_GROUNDING_MODE
+        try:
+            planning.SEARCH_GROUNDING_MODE = "selective"
+            assert should_use_search_grounding("selective") is True
+            assert should_use_search_grounding("full") is False
+        finally:
+            planning.SEARCH_GROUNDING_MODE = original
+
+    def test_should_use_search_grounding_none(self):
+        """None mode disables all tiers."""
+        from app.config.planning import should_use_search_grounding
+        import app.config.planning as planning
+        original = planning.SEARCH_GROUNDING_MODE
+        try:
+            planning.SEARCH_GROUNDING_MODE = "none"
+            assert should_use_search_grounding("selective") is False
+            assert should_use_search_grounding("full") is False
+        finally:
+            planning.SEARCH_GROUNDING_MODE = original
