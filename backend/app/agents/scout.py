@@ -30,7 +30,7 @@ class ScoutAgent:
     def __init__(self, llm: LLMService):
         self.llm = llm
 
-    async def generate_plan(self, request: TripRequest, landmarks_context: str = "") -> JourneyPlan:
+    async def generate_plan(self, request: TripRequest, landmarks_context: str = "", geographic_context: str = "") -> JourneyPlan:
         """Generate initial journey plan from user request.
 
         The Scout decides the optimal number of cities based on total days,
@@ -74,6 +74,7 @@ class ScoutAgent:
             avoid=", ".join(request.avoid) if request.avoid else "none",
             transport_guidance=transport_guidance,
             landmarks_context=landmarks_context,
+            geographic_context=geographic_context,
         )
 
         logger.info(
@@ -82,14 +83,23 @@ class ScoutAgent:
             request.destination,
         )
 
-        from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_SCOUT_TEMPERATURE
-        plan = await self.llm.generate_structured(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            schema=JourneyPlan,
-            max_tokens=LLM_DEFAULT_MAX_TOKENS,
-            temperature=LLM_SCOUT_TEMPERATURE,
-        )
+        from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_SCOUT_TEMPERATURE, should_use_search_grounding
+        if should_use_search_grounding("selective"):
+            plan, _citations = await self.llm.generate_structured_with_search(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=JourneyPlan,
+                max_tokens=LLM_DEFAULT_MAX_TOKENS,
+                temperature=LLM_SCOUT_TEMPERATURE,
+            )
+        else:
+            plan = await self.llm.generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=JourneyPlan,
+                max_tokens=LLM_DEFAULT_MAX_TOKENS,
+                temperature=LLM_SCOUT_TEMPERATURE,
+            )
 
         self._validate_plan(plan)
 

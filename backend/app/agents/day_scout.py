@@ -65,9 +65,15 @@ class DayScoutAgent:
             list(batch_themes.keys()), destination, len(candidates), pace,
         )
 
-        plan = await self.llm.generate_structured(
-            system_prompt, user_prompt, schema=AIPlan
-        )
+        from app.config.planning import should_use_search_grounding
+        if should_use_search_grounding("selective"):
+            plan, _citations = await self.llm.generate_structured_with_search(
+                system_prompt, user_prompt, schema=AIPlan
+            )
+        else:
+            plan = await self.llm.generate_structured(
+                system_prompt, user_prompt, schema=AIPlan
+            )
         return plan
 
     def _build_user_prompt(

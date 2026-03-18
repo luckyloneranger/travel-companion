@@ -105,13 +105,23 @@ class ChatService:
 
         logger.info("Journey edit request: %s", message)
 
-        result = await self.llm.generate_structured(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            schema=ChatEditResponse,
-            max_tokens=8000,
-            temperature=0.7,
-        )
+        from app.config.planning import should_use_search_grounding
+        if should_use_search_grounding("selective"):
+            result, _citations = await self.llm.generate_structured_with_search(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=ChatEditResponse,
+                max_tokens=8000,
+                temperature=0.7,
+            )
+        else:
+            result = await self.llm.generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=ChatEditResponse,
+                max_tokens=8000,
+                temperature=0.7,
+            )
 
         return result
 
@@ -167,13 +177,23 @@ class ChatService:
 
         logger.info("Day plan edit request: %s", message)
 
-        result = await self.llm.generate_structured(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            schema=ChatEditResponse,
-            max_tokens=12000,
-            temperature=0.7,
-        )
+        from app.config.planning import should_use_search_grounding
+        if should_use_search_grounding("selective"):
+            result, _citations = await self.llm.generate_structured_with_search(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=ChatEditResponse,
+                max_tokens=12000,
+                temperature=0.7,
+            )
+        else:
+            result = await self.llm.generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=ChatEditResponse,
+                max_tokens=12000,
+                temperature=0.7,
+            )
 
         return result
 
