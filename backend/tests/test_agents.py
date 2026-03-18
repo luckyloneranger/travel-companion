@@ -1114,3 +1114,101 @@ class TestSearchGrounding:
             assert should_use_search_grounding("full") is False
         finally:
             planning.SEARCH_GROUNDING_MODE = original
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Gemini Search Grounding
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestGeminiSearchGrounding:
+    """Tests for Gemini web search grounding implementation."""
+
+    @pytest.mark.asyncio
+    async def test_generate_with_search_extracts_citations(self):
+        """Gemini search grounding extracts citations from grounding metadata."""
+        from unittest.mock import AsyncMock, MagicMock
+        from app.services.llm.gemini import GeminiLLMService
+        from app.services.llm.base import SearchCitation
+
+        service = GeminiLLMService.__new__(GeminiLLMService)
+        service.model = "gemini-2.5-flash"
+        service.client = MagicMock()
+
+        mock_chunk = MagicMock()
+        mock_chunk.web.uri = "https://example.com/hotels"
+        mock_chunk.web.title = "Tokyo Hotels Guide"
+
+        mock_candidate = MagicMock()
+        mock_candidate.grounding_metadata.grounding_chunks = [mock_chunk]
+
+        mock_response = MagicMock()
+        mock_response.text = "Hotel recommendations..."
+        mock_response.candidates = [mock_candidate]
+
+        service.client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        text, citations = await service.generate_with_search(
+            system_prompt="You are a travel expert.",
+            user_prompt="Best hotels in Tokyo?",
+        )
+
+        assert text == "Hotel recommendations..."
+        assert len(citations) == 1
+        assert citations[0].url == "https://example.com/hotels"
+        assert citations[0].title == "Tokyo Hotels Guide"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_search_no_grounding_metadata(self):
+        """Returns empty citations when no grounding metadata present."""
+        from unittest.mock import AsyncMock, MagicMock
+        from app.services.llm.gemini import GeminiLLMService
+
+        service = GeminiLLMService.__new__(GeminiLLMService)
+        service.model = "gemini-2.5-flash"
+        service.client = MagicMock()
+
+        mock_candidate = MagicMock()
+        mock_candidate.grounding_metadata = None
+
+        mock_response = MagicMock()
+        mock_response.text = "Some response"
+        mock_response.candidates = [mock_candidate]
+
+        service.client.aio.models.generate_content = AsyncMock(return_value=mock_response)
+
+        text, citations = await service.generate_with_search(
+            system_prompt="test", user_prompt="test",
+        )
+
+        assert text == "Some response"
+        assert citations == []
+
+    @pytest.mark.asyncio
+    async def test_generate_with_search_fallback_on_error(self):
+        """Falls back to regular generate on search error."""
+        from unittest.mock import AsyncMock, MagicMock
+        from app.services.llm.gemini import GeminiLLMService
+
+        service = GeminiLLMService.__new__(GeminiLLMService)
+        service.model = "gemini-2.5-flash"
+        service.client = MagicMock()
+
+        call_count = 0
+        async def mock_generate_content(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise Exception("Search tool not available")
+            mock_resp = MagicMock()
+            mock_resp.text = "Fallback response"
+            return mock_resp
+
+        service.client.aio.models.generate_content = mock_generate_content
+
+        text, citations = await service.generate_with_search(
+            system_prompt="test", user_prompt="test",
+        )
+
+        assert text == "Fallback response"
+        assert citations == []
