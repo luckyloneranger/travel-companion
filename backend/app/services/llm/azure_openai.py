@@ -162,6 +162,123 @@ class AzureOpenAILLMService(LLMService):
 
         raise LLMValidationError(schema.__name__, last_errors, 1 + max_retries)
 
+    async def generate_with_search(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 8000,
+        temperature: float = 0.7,
+    ) -> tuple[str, list["SearchCitation"]]:
+        """Generate text with web search grounding via Responses API."""
+        from .base import SearchCitation
+        try:
+            params: dict[str, Any] = {
+                "model": self.deployment,
+                "tools": [{"type": "web_search"}],
+                "input": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "max_output_tokens": max_tokens,
+            }
+            if not self._is_reasoning:
+                params["temperature"] = temperature
+
+            response = await self.client.responses.create(**params)
+            text = _sanitize_content(response.output_text or "")
+            citations = self._extract_response_citations(response)
+            return (text, citations)
+        except Exception as e:
+            logger.warning("Azure search grounding failed, falling back: %s", e)
+            text = await self.generate(system_prompt, user_prompt, max_tokens, temperature)
+            return (text, [])
+
+    async def generate_structured_with_search(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        schema: type[T],
+        max_tokens: int = 8000,
+        temperature: float = 0.7,
+        max_retries: int = 2,
+    ) -> tuple[T, list["SearchCitation"]]:
+        """Generate structured JSON with web search via Responses API."""
+        from .base import SearchCitation
+        json_system_prompt = f"{system_prompt}\n\nYou must respond with valid JSON."
+        last_errors: list[str] = []
+
+        for attempt in range(1 + max_retries):
+            try:
+                params: dict[str, Any] = {
+                    "model": self.deployment,
+                    "tools": [{"type": "web_search"}],
+                    "input": [
+                        {"role": "system", "content": json_system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "text": {
+                        "format": {
+                            "type": "json_schema",
+                            "schema": schema.model_json_schema(),
+                            "name": schema.__name__,
+                            "strict": False,
+                        }
+                    },
+                    "max_output_tokens": max_tokens,
+                }
+                if not self._is_reasoning:
+                    params["temperature"] = temperature
+
+                response = await self.client.responses.create(**params)
+                content = _sanitize_content(response.output_text or "{}")
+                citations = self._extract_response_citations(response)
+                raw = json.loads(content)
+                return (schema.model_validate(raw), citations)
+            except ValidationError as e:
+                last_errors = [str(err) for err in e.errors()]
+                logger.warning(
+                    "Schema validation failed (attempt %d/%d): %s",
+                    attempt + 1, 1 + max_retries, e,
+                )
+                continue
+            except json.JSONDecodeError as e:
+                last_errors = [str(e)]
+                logger.warning(
+                    "JSON parse failed (attempt %d/%d): %s",
+                    attempt + 1, 1 + max_retries, e,
+                )
+                continue
+            except Exception as e:
+                if isinstance(e, openai.OpenAIError) and _is_content_filter_error(e):
+                    raise LLMContentFilterError(e) from e
+                logger.warning("Azure search+structured failed, falling back: %s", e)
+                result = await self.generate_structured(
+                    system_prompt, user_prompt, schema, max_tokens, temperature, max_retries
+                )
+                return (result, [])
+
+        raise LLMValidationError(schema.__name__, last_errors, 1 + max_retries)
+
+    @staticmethod
+    def _extract_response_citations(response) -> list["SearchCitation"]:
+        """Extract citations from Responses API url_citation annotations."""
+        from .base import SearchCitation
+        citations: list[SearchCitation] = []
+        try:
+            for item in getattr(response, "output", []):
+                if getattr(item, "type", "") != "message":
+                    continue
+                for block in getattr(item, "content", []):
+                    for annotation in getattr(block, "annotations", []) or []:
+                        if getattr(annotation, "type", "") == "url_citation":
+                            citations.append(SearchCitation(
+                                url=getattr(annotation, "url", ""),
+                                title=getattr(annotation, "title", ""),
+                            ))
+        except Exception:
+            pass
+        return citations
+
     async def _call_with_retry(self, messages: list[dict], params: dict) -> Any:
         """Call the OpenAI API with retry on transient errors."""
         for attempt in range(_API_MAX_RETRIES + 1):
