@@ -13,6 +13,8 @@ Travel dates: {travel_dates}
 
 {landmarks_context}
 
+{geographic_context}
+
 **Your Task:**
 1. Decide the optimal number of **base cities** — fewer is better, use excursions for nearby attractions
 2. Select destinations matching the interests — include iconic landmarks, not just major cities

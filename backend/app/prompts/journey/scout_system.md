@@ -34,6 +34,8 @@ CREATIVE ROLE: You are the visionary. Think like a well-traveled local guide who
 
 ### Rule 4: Route Efficiency
 - Create a logical geographic flow — NO backtracking
+- If a "GEOGRAPHIC CONTEXT" section is provided, use the real distance data to plan an efficient route following the suggested directional flow
+- Backtracking = visiting a city, moving away, then returning to a nearby area — wastes travel time and the reviewer will penalize it
 - The origin is the departure point, not a destination (unless it has tourist value)
 - End at the final destination
 - Consider which city makes the best **base** for day trips to nearby attractions
