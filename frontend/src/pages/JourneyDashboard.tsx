@@ -24,6 +24,23 @@ export default function JourneyDashboard() {
 
   const journey = currentJourney;
 
+  interface CityEntry {
+    city_name: string;
+    city_id: string;
+    day_count: number;
+    start_day: number;
+    variant_id?: string;
+  }
+
+  interface TransportLeg {
+    mode: string;
+    fare?: string;
+  }
+
+  const cities = (journey.city_sequence ?? []) as unknown as CityEntry[];
+  const legs = (journey.transport_legs ?? []) as unknown as TransportLeg[];
+  const costs = journey.cost_breakdown as Record<string, number> | null;
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <Link to="/journeys" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
@@ -42,7 +59,7 @@ export default function JourneyDashboard() {
 
       {/* City sequence */}
       <div className="space-y-3">
-        {journey.city_sequence?.map((city, i) => (
+        {cities.map((city, i) => (
           <div key={i}>
             {/* City card */}
             <div className="p-5 rounded-xl border bg-card">
@@ -69,13 +86,13 @@ export default function JourneyDashboard() {
             </div>
 
             {/* Transport leg */}
-            {journey.transport_legs && i < journey.transport_legs.length && (
+            {i < legs.length && (
               <div className="flex items-center justify-center py-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <ArrowRight className="w-4 h-4" />
-                  <span>{journey.transport_legs[i].mode}</span>
-                  {journey.transport_legs[i].fare && (
-                    <span>&middot; {journey.transport_legs[i].fare}</span>
+                  <span>{legs[i].mode}</span>
+                  {legs[i].fare && (
+                    <span>&middot; {legs[i].fare}</span>
                   )}
                 </div>
               </div>
@@ -85,22 +102,22 @@ export default function JourneyDashboard() {
       </div>
 
       {/* Cost */}
-      {journey.cost_breakdown && (
+      {costs && (
         <div className="mt-8 p-5 rounded-xl border bg-card">
           <h3 className="font-semibold mb-3">Trip Cost</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-            {Object.entries(journey.cost_breakdown)
+            {Object.entries(costs)
               .filter(([key]) => key !== "per_day" && key !== "total")
               .map(([key, value]) => (
                 <div key={key}>
                   <div className="text-muted-foreground capitalize">{key}</div>
-                  <div className="font-medium">${(value as number)?.toFixed(0) || 0}</div>
+                  <div className="font-medium">${value?.toFixed(0) || 0}</div>
                 </div>
               ))}
           </div>
           <div className="mt-3 pt-3 border-t flex justify-between">
             <span className="font-medium">Total</span>
-            <span className="font-bold text-lg">${journey.cost_breakdown.total?.toFixed(0) || 0}</span>
+            <span className="font-bold text-lg">${costs.total?.toFixed(0) || 0}</span>
           </div>
         </div>
       )}

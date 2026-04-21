@@ -21,14 +21,15 @@ export function FullDayView({ dayPlans, tips, initialDay, onClose, onChatAbout }
     return 0;
   });
 
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
   const dayPlan = dayPlans[currentIndex];
   if (!dayPlan) return null;
 
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < dayPlans.length - 1;
 
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const minSwipeDistance = 50;
 
   const onTouchStart = (e: React.TouchEvent) => {

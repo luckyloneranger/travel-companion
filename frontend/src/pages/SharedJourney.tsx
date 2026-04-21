@@ -34,6 +34,9 @@ export default function SharedJourney() {
     );
   }
 
+  const cities = (journey.city_sequence ?? []) as unknown as { city_name: string; day_count: number }[];
+  const costs = journey.cost_breakdown as Record<string, number> | null;
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
@@ -46,7 +49,7 @@ export default function SharedJourney() {
       </div>
 
       <div className="space-y-3">
-        {journey.city_sequence?.map((city, i) => (
+        {cities.map((city, i) => (
           <div key={i} className="p-5 rounded-xl border bg-card">
             <h3 className="font-semibold">{city.city_name}</h3>
             <p className="text-sm text-muted-foreground">{city.day_count} days</p>
@@ -54,10 +57,10 @@ export default function SharedJourney() {
         ))}
       </div>
 
-      {journey.cost_breakdown && (
+      {costs && (
         <div className="mt-8 p-5 rounded-xl border bg-card">
           <h3 className="font-semibold mb-2">Estimated Cost</h3>
-          <p className="text-2xl font-bold">${journey.cost_breakdown.total?.toFixed(0) || 0}</p>
+          <p className="text-2xl font-bold">${costs.total?.toFixed(0) || 0}</p>
         </div>
       )}
     </div>
