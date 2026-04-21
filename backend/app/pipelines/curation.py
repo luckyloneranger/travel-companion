@@ -228,25 +228,79 @@ class CurationPipeline:
 
         data = json.loads(text)
 
-        # Handle common wrapper keys the LLM might use
-        if "days" not in data:
-            # Try common alternatives
-            for key in ["city", "itinerary", "plan", "trip"]:
-                if key in data and isinstance(data[key], dict):
-                    # Nested: {"city": {"days": [...]}}
-                    if "days" in data[key]:
-                        data["days"] = data[key]["days"]
-                        # Also pull accommodation if nested
-                        if "accommodation" not in data and "accommodation" in data[key]:
-                            data["accommodation"] = data[key]["accommodation"]
-                        if "accommodation_alternatives" not in data and "accommodation_alternatives" in data[key]:
-                            data["accommodation_alternatives"] = data[key]["accommodation_alternatives"]
-                        if "booking_hint" not in data and "booking_hint" in data[key]:
-                            data["booking_hint"] = data[key]["booking_hint"]
-                        break
-                elif key in data and isinstance(data[key], list):
-                    # Direct: {"itinerary": [{day1}, {day2}]}
+        # Normalize: extract days from various LLM output shapes
+        if "days" not in data or not isinstance(data.get("days"), list):
+            found = False
+            # Check top-level list keys
+            for key in ["itinerary", "day_plans", "schedule"]:
+                if key in data and isinstance(data[key], list):
                     data["days"] = data[key]
+                    found = True
                     break
+            # Check nested dict keys
+            if not found:
+                for key in ["city", "plan", "trip"]:
+                    if key in data and isinstance(data[key], dict):
+                        nested = data[key]
+                        for sub in ["days", "itinerary", "day_plans", "schedule"]:
+                            if sub in nested and isinstance(nested[sub], list):
+                                data["days"] = nested[sub]
+                                found = True
+                                break
+                        if found:
+                            break
+            # Deep search: find any list of dicts that look like days
+            if not found:
+                for key, val in data.items():
+                    if isinstance(val, list) and len(val) > 0 and isinstance(val[0], dict):
+                        if any(k in val[0] for k in ["activities", "theme", "day_number", "places"]):
+                            data["days"] = val
+                            found = True
+                            break
+
+        # Normalize accommodation from various keys
+        if "accommodation" not in data or data["accommodation"] is None:
+            for key in ["hotel_options", "hotels", "lodging", "primary_hotel"]:
+                val = data.get(key)
+                if val and isinstance(val, dict):
+                    if key == "primary_hotel":
+                        # Top-level primary hotel
+                        data["accommodation"] = {
+                            "google_place_id": val.get("google_place_id", ""),
+                            "estimated_nightly_usd": val.get("estimated_nightly_usd") or val.get("estimated_nightly_cost_usd", 100),
+                        }
+                    else:
+                        primary = val.get("primary") or val.get("main")
+                        if primary:
+                            data["accommodation"] = {
+                                "google_place_id": primary.get("google_place_id", ""),
+                                "estimated_nightly_usd": primary.get("estimated_nightly_usd") or primary.get("estimated_nightly_cost_usd", 100),
+                            }
+                    alts = val.get("alternatives", [])
+                    if alts and "accommodation_alternatives" not in data:
+                        data["accommodation_alternatives"] = [
+                            {"google_place_id": a.get("google_place_id", ""),
+                             "estimated_nightly_usd": a.get("estimated_nightly_usd") or a.get("estimated_nightly_cost_usd", 80)}
+                            for a in alts
+                        ]
+                    break
+            # Also check top-level hotel_alternatives
+            if "accommodation_alternatives" not in data and "hotel_alternatives" in data:
+                data["accommodation_alternatives"] = [
+                    {"google_place_id": a.get("google_place_id", ""),
+                     "estimated_nightly_usd": a.get("estimated_nightly_usd") or a.get("estimated_nightly_cost_usd", 80)}
+                    for a in data["hotel_alternatives"]
+                ]
+
+        # Normalize day entries — ensure day_number and activities exist
+        if "days" in data and isinstance(data["days"], list):
+            for i, day in enumerate(data["days"]):
+                if isinstance(day, dict):
+                    if "day_number" not in day:
+                        day["day_number"] = day.get("day", i + 1)
+                    if "theme" not in day:
+                        day["theme"] = day.get("title", day.get("name", f"Day {i + 1}"))
+                    if "activities" not in day:
+                        day["activities"] = day.get("places", day.get("items", []))
 
         return CurationOutput.model_validate(data)

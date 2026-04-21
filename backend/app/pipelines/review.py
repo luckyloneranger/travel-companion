@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.prompts.loader import PromptLoader
 from app.services.llm.base import LLMService
@@ -25,10 +25,36 @@ logger = logging.getLogger(__name__)
 class LLMReviewResponse(BaseModel):
     """Schema for structured LLM reviewer output."""
 
-    overall_score: int = Field(..., ge=0, le=100)
+    overall_score: int = Field(default=50, ge=0, le=100)
     is_acceptable: bool = Field(default=True)
-    issues: list[str] = Field(default_factory=list)
+    issues: list = Field(default_factory=list)
     dimension_scores: dict[str, float] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Handle nested "scores" with "overall" key
+            if "overall_score" not in data and "scores" in data:
+                scores = data["scores"]
+                if isinstance(scores, dict):
+                    data["overall_score"] = scores.pop("overall", scores.pop("overall_score", 50))
+                    data["dimension_scores"] = scores
+            # Handle "score" as alias for "overall_score"
+            if "overall_score" not in data and "score" in data:
+                data["overall_score"] = data.pop("score")
+            # Normalize issues: list of strings or list of dicts
+            if "issues" in data and isinstance(data["issues"], list):
+                normalized = []
+                for item in data["issues"]:
+                    if isinstance(item, str):
+                        normalized.append(item)
+                    elif isinstance(item, dict):
+                        problem = item.get("problem", item.get("description", item.get("fix", str(item))))
+                        dim = item.get("dimension", "")
+                        normalized.append(f"[{dim}] {problem}" if dim else problem)
+                data["issues"] = normalized
+        return data
 
 
 # ---------------------------------------------------------------------------
