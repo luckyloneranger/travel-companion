@@ -245,12 +245,38 @@ class DayPlanRepository:
         self.session.add(day_plan)
         await self.session.flush()
 
+        # Create activities and collect them by sequence for route wiring
+        created_activities = []
         for act_data in activities:
             activity = Activity(day_plan_id=day_plan.id, **act_data)
             self.session.add(activity)
+            created_activities.append(activity)
+        await self.session.flush()  # assigns IDs to activities
 
+        # Create routes, wiring from/to activity IDs by sequence
+        activity_by_seq = {a.sequence: a for a in created_activities}
         for route_data in routes:
-            route = Route(day_plan_id=day_plan.id, **route_data)
+            from_seq = route_data.pop("from_sequence", None)
+            to_seq = route_data.pop("to_sequence", None)
+            # Also handle from_activity_id/to_activity_id if already set
+            from_id = route_data.pop("from_activity_id", None)
+            to_id = route_data.pop("to_activity_id", None)
+
+            if not from_id and from_seq is not None and from_seq in activity_by_seq:
+                from_id = activity_by_seq[from_seq].id
+            if not to_id and to_seq is not None and to_seq in activity_by_seq:
+                to_id = activity_by_seq[to_seq].id
+
+            # Skip routes without valid activity references
+            if not from_id or not to_id:
+                continue
+
+            route = Route(
+                day_plan_id=day_plan.id,
+                from_activity_id=from_id,
+                to_activity_id=to_id,
+                **route_data,
+            )
             self.session.add(route)
 
         await self.session.commit()

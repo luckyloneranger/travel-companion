@@ -54,7 +54,7 @@ class CurationOutput(BaseModel):
     """Full curation result for a city."""
 
     days: list[CuratedDay]
-    accommodation: CuratedAccommodation
+    accommodation: CuratedAccommodation | None = None
     accommodation_alternatives: list[CuratedAccommodation] = []
     booking_hint: str | None = None
 
@@ -127,27 +127,41 @@ class CurationPipeline:
             lodging_json=lodging_json,
         )
 
-        # Call LLM with one retry on validation failure
-        max_retries = 1
-        last_error: ValueError | None = None
+        # Call LLM — try structured first, fall back to raw JSON parsing
+        max_attempts = 3
+        last_error: Exception | None = None
 
-        for attempt in range(max_retries + 1):
-            result = await self.llm.generate_structured(
-                system, user, schema=CurationOutput
-            )
+        for attempt in range(max_attempts):
             try:
+                result = await self.llm.generate_structured(
+                    system, user, schema=CurationOutput
+                )
                 self._validate_place_ids(result, valid_ids)
                 return result
             except ValueError as e:
                 last_error = e
                 logger.warning(
                     "Curation validation failed (attempt %d/%d): %s",
-                    attempt + 1,
-                    max_retries + 1,
-                    e,
+                    attempt + 1, max_attempts, e,
                 )
+            except Exception as e:
+                # Pydantic validation failed — try raw JSON parsing
+                last_error = e
+                logger.warning(
+                    "Curation structured output failed (attempt %d/%d): %s",
+                    attempt + 1, max_attempts, str(e)[:200],
+                )
+                # Try raw generation + manual parse
+                try:
+                    raw = await self.llm.generate(system, user)
+                    result = self._parse_raw_output(raw)
+                    self._validate_place_ids(result, valid_ids)
+                    return result
+                except Exception as inner_e:
+                    last_error = inner_e
+                    logger.warning("Raw parse also failed: %s", str(inner_e)[:200])
 
-        raise last_error  # type: ignore[misc]
+        raise ValueError(f"CurationOutput validation failed after {max_attempts} attempt(s): {last_error}")
 
     def _format_candidates(self, candidates: list[dict]) -> str:
         """Format candidates as compact JSON for the prompt."""
@@ -191,7 +205,7 @@ class CurationPipeline:
                 if activity.google_place_id not in valid_ids:
                     unknown.append(activity.google_place_id)
 
-        if result.accommodation.google_place_id not in valid_ids:
+        if result.accommodation and result.accommodation.google_place_id not in valid_ids:
             unknown.append(result.accommodation.google_place_id)
 
         for alt in result.accommodation_alternatives:
@@ -202,3 +216,37 @@ class CurationPipeline:
             raise ValueError(
                 f"LLM returned {len(unknown)} unknown place ID(s): {unknown[:5]}"
             )
+
+    def _parse_raw_output(self, raw: str) -> CurationOutput:
+        """Try to parse raw LLM text into CurationOutput, handling common wrapper keys."""
+        # Extract JSON from markdown code blocks if present
+        text = raw.strip()
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0].strip()
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0].strip()
+
+        data = json.loads(text)
+
+        # Handle common wrapper keys the LLM might use
+        if "days" not in data:
+            # Try common alternatives
+            for key in ["city", "itinerary", "plan", "trip"]:
+                if key in data and isinstance(data[key], dict):
+                    # Nested: {"city": {"days": [...]}}
+                    if "days" in data[key]:
+                        data["days"] = data[key]["days"]
+                        # Also pull accommodation if nested
+                        if "accommodation" not in data and "accommodation" in data[key]:
+                            data["accommodation"] = data[key]["accommodation"]
+                        if "accommodation_alternatives" not in data and "accommodation_alternatives" in data[key]:
+                            data["accommodation_alternatives"] = data[key]["accommodation_alternatives"]
+                        if "booking_hint" not in data and "booking_hint" in data[key]:
+                            data["booking_hint"] = data[key]["booking_hint"]
+                        break
+                elif key in data and isinstance(data[key], list):
+                    # Direct: {"itinerary": [{day1}, {day2}]}
+                    data["days"] = data[key]
+                    break
+
+        return CurationOutput.model_validate(data)

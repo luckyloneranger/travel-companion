@@ -344,6 +344,8 @@ class BatchPipeline:
 
             routes_data = [
                 {
+                    "from_sequence": r.from_sequence,
+                    "to_sequence": r.to_sequence,
                     "travel_mode": r.travel_mode,
                     "distance_meters": r.distance_meters,
                     "duration_seconds": r.duration_seconds,
