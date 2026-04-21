@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.core.http import get_http_client, close_http_client
 from app.core.middleware import RequestTracingMiddleware, RequestLoggingFilter
-from app.routers import auth, export, places, cities, journeys, admin, sharing
+from app.routers import auth, places, cities, journeys, admin, sharing
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,6 @@ def create_app() -> FastAPI:
     application.include_router(journeys.router)
     application.include_router(admin.router)
     application.include_router(sharing.router)
-    application.include_router(export.router)
     application.include_router(places.router)
 
     @application.get("/health")
