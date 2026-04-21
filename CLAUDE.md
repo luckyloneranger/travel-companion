@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Regular Everyday Traveller (RET) — a hybrid AI + deterministic travel planning app. LLMs handle creative decisions (place selection, theming, descriptions, cost estimation for groups); deterministic layers handle calculations (distance, time, validation, scheduling, quality scoring).
-
-Unified pipeline: multi-city journey planning with Landscape Discovery (Google) + Must-See Icons (LLM, parallel) -> Scout -> Enrich -> Review -> Planner loop (~2-5min), iterating until quality threshold (min 75 score, max 3 iterations, returns best attempt). Day plans are generated in background per-city with quality pipeline: theme pre-mapping -> Day Scout -> Day Reviewer -> Day Fixer loop (max 2 iterations) -> TSP optimize -> schedule -> route computation -> weather integration. All trip endpoints require authentication.
+Regular Everyday Traveller (RET) — a content-first travel planning platform. Pre-generates high-quality multi-day city plans offline via a batch pipeline (Discover -> Curate -> Route -> Schedule -> Review -> Store), fully grounded with Google APIs. Users browse a city catalog or input trips; a journey assembler stitches pre-made city plans with live transport + weather data. On-demand drafts handle cache misses. A PostgreSQL-based job queue coordinates all background work.
 
 ## Build & Run Commands
 
@@ -29,7 +27,7 @@ npm run build     # TypeScript check + production build
 npm run lint      # ESLint
 ```
 
-### Tests (Backend only, 245 tests)
+### Tests (Backend only)
 ```bash
 cd backend
 source venv/bin/activate
@@ -39,45 +37,55 @@ pytest -k "test_health"   # Run specific tests
 pytest --cov              # With coverage
 ```
 
-Test files: `test_api.py` (API endpoints), `test_agents.py` (Scout/Reviewer agents), `test_tsp.py` (TSP optimizer), `test_scheduler.py` (schedule builder), `test_quality.py` (quality evaluators, 7 metrics), `test_services.py` (TipsService/ChatService/Routes helpers), `test_validation.py` (request validation), `test_integration.py` (API lifecycle), `test_weather.py` (weather service/parsing/warnings), `test_auth.py` (OAuth/JWT/dual auth), `test_budget.py` (cost breakdown/group pricing), `test_export.py` (PDF/calendar export), `test_sharing.py` (shareable links). Fixtures in `conftest.py` provide `app` (FastAPI with overrides), `client` (httpx AsyncClient), testcontainers PostgreSQL, and MockLLMService. Tests require Docker running.
+Fixtures in `conftest.py` provide `app` (FastAPI with overrides), `client` (httpx AsyncClient), testcontainers PostgreSQL, and MockLLMService. Tests require Docker running.
 
 ## Architecture
 
 ### Code Flow
-`routers/` -> `orchestrators/` -> `agents/` + `services/` + `algorithms/`
+`routers/` -> `assembler/` + `pipelines/` + `worker/` + `services/` + `algorithms/`
 
-- **Routers** (`app/routers/`): FastAPI endpoints — `trips.py` (journey plan, day plans, chat, tips, sharing, quick-edit, reorder, CRUD), `places.py` (place search, photo proxy, hotel alternatives), `auth.py` (OAuth login/callback/logout), `export.py` (PDF trip book/calendar export)
-- **Orchestrators** (`app/orchestrators/`): Pipeline coordination
-  - `journey.py` — JourneyOrchestrator: Landscape Discovery(Google) + Must-See Icons(LLM) in parallel via `asyncio.gather` -> Scout(LLM, experience_themes not highlights) -> Enrich(Google APIs) -> Review(LLM, score>=75?, must-see checklist) -> Planner(LLM, fix issues) -> loop (tracks best plan across iterations, max 3)
-  - `day_plan.py` — DayPlanOrchestrator: cities processed in parallel (Queue + Semaphore, bounded by `MAX_CONCURRENT_CITIES`). Per city: excursion geocoding + discovery in parallel with city discovery -> merge all candidates (excursion candidates tagged with `source_destination`) -> theme-to-day pre-mapping (excursion themes compete equally, LLM decides placement) -> single Day Scout(LLM) call for ALL days (regular + excursion) -> Day Reviewer(LLM, 7 dimensions) -> Day Fixer(LLM) -> loop (max 2 iterations) -> per-day: TSP optimize (excursion days use excursion location as center) -> schedule (transit-adjusted start/end for excursion days) -> route computation -> weather warnings. No separate excursion pipeline. Failed cities retry once then emit `city_error` SSE event.
-- **Agents** (`app/agents/`): LLM-powered components
-  - Journey pipeline: `scout.py` (city selection + experience_themes + accommodation, city-state collapse), `enricher.py` (Google API grounding, segment-based transport, ferry guard, accommodation.why preservation), `reviewer.py` (quality scoring 0-100, experience theme + landscape + must-see validation), `planner.py` (fix review issues with theme context + must-see awareness)
-  - Day plan pipeline: `day_scout.py` (activity selection for themed days from candidates + landmarks, filters lodging types), `day_reviewer.py` (LLM scores 7 dimensions: theme coverage, landmarks, variety, duration, pacing, meals, activity count), `day_fixer.py` (LLM fixes reviewer issues by swapping activities, duplicate-aware via `already_used`), `day_planner.py` (legacy single-shot fallback for stored trips without experience_themes)
+- **Routers** (`app/routers/`): FastAPI endpoints — `cities.py` (city catalog browsing, variant listing), `journeys.py` (journey assembly + CRUD), `admin.py` (city management, job queue, generation triggers, stats), `sharing.py` (shareable journey links), `places.py` (place search, photo proxy), `auth.py` (OAuth login/callback/logout)
+- **Pipelines** (`app/pipelines/`): Offline batch content generation
+  - `discovery.py` — Google Places discovery for a city (landmarks, attractions, restaurants, nature)
+  - `curation.py` — LLM curates discovered places into themed day plans
+  - `routing.py` — TSP optimization + route computation for each day
+  - `scheduling.py` — time-slot builder with culture-aware meal placement
+  - `review.py` — LLM quality review + scoring (7 dimensions)
+  - `costing.py` — cost estimation per activity and day
+  - `batch.py` — orchestrates full pipeline: Discover -> Curate -> Route -> Schedule -> Review -> Store
+  - `draft.py` — on-demand draft generation for cache misses (same pipeline, inline)
+- **Assembler** (`app/assembler/`): Journey assembly from pre-made city plans
+  - `allocator.py` — allocates days across cities based on trip duration
+  - `lookup.py` — finds best matching plan variants from city catalog
+  - `connector.py` — stitches cities with live transport (directions, fares) + weather data
+  - `assembler.py` — top-level assembler coordinating allocator -> lookup -> connector
+- **Worker** (`app/worker/`): Background job processing
+  - `runner.py` — async worker that polls job queue and runs pipelines
+  - `queue.py` — PostgreSQL-based job queue (enqueue, dequeue, status updates)
+  - `refresh.py` — scheduled refresh of stale city plans
+  - CLI: `cli.py` — command-line interface for manual city generation and worker management
 - **Services** (`app/services/`):
   - `llm/` — Abstract `LLMService` base, `AzureOpenAILLMService` (supports reasoning models: o1, o3, gpt-5, with exponential backoff retry for transient errors), `AnthropicLLMService` (tool_use for structured output), `GeminiLLMService` (response_json_schema), `factory.py` for provider switching. All providers strip null characters from output.
   - `google/` — `GooglePlacesService` (discovery, geocoding, lodging), `GoogleRoutesService` (single/batch routes, distance matrices), `GoogleDirectionsService` (transit details, fares, transfers), `GoogleWeatherService` (daily forecasts)
-  - `chat.py` — ChatService for journey/day-plan editing via natural language
-  - `tips.py` — TipsService for activity tips generation
-  - `export.py` — PDF trip book (weasyprint with cover page, daily spreads, weather) and calendar (.ics) export
 - **Algorithms** (`app/algorithms/`): Deterministic computation — `tsp.py` (nearest-neighbor route optimizer), `scheduler.py` (time-slot builder with culture-aware meal placement across ~80 countries/10 regional profiles, pace multipliers, LLM meal window overrides via `from_context()`), `quality/` (7 context-aware evaluators: meal timing 20%, clustering 15% with auto city-scale detection, efficiency 15%, variety 15%, opening hours 15%, theme 10%, duration 10%)
-- **Models** (`app/models/`): Pydantic v2 models — `common.py` (Location, Pace, TravelMode, TransportMode, Budget enums), `journey.py` (JourneyPlan, CityStop, TravelLeg, Accommodation, ReviewResult), `day_plan.py` (DayPlan, Activity, Place, Route, Weather), `trip.py` (TripRequest, TripResponse, TripSummary, Travelers), `chat.py`, `progress.py`, `quality.py`, `internal.py`, `user.py`
-- **Database** (`app/db/`): SQLAlchemy 2.0 async + asyncpg (PostgreSQL) — `engine.py` (auto-SSL for remote hosts), `models.py` (Trip, User, TripShare tables), `repository.py` (TripRepository with CRUD + sharing). Alembic for schema migrations (`backend/alembic/`)
-- **Prompts** (`app/prompts/`): 16 Markdown templates loaded via `PromptLoader` in `loader.py` — journey (scout_system/user, reviewer_system/user, planner_system/user, must_see_system/user), day_plan (planning_system/user), chat (journey_edit_system/user, day_plan_edit_system/user), tips (tips_system/user)
-- **Config** (`app/config/`): Settings (Pydantic BaseSettings for env vars), planning configs (`planning.py` — pace configs, fallback duration-by-type table, interest-to-place-type seed mapping, adaptive place filters, haversine fallback computation, `LODGING_TYPES` filter set, `MAX_CONCURRENT_CITIES`, `ROUTE_COMPUTATION_MODE`), regional transport guidance (`regional_transport.py` — LLM-driven prompt guidance instead of hardcoded profiles)
-- **Core** (`app/core/`): JWT auth (`auth.py`), shared HTTP client with retry/exponential backoff (`http.py`), request tracing middleware with security headers (`middleware.py` — X-Request-ID, X-Content-Type-Options, X-Frame-Options, Referrer-Policy), global exception handler (`main.py`), per-user sliding window rate limiting (`rate_limit.py` — plan, day_plan, chat, tips endpoints)
-- **Dependencies** (`app/dependencies.py`): FastAPI `Depends()` wiring for all services, orchestrators, auth, and DB sessions
+- **Models** (`app/models/`): Pydantic v2 models — `common.py` (Location, Pace, TravelMode, TransportMode, Budget enums), `journey.py` (Journey, CityAllocation, TravelLeg), `day_plan.py` (DayPlan, Activity, Place, Route, Weather), `city.py` (City, PlanVariant), `user.py`
+- **Database** (`app/db/`): SQLAlchemy 2.0 async + asyncpg (PostgreSQL) — `engine.py` (auto-SSL for remote hosts), `models.py` (10 tables: cities, places, plan_variants, day_plans, activities, routes, users, journeys, journey_shares, generation_jobs), `repository.py` (CityRepository, JourneyRepository, JobRepository). Alembic for schema migrations (`backend/alembic/`)
+- **Prompts** (`app/prompts/`): Markdown templates loaded via `PromptLoader` in `loader.py` — curation, review, costing prompts for batch pipeline
+- **Config** (`app/config/`): Settings (Pydantic BaseSettings for env vars), planning configs (`planning.py` — pace configs, fallback duration-by-type table, interest-to-place-type seed mapping, adaptive place filters, haversine fallback computation, `LODGING_TYPES` filter set, `ROUTE_COMPUTATION_MODE`), regional transport guidance (`regional_transport.py`)
+- **Core** (`app/core/`): JWT auth (`auth.py`), shared HTTP client with retry/exponential backoff (`http.py`), request tracing middleware with security headers (`middleware.py` — X-Request-ID, X-Content-Type-Options, X-Frame-Options, Referrer-Policy), global exception handler (`main.py`), per-user sliding window rate limiting (`rate_limit.py`)
+- **Dependencies** (`app/dependencies.py`): FastAPI `Depends()` wiring for all services, assembler, repositories, auth, and DB sessions
 
 ### Key Patterns
 
-**Dependency Injection** — all services and orchestrators are wired via FastAPI `Depends()` in `app/dependencies.py`:
+**Dependency Injection** — all services and components are wired via FastAPI `Depends()` in `app/dependencies.py`:
 ```python
-from app.dependencies import get_journey_orchestrator, get_trip_repository
+from app.dependencies import get_assembler, get_journey_repository
 
-@router.post("/plan/stream")
-async def plan_trip_stream(
-    request: TripRequest,
-    orchestrator: JourneyOrchestrator = Depends(get_journey_orchestrator),
-    repo: TripRepository = Depends(get_trip_repository),
+@router.post("/journeys")
+async def create_journey(
+    request: JourneyRequest,
+    assembler: JourneyAssembler = Depends(get_assembler),
+    repo: JourneyRepository = Depends(get_journey_repository),
 ):
 ```
 
@@ -95,16 +103,36 @@ Each provider implements structured output differently:
 
 **Prompt Templates** — centralized .md templates with category-based loaders:
 ```python
-from app.prompts.loader import journey_prompts, day_plan_prompts
-system = journey_prompts.load("scout_system")
-user = day_plan_prompts.load("planning_user")
+from app.prompts.loader import pipeline_prompts
+system = pipeline_prompts.load("curation_system")
+user = pipeline_prompts.load("review_user")
 ```
 
-**SSE Streaming** — endpoints yield `data: {json}\n\n` events via `ProgressEvent` model with phases: `scouting`, `enriching`, `reviewing`, `planning`, `improving`, `complete`, `error`. Day plan generation runs in background (no phase switch). Frontend consumes via async generator in `api.ts` with AbortController. Stall timeout (180s) warns users on slow connections.
+**Batch Pipeline** — offline content generation runs as background jobs:
+```python
+# Enqueue city generation
+job_id = await queue.enqueue("generate_city", {"city": "Tokyo", "days": 3, "pace": "moderate"})
+# Worker picks up and runs full pipeline
+await batch.run_pipeline(city="Tokyo", days=3, pace="moderate")  # Discover -> Curate -> Route -> Schedule -> Review -> Store
+```
+
+**Journey Assembler** — stitches pre-made city plans into multi-city journeys:
+```python
+# Allocator distributes days, lookup finds best variants, connector adds transport + weather
+journey = await assembler.assemble(cities=["Tokyo", "Kyoto", "Osaka"], total_days=10, start_date="2026-05-01")
+```
+
+**Job Queue** — PostgreSQL-based background job processing:
+```python
+# Jobs table tracks status: pending -> running -> completed/failed
+job = await queue.enqueue("generate_city", payload)
+status = await queue.get_status(job_id)  # {status, progress, result, error}
+```
 
 **Zustand Stores** — frontend state management via three stores:
-- `tripStore.ts` — journey plan, day plans, travelers (adults/children/infants), saved trips CRUD, cost breakdown (accommodation + transport + dining + activities, costs are total-for-group), tips cache, recent changes tracking (visual diff after chat edits)
-- `uiStore.ts` — phase management (input -> planning -> preview -> day-plans -> live), wizard step tracking, day plans generating state, progress tracking, chat toggles with prefill support, browser history integration, per-day map visibility
+- `catalogStore.ts` — city catalog browsing, variant selection, search/filter state
+- `journeyStore.ts` — assembled journey, city allocations, transport legs, saved journeys CRUD
+- `uiStore.ts` — phase management (browse -> assemble -> preview -> live), navigation state
 - `authStore.ts` — user authentication state, JWT capture from OAuth redirect hash fragment (`#token=`), periodic token refresh (30 min), auto-logout on 401
 
 **Request Tracing** — `RequestTracingMiddleware` adds `X-Request-ID` to every request/response with timing logs, plus security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`). `RequestLoggingFilter` injects `request_id` into log records. Global exception handler in `main.py` prevents stack trace leaks.
@@ -113,17 +141,13 @@ user = day_plan_prompts.load("planning_user")
 - **Cookie auth** (same-origin / web): JWT stored as httpOnly cookie, set during OAuth callback
 - **Bearer token auth** (cross-origin / mobile): JWT returned as `#token=` hash fragment in OAuth redirect (not query param — hash fragments are never sent to servers), stored in localStorage by frontend, sent as `Authorization: Bearer` header
 
-`get_current_user()` in `dependencies.py` checks Bearer header first, falls back to cookie. All trip API endpoints require authentication; only `/health`, `/api/auth/me`, and `/api/shared/{token}` are public. Frontend auto-logout on 401.
+`get_current_user()` in `dependencies.py` checks Bearer header first, falls back to cookie. All journey API endpoints require authentication; only `/health`, `/api/auth/me`, and `/api/shared/{token}` are public. Frontend auto-logout on 401.
 
 **Database SSL** — `engine.py` auto-enables SSL for remote PostgreSQL hosts (Azure, Supabase). Local connections (localhost) skip SSL.
 
-**Rate Limiting** — per-user sliding window rate limiter (`app/core/rate_limit.py`) protects expensive endpoints. Configurable via `RATE_LIMIT_{PLAN,DAY_PLAN,CHAT,TIPS}_{REQUESTS,WINDOW_SECONDS}` env vars (defaults: plan 5/10min, day_plan 10/10min, chat 30/10min, tips 30/10min). Trip list supports pagination via `limit`/`offset` query params (default 50, max 200).
-
-**Routing & Navigation** — Frontend uses React Router with phase-based rendering (`input` → `planning` → `preview` → `day-plans` → `live`). Active tab persisted in URL via `?tab=cities` for deep-linking. TripLoader guards against loading when `phase='input'` to prevent race conditions. Logo click preserves trip data (just navigates home), "New Trip" requires confirmation then resets via `setTimeout(0)` to avoid TripLoader reload race. API catch-all at `/api/{path}` returns JSON 404 instead of SPA fallback. OAuth token delivered via hash fragment (`#token=`). CORS restricted to explicit methods/headers. ErrorBoundary wraps trip routes.
+**Rate Limiting** — per-user sliding window rate limiter (`app/core/rate_limit.py`) protects expensive endpoints. Configurable via env vars.
 
 **Toast Notifications** — `showToast(message, type)` from `@/components/ui/toast` for user feedback on copy, share, export, errors. `<ToastContainer />` rendered in App root. Auto-dismisses after 4 seconds.
-
-**Design Principles** — Prefer LLM prompt updates and Google API grounding over hardcoded heuristics. Deterministic layers (scheduler, quality evaluators, route selection) serve as context-aware guardrails with generous defaults — they accept overrides from LLM responses and API data via context dicts. Duration estimation priority: 1) LLM estimate, 2) Google Places `suggested_duration_minutes`, 3) fallback table. Note: Google Places API v1 does not offer a duration field — tier 2 is reserved for future API additions. The scheduler enforces opening hours as a hard constraint: activities are truncated or skipped if they would end after closing time (`_apply_opening_hours_constraints`). Opening hours flow from `PlaceCandidate` through to `Activity.place.opening_hours` as formatted strings for evaluator accuracy. Day Scout and Day Fixer LLMs receive opening hours and editorial summaries as grounding context for better duration estimates. Accommodation pricing is destination-aware via LLM: Scout returns `budget_range_usd` ([min, max] nightly) calibrated to the specific city and budget tier (e.g., $30-60 moderate in Bangkok vs $150-250 moderate in Tokyo), plus 2 `accommodation_alternatives` with names and prices. Google Places API has no hotel pricing fields (`priceLevel` and `priceRange` are always null for lodging). Enricher validates all 3 hotels via Google Places for metadata (address, rating, photo, place_id) but does not adjust prices. `booking_hint` directs users to aggregators (Booking.com, Agoda) with destination-specific guidance including local currency ranges. Fallback placeholder for missing accommodation uses `get_budget_fallback_nightly()`. Meal windows adapt to ~80 countries via 10 regional profiles and accept LLM overrides via `ScheduleConfig.from_context()`. Place quality filters adapt to result density via `get_adaptive_place_filters()`. Walk/drive selection is pace-aware (relaxed=25min walk threshold, packed=15min). Prompt templates use `{meal_time_guidance}` placeholder for regional context injection rather than hardcoded meal times. Dining classification uses substring matching to catch all regional types (e.g. `sushi_restaurant`, `bar_and_grill`). Excursion geocoding uses `destination_name` (geocodable place name) rather than theme descriptions. Lodging types (`LODGING_TYPES`) are filtered from activity candidates at both discovery and scout levels. Cross-day duplicate prevention passes full `already_used` set to both Day Scout and Day Fixer. City processing parallelized via `asyncio.Queue` + `asyncio.Semaphore` (bounded by `MAX_CONCURRENT_CITIES`, default 5). Excursion processing and landmark/theme text searches also parallelized via `asyncio.gather()`. Failed cities retry once then emit `city_error` SSE event for frontend toast notification. Quality loop acceptance is decoupled: LLM reviewer's `is_acceptable` reflects only critical/feasibility issues (no score threshold in prompts); score threshold (`MIN_JOURNEY_SCORE=75`, `MIN_DAY_PLAN_SCORE=75`) is enforced purely in orchestrator code. Both conditions must be met (AND) to accept a plan. Must-see iconic attractions identified via a parallel LLM call (`_identify_must_see_attractions`) — returns 3-5 globally famous places per destination, injected into Reviewer/Planner prompts as ground truth for iconic coverage (dimension 5: -15 per missing icon). Runs parallel with landscape discovery via `asyncio.gather`, zero added latency. Scout stays unchanged (category themes). Landscape discovery uses 4 search queries (landmarks, best places, entertainment, nature) with per-query result limits for category diversity. Route computation is tiered via `ROUTE_COMPUTATION_MODE`: `full` (distance matrix + compute_route, ~$2.40/trip), `efficient` (haversine mode selection + compute_route, ~$1.20/trip), `minimal` (haversine everything, $0/trip, no polylines). Only affects day plan activity-to-activity routing; journey city-to-city routing (GoogleDirectionsService) is unaffected. All days in a city (regular + excursion) are planned in a single Day Scout → Reviewer → Fixer pass. Excursion candidates tagged with `source_destination` field — Scout decides optimal excursion placement for coherent itineraries. Per-day post-processing detects excursion days from candidate tags and applies transit-adjusted scheduling (no hotel bookends, excursion location as TSP center). Excursion days render the full activity timeline (photos, routes, tips, reorder) with an excursion banner — no simplified stub card. Day navigator tabs show accent-colored indicators for excursion days. Internal product configs (`MAX_CONCURRENT_CITIES`, `ROUTE_COMPUTATION_MODE`, score thresholds) live in `planning.py`, not env vars — env vars are for external dependencies only. Frontend visual design: photo-first activity cards (hero banner layout), destination hero imagery on dashboard, weather-driven day atmosphere gradients (amber=sunny, blue=rain, gray=clouds), staggered entry animations on lists/grids, scroll-reveal on city cards, wizard directional slide transitions, confetti celebration on plan completion, visual budget spending bars, swipe day navigation on mobile, intentional deep-navy dark mode.
 
 ## Code Style
 
@@ -133,7 +157,7 @@ user = day_plan_prompts.load("planning_user")
 - Enums as `class Pace(str, Enum)` for JSON serialization
 - Google-style docstrings
 - Async throughout: all I/O uses async/await with shared `httpx.AsyncClient`
-- App version: `2.0.0`
+- App version: `3.0.0`
 
 ### TypeScript (Frontend)
 - Strict mode enabled (`noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`)
@@ -141,31 +165,40 @@ user = day_plan_prompts.load("planning_user")
 - Path alias: `@/*` maps to `src/*`
 - Tailwind CSS v4 with shadcn/ui + Radix UI components
 - Zustand 5 for state management
-- @dnd-kit for drag-and-drop activity reordering
-- Design: Inter (body) + Plus Jakarta Sans (display), Indigo primary, Orange accent
+- Design: Instrument Sans (body) + Plus Jakarta Sans (display), Indigo primary, Orange accent
 - UX animations: staggered entry (`.animate-stagger-in .stagger-1..8`), scroll-reveal (IntersectionObserver + `.scroll-reveal`), wizard slide transitions (`.animate-slide-right/left`), shimmer image loaders (`.animate-shimmer`), confetti celebration, weather-driven day gradients
 - Dark mode: intentional deep navy tones (`#0f1219` surface), not mechanical inversion
 - Photo-first activity cards: hero banner layout with gradient overlay + thumbnail gallery
-- Destination hero imagery: JourneyDashboard header uses first activity photo as full-width banner
-- Touch: swipe navigation between days in FullDayView (50px threshold)
+- Touch: swipe navigation between days (50px threshold)
 - PWA: manifest.json for installability, theme-color meta tag
 
 ## API Endpoints
 
-### Trips (`/api/trips`) — all require authentication
-- `POST /api/trips/plan/stream` — stream journey planning (SSE)
-- `POST /api/trips/{trip_id}/days/stream` — stream day plan generation (SSE)
-- `POST /api/trips/{trip_id}/chat` — edit journey or day plans via chat
-- `POST /api/trips/{trip_id}/tips` — generate tips for activities
-- `PUT /api/trips/{trip_id}/quick-edit` — quick activity edits (remove, ±duration) with time cascade + hotel re-anchoring
-- `PUT /api/trips/{trip_id}/reorder` — reorder activities within a day (recalculates times + routes + hotel bookends)
-- `GET /api/trips` — list saved trips
-- `GET /api/trips/{trip_id}` — get full trip details
-- `DELETE /api/trips/{trip_id}` — delete a trip
-- `POST /api/trips/{trip_id}/share` — create shareable link
-- `DELETE /api/trips/{trip_id}/share` — revoke sharing
-- `GET /api/trips/{trip_id}/export/pdf` — download PDF trip book
-- `GET /api/trips/{trip_id}/export/calendar` — download .ics
+### Cities (`/api/cities`) — public catalog
+- `GET /api/cities` — list available cities (with search/filter)
+- `GET /api/cities/:id` — get city details
+- `GET /api/cities/:id/variants` — list plan variants for a city
+- `GET /api/cities/:id/variants/:vid` — get full variant with day plans
+
+### Journeys (`/api/journeys`) — require authentication
+- `POST /api/journeys` — assemble a journey from city plans
+- `GET /api/journeys` — list saved journeys
+- `GET /api/journeys/:id` — get full journey details
+- `DELETE /api/journeys/:id` — delete a journey
+
+### Jobs (`/api/jobs`)
+- `GET /api/jobs/:id` — get job status/progress
+
+### Admin (`/api/admin`) — require admin role
+- `POST /api/admin/cities` — add a city to the catalog
+- `POST /api/admin/cities/:id/generate` — trigger plan generation for a city
+- `POST /api/admin/cities/:id/refresh` — refresh stale plans
+- `GET /api/admin/stats` — generation stats (jobs, cities, variants)
+
+### Sharing
+- `POST /api/journeys/:id/share` — create shareable link
+- `DELETE /api/journeys/:id/share` — revoke sharing
+- `GET /api/shared/:token` — get shared journey (no auth)
 
 ### Auth (`/api/auth`)
 - `GET /api/auth/login/{provider}` — initiate OAuth (google/github)
@@ -176,8 +209,6 @@ user = day_plan_prompts.load("planning_user")
 ### Other
 - `GET /api/places/search` — search places (Google Places)
 - `GET /api/places/photo/{ref}?w=800` — proxy Google Places photos (SSRF-validated, configurable width 100-1600)
-- `GET /api/places/alternatives` — get alternative hotels near a location
-- `GET /api/shared/{token}` — get shared trip (no auth)
 - `GET /health` — health check (status, version, LLM provider)
 
 ## Environment Variables
@@ -214,7 +245,6 @@ Supports multiple deployment modes via dual auth (cookie + Bearer token):
 - **npm permissions**: If `npm install` fails with EACCES, run `sudo chown -R $(whoami) ~/.npm`
 - **Generate test JWT**: `./venv/bin/python -c "from app.core.auth import create_access_token; print(create_access_token({'sub':'test','email':'t@t.com','name':'Test'}))"` (run from `backend/`)
 - **Pre-push hook**: Runs `npm run build` in frontend — takes ~1-2s, blocks push until build passes
-- **TravelMode enum**: API accepts uppercase only (`WALK`, `DRIVE`, `TRANSIT`) — not lowercase transport modes like `train`, `bus`
 
 ## Testing with curl
 
@@ -222,11 +252,17 @@ Supports multiple deployment modes via dual auth (cookie + Bearer token):
 # Generate JWT token (run from backend/)
 TOKEN=$(./venv/bin/python -c "from app.core.auth import create_access_token; print(create_access_token({'sub':'test','email':'t@t.com','name':'Test'}))")
 
-# Test SSE stream — save output, parse last event
-curl -s --max-time 240 http://localhost:8000/api/trips/plan/stream \
+# Create a journey
+curl -s http://localhost:8000/api/journeys \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"destination":"Spain","origin":"Madrid","total_days":5,"start_date":"2026-04-15","interests":["food"],"pace":"relaxed","travel_mode":"TRANSIT","budget":"moderate","travelers":{"adults":2}}' \
-  > /tmp/sse.txt && grep "^data:" /tmp/sse.txt | tail -1 | sed 's/^data: //' | python3 -m json.tool
+  -d '{"cities":["Tokyo","Kyoto"],"total_days":7,"start_date":"2026-05-01","pace":"moderate","budget":"moderate","travelers":{"adults":2}}' \
+  | python3 -m json.tool
+
+# Browse city catalog
+curl -s http://localhost:8000/api/cities | python3 -m json.tool
+
+# Get city variants
+curl -s http://localhost:8000/api/cities/1/variants | python3 -m json.tool
 
 # Test health
 curl -s http://localhost:8000/health | python3 -m json.tool
