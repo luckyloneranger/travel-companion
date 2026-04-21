@@ -1,182 +1,487 @@
-import json
+"""Repository classes for content library database operations."""
+
+from __future__ import annotations
+
 import logging
-import secrets
-import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload, joinedload
 
-from app.models.day_plan import DayPlan
-from app.models.journey import JourneyPlan
-from app.models.trip import TripRequest, TripResponse, TripSummary
-
-from .models import Trip, TripShare, User
+from .models import (
+    Activity,
+    City,
+    DayPlan,
+    GenerationJob,
+    Journey,
+    JourneyShare,
+    Place,
+    PlanVariant,
+    Route,
+    User,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class TripRepository:
+class CityRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def save_trip(
+    async def create(
         self,
-        request: TripRequest,
-        journey: JourneyPlan,
-        trip_id: str | None = None,
-        user_id: str | None = None,
-    ) -> str:
-        """Save a new trip. Returns trip ID."""
-        # Ensure user exists before saving (defensive against FK constraint)
-        if user_id:
-            existing = await self.session.get(User, user_id)
-            if not existing:
-                logger.warning(f"User {user_id} not in DB, creating stub")
-                self.session.add(User(
-                    id=user_id, email=f"{user_id}@unknown", name="Unknown", provider="unknown"
-                ))
-                await self.session.flush()
-
-        tid = trip_id or str(uuid.uuid4())
-        trip = Trip(
-            id=tid,
-            user_id=user_id,
-            destination=request.destination,
-            theme=journey.theme,
-            total_days=journey.total_days,
-            cities_count=len(journey.cities),
-            request_json=request.model_dump_json(),
-            journey_json=journey.model_dump_json(),
+        name: str,
+        country: str,
+        country_code: str,
+        location: dict,
+        timezone: str,
+        currency: str,
+        population_tier: str,
+        region: str | None = None,
+    ) -> City:
+        city = City(
+            name=name,
+            country=country,
+            country_code=country_code,
+            location=location,
+            timezone=timezone,
+            currency=currency,
+            population_tier=population_tier,
+            region=region,
         )
-        self.session.add(trip)
+        self.session.add(city)
         await self.session.commit()
-        logger.info(f"Saved trip {tid}")
-        return tid
+        await self.session.refresh(city)
+        return city
 
-    async def update_day_plans(
-        self,
-        trip_id: str,
-        day_plans: list[DayPlan],
-        quality_score: float | None = None,
-    ) -> None:
-        """Update trip with day plans."""
-        result = await self.session.get(Trip, trip_id)
-        if not result:
-            raise ValueError(f"Trip {trip_id} not found")
-        result.day_plans_json = json.dumps([dp.model_dump() for dp in day_plans])
-        if quality_score is not None:
-            result.quality_score = quality_score
-        result.updated_at = datetime.now(timezone.utc)
-        await self.session.commit()
+    async def get(self, city_id: UUID) -> City | None:
+        return await self.session.get(City, city_id)
 
-    async def update_journey(self, trip_id: str, journey: JourneyPlan) -> None:
-        """Update trip's journey plan (e.g., after chat edit)."""
-        result = await self.session.get(Trip, trip_id)
-        if not result:
-            raise ValueError(f"Trip {trip_id} not found")
-        result.journey_json = journey.model_dump_json()
-        result.theme = journey.theme
-        result.total_days = journey.total_days
-        result.cities_count = len(journey.cities)
-        result.updated_at = datetime.now(timezone.utc)
-        await self.session.commit()
-
-    async def get_trip(self, trip_id: str) -> TripResponse | None:
-        """Get a complete trip by ID."""
-        trip = await self.session.get(Trip, trip_id)
-        if not trip:
-            return None
-        return self._to_response(trip)
-
-    async def list_trips(self, user_id: str | None = None, limit: int = 50, offset: int = 0) -> list[TripSummary]:
-        """List trips (summaries only). When user_id is provided, filter by owner."""
-        query = select(Trip).order_by(Trip.created_at.desc())
-        if user_id is not None:
-            query = query.where(Trip.user_id == user_id)
-        query = query.limit(limit).offset(offset)
-        result = await self.session.execute(query)
-        trips = result.scalars().all()
-        return [self._to_summary(t) for t in trips]
-
-    async def delete_trip(self, trip_id: str) -> bool:
-        """Delete a trip. Returns True if deleted."""
+    async def get_by_name(self, name: str, country_code: str) -> City | None:
         result = await self.session.execute(
-            delete(Trip).where(Trip.id == trip_id)
+            select(City).where(City.name == name, City.country_code == country_code)
+        )
+        return result.scalar_one_or_none()
+
+    async def list(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        region: str | None = None,
+        sort: str = "name",
+    ) -> tuple[list[City], int]:
+        query = select(City)
+        count_query = select(func.count()).select_from(City)
+
+        if region:
+            query = query.where(City.region == region)
+            count_query = count_query.where(City.region == region)
+
+        sort_col = City.name if sort == "name" else City.created_at
+        query = query.order_by(sort_col).limit(limit).offset(offset)
+
+        result = await self.session.execute(query)
+        cities = list(result.scalars().all())
+
+        count_result = await self.session.execute(count_query)
+        total = count_result.scalar_one()
+
+        return cities, total
+
+    async def update(self, city_id: UUID, **kwargs) -> City | None:
+        city = await self.get(city_id)
+        if not city:
+            return None
+        for key, value in kwargs.items():
+            setattr(city, key, value)
+        await self.session.commit()
+        await self.session.refresh(city)
+        return city
+
+
+class PlaceRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def upsert_from_google(
+        self, city_id: UUID, google_place_id: str, **place_data
+    ) -> Place:
+        existing = await self.get_by_google_id(google_place_id)
+        if existing:
+            for key, value in place_data.items():
+                setattr(existing, key, value)
+            existing.city_id = city_id
+            await self.session.commit()
+            await self.session.refresh(existing)
+            return existing
+
+        place = Place(
+            city_id=city_id,
+            google_place_id=google_place_id,
+            **place_data,
+        )
+        self.session.add(place)
+        await self.session.commit()
+        await self.session.refresh(place)
+        return place
+
+    async def get_by_city(
+        self, city_id: UUID, lodging_only: bool = False
+    ) -> list[Place]:
+        query = select(Place).where(Place.city_id == city_id)
+        if lodging_only:
+            query = query.where(Place.is_lodging.is_(True))
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def get(self, place_id: UUID) -> Place | None:
+        return await self.session.get(Place, place_id)
+
+    async def get_by_google_id(self, google_place_id: str) -> Place | None:
+        result = await self.session.execute(
+            select(Place).where(Place.google_place_id == google_place_id)
+        )
+        return result.scalar_one_or_none()
+
+
+class VariantRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(
+        self, city_id: UUID, pace: str, budget: str, day_count: int, **kwargs
+    ) -> PlanVariant:
+        variant = PlanVariant(
+            city_id=city_id,
+            pace=pace,
+            budget=budget,
+            day_count=day_count,
+            **kwargs,
+        )
+        self.session.add(variant)
+        await self.session.commit()
+        await self.session.refresh(variant)
+        return variant
+
+    async def lookup(
+        self,
+        city_id: UUID,
+        pace: str,
+        budget: str,
+        day_count: int,
+        status: str = "published",
+    ) -> PlanVariant | None:
+        result = await self.session.execute(
+            select(PlanVariant).where(
+                PlanVariant.city_id == city_id,
+                PlanVariant.pace == pace,
+                PlanVariant.budget == budget,
+                PlanVariant.day_count == day_count,
+                PlanVariant.status == status,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_detail(self, variant_id: UUID) -> PlanVariant | None:
+        result = await self.session.execute(
+            select(PlanVariant)
+            .where(PlanVariant.id == variant_id)
+            .options(
+                selectinload(PlanVariant.day_plans)
+                .selectinload(DayPlan.activities)
+                .joinedload(Activity.place),
+                selectinload(PlanVariant.day_plans)
+                .selectinload(DayPlan.routes),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_city(
+        self, city_id: UUID, pace: str | None = None, budget: str | None = None
+    ) -> list[PlanVariant]:
+        query = select(PlanVariant).where(PlanVariant.city_id == city_id)
+        if pace:
+            query = query.where(PlanVariant.pace == pace)
+        if budget:
+            query = query.where(PlanVariant.budget == budget)
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def update_status(
+        self, variant_id: UUID, status: str, **kwargs
+    ) -> PlanVariant | None:
+        variant = await self.session.get(PlanVariant, variant_id)
+        if not variant:
+            return None
+        variant.status = status
+        for key, value in kwargs.items():
+            setattr(variant, key, value)
+        await self.session.commit()
+        await self.session.refresh(variant)
+        return variant
+
+
+class DayPlanRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create_with_activities(
+        self,
+        variant_id: UUID,
+        day_number: int,
+        theme: str,
+        theme_description: str | None,
+        activities: list[dict],
+        routes: list[dict],
+    ) -> DayPlan:
+        day_plan = DayPlan(
+            variant_id=variant_id,
+            day_number=day_number,
+            theme=theme,
+            theme_description=theme_description,
+        )
+        self.session.add(day_plan)
+        await self.session.flush()
+
+        for act_data in activities:
+            activity = Activity(day_plan_id=day_plan.id, **act_data)
+            self.session.add(activity)
+
+        for route_data in routes:
+            route = Route(day_plan_id=day_plan.id, **route_data)
+            self.session.add(route)
+
+        await self.session.commit()
+        await self.session.refresh(day_plan)
+        return day_plan
+
+
+class JourneyRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(
+        self,
+        user_id: str,
+        destination: str,
+        start_date: str,
+        total_days: int,
+        pace: str,
+        budget: str,
+        city_sequence: list[dict],
+        **kwargs,
+    ) -> Journey:
+        journey = Journey(
+            user_id=user_id,
+            destination=destination,
+            start_date=start_date,
+            total_days=total_days,
+            pace=pace,
+            budget=budget,
+            city_sequence=city_sequence,
+            **kwargs,
+        )
+        self.session.add(journey)
+        await self.session.commit()
+        await self.session.refresh(journey)
+        return journey
+
+    async def get(self, journey_id: UUID) -> Journey | None:
+        return await self.session.get(Journey, journey_id)
+
+    async def list_by_user(
+        self, user_id: str, limit: int = 50, offset: int = 0
+    ) -> tuple[list[Journey], int]:
+        query = (
+            select(Journey)
+            .where(Journey.user_id == user_id)
+            .order_by(Journey.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(query)
+        journeys = list(result.scalars().all())
+
+        count_result = await self.session.execute(
+            select(func.count()).select_from(Journey).where(Journey.user_id == user_id)
+        )
+        total = count_result.scalar_one()
+
+        return journeys, total
+
+    async def delete(self, journey_id: UUID) -> bool:
+        journey = await self.get(journey_id)
+        if not journey:
+            return False
+        await self.session.delete(journey)
+        await self.session.commit()
+        return True
+
+
+class JobRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(
+        self,
+        job_type: str,
+        city_id: UUID | None = None,
+        parameters: dict | None = None,
+        priority: int = 0,
+    ) -> GenerationJob:
+        job = GenerationJob(
+            job_type=job_type,
+            city_id=city_id,
+            parameters=parameters or {},
+            priority=priority,
+        )
+        self.session.add(job)
+        await self.session.commit()
+        await self.session.refresh(job)
+        return job
+
+    async def pick_next(self, worker_id: str) -> GenerationJob | None:
+        """Pick the next queued job using SELECT FOR UPDATE SKIP LOCKED."""
+        query = (
+            select(GenerationJob)
+            .where(GenerationJob.status == "queued")
+            .order_by(GenerationJob.priority.desc(), GenerationJob.created_at.asc())
+            .limit(1)
+        )
+        # FOR UPDATE SKIP LOCKED is PostgreSQL-specific; skip for SQLite
+        dialect = self.session.bind.dialect.name if self.session.bind else ""
+        if dialect != "sqlite":
+            query = query.with_for_update(skip_locked=True)
+        result = await self.session.execute(query)
+        job = result.scalar_one_or_none()
+        if not job:
+            return None
+
+        now = datetime.now(timezone.utc)
+        job.status = "running"
+        job.locked_by = worker_id
+        job.locked_at = now
+        job.started_at = now
+        await self.session.commit()
+        await self.session.refresh(job)
+        return job
+
+    async def complete(self, job_id: UUID, result: dict | None = None) -> None:
+        job = await self.session.get(GenerationJob, job_id)
+        if not job:
+            return
+        job.status = "completed"
+        job.completed_at = datetime.now(timezone.utc)
+        job.progress_pct = 100
+        job.result = result
+        await self.session.commit()
+
+    async def fail(self, job_id: UUID, error: str) -> None:
+        job = await self.session.get(GenerationJob, job_id)
+        if not job:
+            return
+        job.status = "failed"
+        job.completed_at = datetime.now(timezone.utc)
+        job.error = error
+        await self.session.commit()
+
+    async def update_progress(self, job_id: UUID, progress_pct: int) -> None:
+        job = await self.session.get(GenerationJob, job_id)
+        if not job:
+            return
+        job.progress_pct = progress_pct
+        await self.session.commit()
+
+    async def get(self, job_id: UUID) -> GenerationJob | None:
+        return await self.session.get(GenerationJob, job_id)
+
+    async def recover_stale(self, timeout_minutes: int = 15) -> int:
+        """Reset running jobs that have been locked longer than timeout."""
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)
+        result = await self.session.execute(
+            update(GenerationJob)
+            .where(
+                GenerationJob.status == "running",
+                GenerationJob.locked_at < cutoff,
+            )
+            .values(
+                status="queued",
+                locked_by=None,
+                locked_at=None,
+                started_at=None,
+            )
         )
         await self.session.commit()
-        return result.rowcount > 0
+        return result.rowcount
 
-    async def create_share(self, trip_id: str) -> str:
-        """Create a share token for a trip. Returns the token."""
-        share_id = str(uuid.uuid4())
-        token = secrets.token_urlsafe(9)  # ~12 chars
-        share = TripShare(
-            id=share_id,
-            trip_id=trip_id,
-            share_token=token,
+
+class UserRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_or_create(
+        self,
+        provider: str,
+        provider_id: str,
+        email: str | None,
+        name: str | None,
+        avatar_url: str | None,
+    ) -> User:
+        result = await self.session.execute(
+            select(User).where(User.provider == provider, User.provider_id == provider_id)
         )
+        user = result.scalar_one_or_none()
+        if user:
+            if name:
+                user.name = name
+            if avatar_url:
+                user.avatar_url = avatar_url
+            await self.session.commit()
+            await self.session.refresh(user)
+            return user
+
+        user = User(
+            email=email,
+            name=name,
+            avatar_url=avatar_url,
+            provider=provider,
+            provider_id=provider_id,
+        )
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
+    async def get(self, user_id: UUID) -> User | None:
+        return await self.session.get(User, user_id)
+
+
+class JourneyShareRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, journey_id: UUID, token: str) -> JourneyShare:
+        share = JourneyShare(journey_id=journey_id, token=token)
         self.session.add(share)
         await self.session.commit()
-        return token
+        await self.session.refresh(share)
+        return share
 
-    async def get_trip_by_share_token(self, token: str) -> TripResponse | None:
-        """Get a trip by its share token. Returns TripResponse or None."""
+    async def get_by_token(self, token: str) -> JourneyShare | None:
         result = await self.session.execute(
-            select(TripShare).where(TripShare.share_token == token)
+            select(JourneyShare).where(JourneyShare.token == token)
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_by_journey(self, journey_id: UUID) -> bool:
+        result = await self.session.execute(
+            select(JourneyShare).where(JourneyShare.journey_id == journey_id)
         )
         share = result.scalar_one_or_none()
         if not share:
-            return None
-        return await self.get_trip(share.trip_id)
-
-    async def delete_share(self, trip_id: str) -> bool:
-        """Revoke sharing for a trip."""
-        result = await self.session.execute(
-            delete(TripShare).where(TripShare.trip_id == trip_id)
-        )
+            return False
+        await self.session.delete(share)
         await self.session.commit()
-        return result.rowcount > 0
-
-    async def get_trip_user_id(self, trip_id: str) -> str | None:
-        """Get the user_id for a trip. Returns None if trip doesn't exist or has no owner."""
-        result = await self.session.execute(
-            select(Trip.user_id).where(Trip.id == trip_id)
-        )
-        return result.scalar_one_or_none()
-
-    async def get_share_token(self, trip_id: str) -> str | None:
-        """Get existing share token for a trip, if any."""
-        result = await self.session.execute(
-            select(TripShare.share_token).where(TripShare.trip_id == trip_id)
-        )
-        return result.scalar_one_or_none()
-
-    def _to_response(self, trip: Trip) -> TripResponse:
-        """Convert ORM model to API response."""
-        day_plans = None
-        if trip.day_plans_json:
-            raw = json.loads(trip.day_plans_json)
-            day_plans = [DayPlan.model_validate(dp) for dp in raw]
-
-        return TripResponse(
-            id=trip.id,
-            request=TripRequest.model_validate_json(trip.request_json),
-            journey=JourneyPlan.model_validate_json(trip.journey_json),
-            day_plans=day_plans,
-            quality_score=trip.quality_score,
-            created_at=trip.created_at,
-            updated_at=trip.updated_at,
-        )
-
-    def _to_summary(self, trip: Trip) -> TripSummary:
-        """Convert ORM model to summary."""
-        return TripSummary(
-            id=trip.id,
-            theme=trip.theme or "",
-            destination=trip.destination,
-            total_days=int(trip.total_days or 0),
-            cities_count=int(trip.cities_count or 0),
-            created_at=trip.created_at,
-            has_day_plans=trip.day_plans_json is not None,
-        )
+        return True
