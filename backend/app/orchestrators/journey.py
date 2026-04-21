@@ -105,12 +105,13 @@ class JourneyOrchestrator:
                             request.destination,
                         )
 
+                must_see_raw: MustSeeAttractions | None = None
                 if isinstance(must_see_result, Exception):
                     logger.warning("[Orchestrator] Must-see identification failed: %s", must_see_result)
                     if request.must_include:
                         must_see_context = self._format_user_must_include_only(request.must_include)
                 else:
-                    must_see_context = must_see_result or ""
+                    must_see_context, must_see_raw = must_see_result if must_see_result else ("", None)
                     if must_see_context:
                         logger.info(
                             "[Orchestrator] Must-see attractions identified for %s",
@@ -122,6 +123,16 @@ class JourneyOrchestrator:
             self._landmarks_context = landscape_context
             self._must_see_context = must_see_context
 
+            # ── Step 0.5: Build geographic context from must-see cities ──
+            geographic_context = ""
+            if must_see_raw:
+                try:
+                    geographic_context = await self._build_geographic_context(
+                        must_see_raw, request.origin
+                    )
+                except Exception as exc:
+                    logger.warning("[Orchestrator] Geographic context failed: %s", exc)
+
             # ── Step 1: Scout ────────────────────────────────────────
             yield ProgressEvent(
                 phase="scouting",
@@ -129,7 +140,11 @@ class JourneyOrchestrator:
                 progress=10,
             )
             logger.info("[Orchestrator] Scouting plan for %s", request.destination)
-            plan: JourneyPlan = await self.scout.generate_plan(request, landmarks_context=self._landmarks_context)
+            plan: JourneyPlan = await self.scout.generate_plan(
+                request,
+                landmarks_context=self._landmarks_context,
+                geographic_context=geographic_context,
+            )
             yield ProgressEvent(
                 phase="scouting",
                 message=f"Planned {len(plan.cities)} cities",
@@ -232,7 +247,7 @@ class JourneyOrchestrator:
                 progress=0,
             )
 
-    async def _identify_must_see_attractions(self, request: TripRequest) -> str:
+    async def _identify_must_see_attractions(self, request: TripRequest) -> tuple[str, MustSeeAttractions | None]:
         """Identify globally iconic must-see attractions via a fast LLM call.
 
         Returns a formatted string for injection into Reviewer/Planner prompts.
@@ -250,21 +265,31 @@ class JourneyOrchestrator:
                 interests=", ".join(request.interests) if request.interests else "general sightseeing",
             )
 
-            result = await self.llm.generate_structured(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                schema=MustSeeAttractions,
-                max_tokens=LLM_MUST_SEE_MAX_TOKENS,
-                temperature=LLM_MUST_SEE_TEMPERATURE,
-            )
+            from app.config.planning import should_use_search_grounding
+            if should_use_search_grounding("full"):
+                result, _citations = await self.llm.generate_structured_with_search(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    schema=MustSeeAttractions,
+                    max_tokens=LLM_MUST_SEE_MAX_TOKENS,
+                    temperature=LLM_MUST_SEE_TEMPERATURE,
+                )
+            else:
+                result = await self.llm.generate_structured(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    schema=MustSeeAttractions,
+                    max_tokens=LLM_MUST_SEE_MAX_TOKENS,
+                    temperature=LLM_MUST_SEE_TEMPERATURE,
+                )
 
-            return self._format_must_see_context(result, request.must_include)
+            return (self._format_must_see_context(result, request.must_include), result)
 
         except Exception as exc:
             logger.warning("[Orchestrator] Must-see identification failed: %s", exc)
             if request.must_include:
-                return self._format_user_must_include_only(request.must_include)
-            return ""
+                return (self._format_user_must_include_only(request.must_include), None)
+            return ("", None)
 
     def _format_must_see_context(
         self, result: MustSeeAttractions, user_must_include: list[str]
@@ -307,4 +332,122 @@ class JourneyOrchestrator:
         ]
         for m in user_must_include:
             lines.append(f"- {m}")
+        return "\n".join(lines)
+
+    async def _build_geographic_context(
+        self,
+        must_see: MustSeeAttractions,
+        origin: str,
+    ) -> str:
+        """Build geographic distance context from must-see city coordinates.
+
+        Geocodes unique cities from must-see attractions plus the origin,
+        computes pairwise haversine distances, and returns a nearest-neighbor
+        ordering to help the Scout prevent backtracking routes.
+
+        Returns empty string when insufficient cities are geocoded (< 3)
+        or on any failure (graceful degradation).
+        """
+        from app.config.planning import compute_haversine_fallback
+
+        # Extract unique city names, preserving order
+        seen: set[str] = set()
+        cities: list[str] = []
+        if origin:
+            cities.append(origin)
+            seen.add(origin.lower())
+        for a in must_see.attractions:
+            key = a.city_or_region.lower()
+            if key not in seen:
+                cities.append(a.city_or_region)
+                seen.add(key)
+
+        if len(cities) < 3:
+            return ""
+
+        # Geocode all cities in parallel
+        geocode_results = await asyncio.gather(
+            *(self.places.geocode(city) for city in cities),
+            return_exceptions=True,
+        )
+
+        # Build city→coords map, skip failures
+        city_coords: dict[str, tuple[float, float]] = {}
+        for city_name, result in zip(cities, geocode_results):
+            if isinstance(result, Exception):
+                logger.warning(
+                    "[Orchestrator] Geocode failed for %r: %s", city_name, result
+                )
+                continue
+            lat = result.get("lat", 0.0)
+            lng = result.get("lng", 0.0)
+            if lat and lng:
+                city_coords[city_name] = (lat, lng)
+
+        if len(city_coords) < 3:
+            return ""
+
+        # Compute pairwise distances (meters → km)
+        city_names = list(city_coords.keys())
+        distances: dict[tuple[str, str], float] = {}
+        for i, c1 in enumerate(city_names):
+            for c2 in city_names[i + 1 :]:
+                lat1, lng1 = city_coords[c1]
+                lat2, lng2 = city_coords[c2]
+                dist_m, _ = compute_haversine_fallback(lat1, lng1, lat2, lng2)
+                dist_km = dist_m / 1000
+                distances[(c1, c2)] = dist_km
+                distances[(c2, c1)] = dist_km
+
+        # Nearest-neighbor ordering from origin (or first city)
+        start = origin if origin in city_coords else city_names[0]
+        ordered: list[str] = [start]
+        remaining = set(city_names) - {start}
+        while remaining:
+            current = ordered[-1]
+            nearest = min(
+                remaining,
+                key=lambda c: distances.get((current, c), float("inf")),
+            )
+            ordered.append(nearest)
+            remaining.remove(nearest)
+
+        # Format as compact context
+        lines = [
+            "## GEOGRAPHIC CONTEXT (from real coordinates)",
+            "Approximate straight-line distances between key destinations in this region:",
+            "",
+            "**Efficient geographic flow** (minimizes total distance):",
+        ]
+
+        flow_parts = []
+        total_km = 0.0
+        for i in range(len(ordered) - 1):
+            dist = distances.get((ordered[i], ordered[i + 1]), 0)
+            total_km += dist
+            flow_parts.append(f"{ordered[i]} →({dist:.0f}km)→ {ordered[i + 1]}")
+        lines.append(" ".join(flow_parts))
+        lines.append(f"Total: ~{total_km:.0f}km")
+        lines.append("")
+
+        lines.append("**Key distances:**")
+        for i in range(len(ordered) - 1):
+            c1, c2 = ordered[i], ordered[i + 1]
+            dist = distances.get((c1, c2), 0)
+            lines.append(f"- {c1} → {c2}: ~{dist:.0f}km")
+        lines.append("")
+
+        lines.append(
+            "Follow this geographic flow to PREVENT backtracking. "
+            "You may select different cities, but they should fit within "
+            "this directional corridor (e.g., north-to-south, coastal sweep). "
+            "Adding a city that forces doubling back is a routing error."
+        )
+
+        logger.info(
+            "[Orchestrator] Geographic context: %s (total ~%.0fkm)",
+            " → ".join(ordered),
+            total_km,
+        )
+
         return "\n".join(lines)

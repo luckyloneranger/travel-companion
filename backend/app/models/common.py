@@ -32,3 +32,18 @@ class Budget(str, Enum):
     BUDGET = "budget"
     MODERATE = "moderate"
     LUXURY = "luxury"
+
+
+class PopulationTier(str, Enum):
+    MEGA = "mega"
+    LARGE = "large"
+    MEDIUM = "medium"
+    SMALL = "small"
+
+
+class VariantStatus(str, Enum):
+    GENERATING = "generating"
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    STALE = "stale"
+    ARCHIVED = "archived"

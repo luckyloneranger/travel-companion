@@ -41,14 +41,23 @@ class PlannerAgent:
             must_see_context=must_see_context,
         )
 
-        from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_DEFAULT_TEMPERATURE
-        fixed = await self.llm.generate_structured(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            schema=JourneyPlan,
-            max_tokens=LLM_DEFAULT_MAX_TOKENS,
-            temperature=LLM_DEFAULT_TEMPERATURE,
-        )
+        from app.config.planning import LLM_DEFAULT_MAX_TOKENS, LLM_DEFAULT_TEMPERATURE, should_use_search_grounding
+        if should_use_search_grounding("full"):
+            fixed, _citations = await self.llm.generate_structured_with_search(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=JourneyPlan,
+                max_tokens=LLM_DEFAULT_MAX_TOKENS,
+                temperature=LLM_DEFAULT_TEMPERATURE,
+            )
+        else:
+            fixed = await self.llm.generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=JourneyPlan,
+                max_tokens=LLM_DEFAULT_MAX_TOKENS,
+                temperature=LLM_DEFAULT_TEMPERATURE,
+            )
 
         self._validate_plan(fixed)
 

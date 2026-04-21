@@ -38,14 +38,23 @@ class ReviewerAgent:
             must_see_context=must_see_context,
         )
 
-        from app.config.planning import LLM_REVIEWER_MAX_TOKENS, LLM_REVIEWER_TEMPERATURE
-        result = await self.llm.generate_structured(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            schema=ReviewResult,
-            max_tokens=LLM_REVIEWER_MAX_TOKENS,
-            temperature=LLM_REVIEWER_TEMPERATURE,
-        )
+        from app.config.planning import LLM_REVIEWER_MAX_TOKENS, LLM_REVIEWER_TEMPERATURE, should_use_search_grounding
+        if should_use_search_grounding("full"):
+            result, _citations = await self.llm.generate_structured_with_search(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=ReviewResult,
+                max_tokens=LLM_REVIEWER_MAX_TOKENS,
+                temperature=LLM_REVIEWER_TEMPERATURE,
+            )
+        else:
+            result = await self.llm.generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=ReviewResult,
+                max_tokens=LLM_REVIEWER_MAX_TOKENS,
+                temperature=LLM_REVIEWER_TEMPERATURE,
+            )
 
         result.iteration = iteration
         return result

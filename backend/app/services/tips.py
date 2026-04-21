@@ -92,12 +92,21 @@ class TipsService:
             destination,
         )
 
-        raw_text = await self.llm.generate(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            max_tokens=4000,
-            temperature=0.7,
-        )
+        from app.config.planning import should_use_search_grounding
+        if should_use_search_grounding("selective"):
+            raw_text, _citations = await self.llm.generate_with_search(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=4000,
+                temperature=0.7,
+            )
+        else:
+            raw_text = await self.llm.generate(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=4000,
+                temperature=0.7,
+            )
 
         # Parse the JSON response from the LLM.
         try:

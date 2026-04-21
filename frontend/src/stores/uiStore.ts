@@ -1,113 +1,74 @@
-import { create } from 'zustand';
-import type { ProgressEvent } from '@/types';
+import { create } from "zustand";
 
-type AppPhase = 'input' | 'planning' | 'preview' | 'day-plans';
+type Phase = "input" | "planning" | "preview" | "day-plans" | "live";
 
-interface UIState {
-  // Phase
-  phase: AppPhase;
-  setPhase: (phase: AppPhase) => void;
+interface ProgressState {
+  phase: string;
+  message: string;
+  progress: number;
+  data?: Record<string, unknown>;
+}
 
-  // Planning progress
-  progress: ProgressEvent | null;
-  setProgress: (event: ProgressEvent | null) => void;
-
-  // Loading / error
-  isLoading: boolean;
+interface UIStore {
+  loading: boolean;
+  darkMode: boolean;
   error: string | null;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-
-  // Map toggles
-  showJourneyMap: boolean;
-  toggleJourneyMap: () => void;
-  dayMapVisible: Record<number, boolean>;
-  toggleDayMap: (dayNumber: number) => void;
-
-  // Chat
-  isChatOpen: boolean;
-  chatContext: 'journey' | 'day_plans';
-  chatPrefill: string;
-  openChat: (context?: 'journey' | 'day_plans', prefill?: string) => void;
-  closeChat: () => void;
-
-  // Wizard
+  phase: Phase;
+  progress: ProgressState | null;
   wizardStep: number;
-  setWizardStep: (step: number) => void;
+  dayPlansGenerating: boolean;
+  isChatOpen: boolean;
+  chatContext: string | null;
+  chatPrefill: string | null;
+  signInOpen: boolean;
 
-  // Sign in modal
-  showSignIn: boolean;
+  setLoading: (loading: boolean) => void;
+  toggleDarkMode: () => void;
+  setError: (error: string | null) => void;
+  setPhase: (phase: Phase) => void;
+  setProgress: (progress: ProgressState | null) => void;
+  setWizardStep: (step: number) => void;
+  setDayPlansGenerating: (generating: boolean) => void;
+  openChat: (context?: string, prefill?: string) => void;
+  closeChat: () => void;
   openSignIn: () => void;
   closeSignIn: () => void;
-
-  // Day plans background generation
-  dayPlansGenerating: boolean;
-  setDayPlansGenerating: (generating: boolean) => void;
-
-  // Reset
   resetUI: () => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  phase: 'input',
-  setPhase: (phase) => {
-    set({ phase });
-    if (phase !== 'planning') {
-      sessionStorage.setItem('tc_phase', phase);
-    }
-  },
-
-  progress: null,
-  setProgress: (event) => set({ progress: event }),
-
-  isLoading: false,
+export const useUIStore = create<UIStore>((set) => ({
+  loading: false,
+  darkMode: window.matchMedia("(prefers-color-scheme: dark)").matches,
   error: null,
-  setLoading: (loading) => set({ isLoading: loading }),
-  setError: (error) => set({ error }),
-
-  showJourneyMap: false,
-  toggleJourneyMap: () => set((s) => ({ showJourneyMap: !s.showJourneyMap })),
-  dayMapVisible: {},
-  toggleDayMap: (dayNumber) =>
-    set((s) => ({
-      dayMapVisible: {
-        ...s.dayMapVisible,
-        [dayNumber]: !s.dayMapVisible[dayNumber],
-      },
-    })),
-
-  isChatOpen: false,
-  chatContext: 'journey',
-  chatPrefill: '',
-  openChat: (context = 'journey', prefill = '') =>
-    set({ isChatOpen: true, chatContext: context, chatPrefill: prefill }),
-  closeChat: () => set({ isChatOpen: false }),
-
-  wizardStep: 1,
-  setWizardStep: (step) => set({ wizardStep: step }),
-
-  showSignIn: false,
-  openSignIn: () => set({ showSignIn: true }),
-  closeSignIn: () => set({ showSignIn: false }),
-
+  phase: "input",
+  progress: null,
+  wizardStep: 0,
   dayPlansGenerating: false,
-  setDayPlansGenerating: (generating) => set({ dayPlansGenerating: generating }),
+  isChatOpen: false,
+  chatContext: null,
+  chatPrefill: null,
+  signInOpen: false,
 
-  resetUI: () => {
-    set({
-      phase: 'input',
-      progress: null,
-      isLoading: false,
-      error: null,
-      showJourneyMap: false,
-      dayMapVisible: {},
-      isChatOpen: false,
-      chatPrefill: '',
-      wizardStep: 1,
-      dayPlansGenerating: false,
-      showSignIn: false,
-    });
-    sessionStorage.removeItem('tc_phase');
-    sessionStorage.removeItem('tc_tripId');
-  },
+  setLoading: (loading) => set({ loading }),
+  toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
+  setError: (error) => set({ error }),
+  setPhase: (phase) => set({ phase }),
+  setProgress: (progress) => set({ progress }),
+  setWizardStep: (step) => set({ wizardStep: step }),
+  setDayPlansGenerating: (generating) => set({ dayPlansGenerating: generating }),
+  openChat: (context, prefill) => set({ isChatOpen: true, chatContext: context ?? null, chatPrefill: prefill ?? null }),
+  closeChat: () => set({ isChatOpen: false, chatContext: null, chatPrefill: null }),
+  openSignIn: () => set({ signInOpen: true }),
+  closeSignIn: () => set({ signInOpen: false }),
+  resetUI: () => set({
+    error: null,
+    phase: "input",
+    progress: null,
+    wizardStep: 0,
+    dayPlansGenerating: false,
+    isChatOpen: false,
+    chatContext: null,
+    chatPrefill: null,
+    signInOpen: false,
+  }),
 }));
