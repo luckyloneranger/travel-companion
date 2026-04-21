@@ -1,51 +1,28 @@
-import { Component } from 'react';
-import type { ErrorInfo, ReactNode } from 'react';
+import { Component, type ReactNode } from "react";
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-}
-
-interface State {
-  hasError: boolean;
-  error: Error | null;
-}
+interface Props { children: ReactNode; }
+interface State { hasError: boolean; }
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null };
+  state: State = { hasError: false };
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('ErrorBoundary caught:', error, info.componentStack);
+  static getDerivedStateFromError(): State {
+    return { hasError: true };
   }
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
       return (
-        <div className="flex min-h-screen items-center justify-center bg-surface-dim p-8">
-          <div className="max-w-md rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50 p-6 text-center">
-            <h2 className="text-lg font-semibold text-red-800 dark:text-red-300">Something went wrong</h2>
-            <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-              {this.state.error?.message || 'An unexpected error occurred.'}
-            </p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="mt-4 rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-            >
-              Reload Page
+        <div className="flex items-center justify-center min-h-screen p-8">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm">
+              Reload
             </button>
           </div>
         </div>
       );
     }
-
     return this.props.children;
   }
 }
