@@ -417,3 +417,24 @@ _BUDGET_FALLBACK_NIGHTLY: dict[str, int] = {
 def get_budget_fallback_nightly(budget: str) -> int:
     """Return a sensible fallback nightly USD when LLM omits accommodation."""
     return _BUDGET_FALLBACK_NIGHTLY.get(budget, 120)
+
+
+# === Batch Pipeline ===
+
+# Batch generation (offline, high quality)
+BATCH_MAX_ITERATIONS: int = 5
+BATCH_MIN_SCORE: int = 80
+BATCH_DISCOVERY_CANDIDATES: int = 150  # max candidates per city
+
+# On-demand draft (real-time, single pass)
+DRAFT_DISCOVERY_CANDIDATES: int = 60
+
+# Job queue
+JOB_STALE_TIMEOUT_MINUTES: int = 15
+JOB_POLL_INTERVAL_SECONDS: int = 5
+WORKER_CONCURRENCY: int = 1  # jobs processed at a time
+
+# Smart refresh
+REFRESH_RATING_CHANGE_THRESHOLD: float = 0.3
+REFRESH_REVIEW_CHANGE_THRESHOLD: int = 50
+REFRESH_CANDIDATE_TURNOVER_THRESHOLD: float = 0.2  # 20% candidate change triggers regeneration
