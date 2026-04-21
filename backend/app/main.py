@@ -16,8 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.core.http import get_http_client, close_http_client
 from app.core.middleware import RequestTracingMiddleware, RequestLoggingFilter
-from app.routers import auth, export, trips, places
-from app.routers.trips import shared_router
+from app.routers import auth, export, places, cities, journeys, admin, sharing
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +56,8 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     application = FastAPI(
-        title="Regular Everyday Traveller",
-        version="2.0.0",
+        title="RET — Content Platform",
+        version="3.0.0",
         lifespan=lifespan,
     )
 
@@ -80,8 +79,10 @@ def create_app() -> FastAPI:
         )
 
     application.include_router(auth.router)
-    application.include_router(trips.router)
-    application.include_router(shared_router)
+    application.include_router(cities.router)
+    application.include_router(journeys.router)
+    application.include_router(admin.router)
+    application.include_router(sharing.router)
     application.include_router(export.router)
     application.include_router(places.router)
 
@@ -89,7 +90,7 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         return {
             "status": "healthy",
-            "version": "2.0.0",
+            "version": "3.0.0",
             "llm_provider": settings.llm_provider,
         }
 
